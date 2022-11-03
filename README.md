@@ -12,6 +12,9 @@ The following features will be implemented in the future:
 - Channel 8 drum mode (softmixing 8-bit PCM samples into 1 channel)
 - A whole-ass tracker for this
 - Saving tracker data to SRAM and sharing .srm files of songs
+- SNES Mouse and NTT Data Pad support along with standard controllers
+- Miracle Piano Teaching System keyboard support (if anyone i know gets one)
+- XBAND ASCII keyboard support (if anyone i know gets one)
 
 The engine is not realtime since the SPC700 is slow af, the engine generates all the instruments before playing a song.
 
