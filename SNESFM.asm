@@ -11,7 +11,7 @@ incsrc "header.asm"
 incsrc "initSNES.asm"
 
 org $068000
-incbin "palette.bin"
+incbin "palette.pal"
 org $06A000
 incbin "tiles.chr"
 org $06FC00
@@ -66,6 +66,7 @@ SPCTA:
     LDX $04         ;   If length = 0 it's a jump, therefore end transmission
     BEQ SPCTransferJump;__
     LDA #$CC
+    NOP
     STA $2140
     STA $2141
 SPCTransferLoop01:
@@ -147,14 +148,14 @@ dmaToVRAM1:
     STA $14			;DMA 1 A Bank
     LDX #$A000		;Address of tiles
     STX $12			;DMA 1 A Offset
-    LDX #$0800		;Amount of data
+    LDX #$0C00		;Amount of data
     STX $15			;DMA 1 Number of bytes
     LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
     STA $10
     LDA #%00000011	;bit 2 corresponds to channel 0
     STA $420B		;Init
 dmaToVRAM2:
-    LDX #$0400		;Address to write to in VRAM
+    LDX #$0800		;Address to write to in VRAM
     STX $2116		;Write it to tell Snes that
     LDA #$18		;VRAM Write register
     STA $21			;DMA 2 B Address
@@ -201,9 +202,9 @@ TurnOnScreen:
     STZ $210E
     LDA #%00000100
     STA $212C
-    LDA #%00000100
+    LDA #%00001000
     STA $2107
-    LDA #%00010100
+    LDA #%00011000
     STA $2109
     lda #$80            ; = 10000000
     sta $2100           ; F-Blank
@@ -224,7 +225,18 @@ forever:
         jmp forever
 org $008400
 nmi:
-    LDX #$16CC
+    ; Scrolling
+    LDA $20
+    STA $210d
+    LDA $21
+    STA $210d
+    LDA $22
+    STA $210E
+    LDA $23
+    STA $210E
+
+    ;Update the mod strength number
+    LDX #$1ACC
     STX $2116
 
     LDA $10
@@ -249,7 +261,7 @@ nmi:
     LDA $12
     STA $2118
 
-
+    ; Plot the graph
     lda #$8F            ; = 10001111
     sta $2100           ; Turn on screen, full brightness
     JSL Decompress
@@ -258,69 +270,13 @@ nmi:
 
     PHA
     PHP
-    REP #%00010000 ;set xy to 16bit
-    SEP #%00100000 ;set a to 8bit
-    LDA #$00
-loop:
-  LSR $4212
-  BCS loop
-LDX $22
-LDA $4219
-BIT #$08
-BEQ a
-DEX
-a:
-BIT #$04
-BEQ b
-INX
-b:
-STX $22
-LDX $20
-BIT #$02
-BEQ c
-DEX
-c:
-BIT #$01
-BEQ d
-INX
-d:
-STX $20
+    REP #%00100000 ;set xy to 8bit
+    SEP #%00010000 ;set a to 16bit
 
-LDA $4218  ;Checking for L/R Shoulder buttons for more precise control (1/8 speed), buffer @ $24
-LDX $24
-BIT #$10
-BEQ Rcheck
-DEX
-Rcheck:
-BIT #$20
-BEQ ShoulderAfter
-INX
-ShoulderAfter:
-STX $24
-LDA $25
-BIT #$80    ;Checking for negative overflow
-BNE SA2
-LDY $20
-DEY
-STY $20
-STZ $21
-LDA #$07
-STA $24
-SA2:
-LDA $24
-BIT #$08
-BNE SA3
-LDY $20
-INY
-STY $20
-STZ $24
-STZ $25
-SA3:
+incsrc "controllerRoutine.asm"
 
-
-
-;scrolling
-;Check field
+REP #%00010000 ;set XY to 16bit
+SEP #%00100000 ;set A to 8bit
 
 LDA #%00000101
 STA $212C
@@ -328,14 +284,6 @@ LDA #%00000100
 STA $212D
 lda #$0F            ; = 00001111
 sta $2100           ; Turn on screen, full brightness
-LDA $20
-STA $210d
-LDA $21
-STA $210d
-LDA $22
-STA $210E
-LDA $23
-STA $210E
 
 lda #%00000001
 sta $4200
@@ -424,7 +372,7 @@ clearPaletteData:
     STX $2181		;Write it to tell Snes that
     LDA #$80		;WRAM Write register
     STA $01			;DMA 1 B Address
-    LDA #$07		;Bank of tileset
+    LDA #$01		;Bank of tileset
     STA $04			;DMA 1 A Bank
     LDX #$FFFF		;Address of tiles
     STX $02			;DMA 1 A Offset
@@ -466,7 +414,6 @@ Plot:
     LDY #$0000
 PlotLoop:
     TAX
-    REP #%00010000 ;set xy to 16bit
     SEP #%00100000 ;set a to 8bit
 	LDA #$FF
     STA $FE01,X
@@ -823,7 +770,7 @@ org $01E000
 arch spc700-inline
 ;   ==== Code/data distribution table: ====
 ;   page        purpose
-;   $00 _ _ _ _ Most variables and shit
+;   $00 _ _ _ _ $00 - $0F: Operating space of subroutines (how exactly described before every subroutine)
 ;   $01         $00 - $7F: Some other variables maybe
 ;   |__ _ _ _ _ $80 - $FF: Stack
 ;   $02(-$03?)_ Sample Directory
@@ -860,6 +807,8 @@ init:       ;init routine, totally not grabbed from tales of phantasia
     MOV $F3, A      ;__
     MOV $F2, #$5C   ;   Key Off everything
     MOV $F3, X      ;__
+    MOV $F2, #$5D   ;   Set sample directory at $0200
+    MOV $F3, #$02   ;__
     MOV $FA, #$82   ;   Set timer 0 to count every 16.25 ms
     MOV $F1, #$01   ;__
     MOV $F2, #$7D   ;
@@ -882,6 +831,7 @@ spcinit_000:        ;
         BEQ spcinit_002
         DBNZ Y, spcinit_002
                     ;__
+    MOV A, #$00     ;
     MOV $F2, #$5C   ;   Key off on all channels
     MOV $F3, #$FF   ;__
     MOV $F2, #$2D   ;   Disable Hardware Pitchmod
@@ -933,8 +883,28 @@ spcinit_000:        ;
     MOV $00, #$0C
     MOV $01, #$0C
     MOV $02, #$44
-    MOV $03, #$FF
+    MOV $03, #$20
     CALL SPC_PhaseModulation_1KB
+    ;Tryna play a BRR sample
+    MOV $F2, #$00;
+    MOV $F3, #$7F;vol left
+    MOV $F2, #$02;
+    MOV $F3, #$CE;
+    MOV $F2, #$03;
+    MOV $F3, #$0F;pitch
+    MOV $F2, #$04
+    MOV $F3, #$00;SCRN
+    MOV $F2, #$05
+    MOV $F3, #$00;use GAIN
+    MOV $F2, #$07
+    MOV $F3, #$7F;max volume right away
+    MOV $F2, #$5C
+    MOV $F3, #$00
+    MOV $F2, #$6C
+    MOV $F3, #$20
+    MOV $F2, #$4C
+    MOV $F3, #$01;PLAY
+
     MOV $F4, #$89
     MOV $F5, #$AB
     MOV $F6, #$CD
@@ -969,7 +939,7 @@ echoFIRtable:
 ;       $04-05 - Output index
 ;       $06-07 - Modulator index
 ;       $08-09 - Main temp variable
-;       $0A _ _- Page counter
+;       $0A- - - Page counter
 SPC_PhaseModulation_1KB:
     MOV X, #$00
     MOV $05, $02
@@ -1048,7 +1018,9 @@ SPC_PhaseModulation_1KB_loop_afterMul:
     CBNE $02, SPC_PhaseModulation_1KB_loop
     RET
 
-
+org $0200
+    dw $0204, $0204+9+9
+    incbin "brrtest.brr"
 org $0C00
     incbin "quartersinetable.bin"
 startpos init
