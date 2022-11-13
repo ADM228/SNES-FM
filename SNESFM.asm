@@ -885,9 +885,16 @@ spcinit_000:        ;
     MOV $02, #$44
     MOV $03, #$20
     CALL SPC_PhaseModulation_1KB
+    MOV $00, #$0C
+    MOV $01, #$0C
+    MOV $02, #$48
+    MOV $03, #$FF
+    CALL SPC_PhaseModulation_1KB
     ;Tryna play a BRR sample
     MOV $F2, #$00;
     MOV $F3, #$7F;vol left
+    MOV $F2, #$01;
+    MOV $F3, #$7F;vol right
     MOV $F2, #$02;
     MOV $F3, #$CE;
     MOV $F2, #$03;
@@ -1019,7 +1026,7 @@ SPC_PhaseModulation_1KB_loop_afterMul:
     RET
 
 org $0200
-    dw $0204, $0204+9+9
+    dw $0204, $0204+9
     incbin "brrtest.brr"
 org $0C00
     incbin "quartersinetable.bin"

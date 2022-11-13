@@ -18,25 +18,34 @@ length = 512
 array1 = np.fromfile("SNESFM-1.bst", dtype=np.int16, offset=147996+1024, count=512)
 array2 = np.fromfile("SNESFM-1.bst", dtype=np.int16, offset=66076+0, count=128)
 array = np.zeros(length+16)
-for i in range(0, len(array1), int(len(array1)/length)):
-    array[int(i/len(array1)*length)] = np.sum(array1[i:(i+int(len(array1)/length))])/int(len(array1)/length)
 
 
-BRRBuffer = np.zeros(16+length+16, np.float128)
+step = int(len(array1)/length)
+print (step)
+if step > 1:
+    for i in range(0, len(array1), step):
+        print (i)
+        array[int(i/step)] = np.sum(array1[i:(i+step-1)])/step
+else:
+    array = array1
+
+
+BRRBuffer = np.zeros(16+length, np.float128)
 brr_old = 0
 brr_oldest = 0
-BRROutput = np.zeros(int((16+length+16)*9/16), np.uint8)
+BRROutput = np.zeros(int((16+length)*9/16), np.uint8)
 if filter:
     for i in range(16, len(BRRBuffer)):
-        BRRBuffer[i] = (array[cap_number(i-16, length, length)]-brr_old-0.25*brr_oldest)/2
-        print (cap_number(i-16, length, length))
+        BRRBuffer[i] = (array[i-16]+brr_old+0.25*brr_oldest)/4
         brr_oldest = brr_old
         brr_old = BRRBuffer[i]
-        BRRBuffer[i]
 else:
     for i in range(16, len(BRRBuffer)):
-        BRRBuffer[i] = (array[i-16]-15/16*BRRBuffer[i-1])
+        BRRBuffer[i] = (array[i-16])/2
 
+for i in range(32, len(BRRBuffer)):
+    BRRBuffer[i] /= 4
+    BRRBuffer[i] -= 0.9375*BRRBuffer[i-1]
 # PLot
 
 x = np.arange(0, len(BRRBuffer))
@@ -59,23 +68,24 @@ plt.show()
 
 outindex = 0
 
-for i in range(0, int(len(BRRBuffer)/16)):
-    maximumabs = max(abs(np.max(BRRBuffer[(i*16):(i*16+15)])), abs(np.min(BRRBuffer[(i*16):(i*16+15)])))
+for i in range(0, len(BRRBuffer), 16):
+    maximumabs = max(abs(np.max(BRRBuffer[(i):(i+15)])), abs(np.min(BRRBuffer[(i):(i+15)])))
     if maximumabs > 0:
         logarithm = math.ceil(np.log2(maximumabs))-3
-        BRROutput[outindex] = (logarithm<<4) | 2 | 0<<2
+        BRROutput[outindex] = (logarithm<<4) | 2 | 1<<2
         outindex += 1
         for j in range(8):
-            BRRBuffer[i*16+j*2] = max(min((round(BRRBuffer[i*16+j*2]/(2**logarithm))),7), -8)
-            BRRBuffer[i*16+j*2+1] = max(min(round(BRRBuffer[i*16+j*2+1]/(2**logarithm)), 7), -8)
-            BRROutput[outindex] = ((np.uint8(BRRBuffer[i*16+j])&0x0F)<<4)
-            BRROutput[outindex] = BRROutput[outindex] | np.uint8(BRRBuffer[i*16+j+1])&0x0F
+            BRRBuffer[i+j*2] = max(min((round(BRRBuffer[i+j*2]/(2**logarithm))),7), -8)
+            BRRBuffer[i+j*2+1] = max(min(round(BRRBuffer[i+j*2+1]/(2**logarithm)), 7), -8)
+            BRROutput[outindex] = ((np.uint8(BRRBuffer[i+j])&0x0F)<<4)
+            BRROutput[outindex] = BRROutput[outindex] | np.uint8(BRRBuffer[i+j+1])&0x0F
             outindex += 1
     else:
         BRROutput[outindex] = 2
         outindex += 9
 
-BRROutput[outindex-9] = BRROutput[outindex-9] | 1
+BRROutput[9] &= 0xF2
+BRROutput[outindex-9] |= 1
 
 print( "=====")
 for i in range(0, len(BRRBuffer), 4):
