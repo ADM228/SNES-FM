@@ -849,7 +849,7 @@ spcinit_000:        ;
     MOV $F2, #$1C   ;
     MOV $F3, #$7F   ;__
     MOV $F1, #$00   ;
-    MOV $FA, #$08   ;   Set Timer 0 to 1 ms
+    MOV $FA, #$50   ;   Set Timer 0 to 10 ms
     MOV $F1, #$07   ;__
 
 ; Setting up the sine table
@@ -877,33 +877,54 @@ spcinit_000:        ;
         DBNZ Y, SPC_SineSetup_loop1
     MOV $00, #$0C
     MOV $01, #$0C
-    MOV $02, #$44
-    MOV $03, #$10
-    CALL SPC_PhaseModulation_1KB
-    MOV $00, #$44
-    MOV $01, #$0C
     MOV $02, #$40
-    MOV $03, #$10
-    CALL SPC_PhaseModulation_1KB
-    MOV $00, #$0C
-    MOV $01, #$0C
-    MOV $02, #$44
     MOV $03, #$20
     CALL SPC_PhaseModulation_1KB
     MOV $00, #$0C
     MOV $01, #$0C
+    MOV $02, #$44
+    MOV $03, #$1C
+    CALL SPC_PhaseModulation_1KB
+    MOV $00, #$0C
+    MOV $01, #$0C
     MOV $02, #$48
-    MOV $03, #$FF
+    MOV $03, #$18
+    CALL SPC_PhaseModulation_1KB
+    MOV $00, #$0C
+    MOV $01, #$0C
+    MOV $02, #$4C
+    MOV $03, #$14
+    CALL SPC_PhaseModulation_1KB
+
+    MOV $00, #$0C
+    MOV $01, #$0C
+    MOV $02, #$50
+    MOV $03, #$10
+    CALL SPC_PhaseModulation_1KB
+    MOV $00, #$0C
+    MOV $01, #$0C
+    MOV $02, #$54
+    MOV $03, #$0C
+    CALL SPC_PhaseModulation_1KB
+    MOV $00, #$0C
+    MOV $01, #$0C
+    MOV $02, #$58
+    MOV $03, #$08
+    CALL SPC_PhaseModulation_1KB
+    MOV $00, #$0C
+    MOV $01, #$0C
+    MOV $02, #$5C
+    MOV $03, #$04
     CALL SPC_PhaseModulation_1KB
     ;Tryna play a BRR sample
     MOV $F2, #$00;
-    MOV $F3, #$7F;vol left
+    MOV $F3, #$80;vol left
     MOV $F2, #$01;
     MOV $F3, #$7F;vol right
     MOV $F2, #$02;
-    MOV $F3, #$CE;
+    MOV $F3, #$30;
     MOV $F2, #$03;
-    MOV $F3, #$0F;pitch
+    MOV $F3, #$04;pitch
     MOV $F2, #$04
     MOV $F3, #$00;SCRN
     MOV $F2, #$05
@@ -917,11 +938,37 @@ spcinit_000:        ;
     MOV $F2, #$4C
     MOV $F3, #$01;PLAY
 
+    MOV A, $0202
+    MOV Y, $0203
+    MOVW $10, YA
+
+    MOV $12, #$07
+    MOV $13, #$0A
+    MOV A, $FD
+SPC_pointerAdvanceTest:
+    MOV $14, $FD
+    SETC
+    SBC $13, $14
+    BNE SPC_pointerAdvanceTest
+    MOV $13, #$0A
+    CALL SPC_advancePointer
+    DBNZ $12, SPC_pointerAdvanceTest
+
+
     MOV $F4, #$89
     MOV $F5, #$AB
     MOV $F6, #$CD
     MOV $F7, #$EF
     STOP
+
+SPC_advancePointer:
+    MOV A, #$48
+    MOV Y, #$00
+    ADDW YA, $10
+    MOV $0202, A
+    MOV $0203, Y
+    MOVW $10, YA
+    RET
 
 SPC_set_echoFIR:
     MOV $00, #$08
@@ -1031,10 +1078,18 @@ SPC_PhaseModulation_1KB_loop_afterMul:
     RET
 
 
-length = 512
 org $0200
-    dw $0204, $0204+9+(length/16*9)
-    incbin "brrtest.brr"
+    dw $0400, $0409
+org $0400
+    db $03, $00, $00, $00, $00, $00, $00, $00, $00
+    incbin "brr0.brr"
+    incbin "brr1.brr"
+    incbin "brr2.brr"
+    incbin "brr3.brr"
+    incbin "brr4.brr"
+    incbin "brr5.brr"
+    incbin "brr6.brr"
+    incbin "brr7.brr"
 org $0C00
     incbin "quartersinetable.bin"
 org $1000
