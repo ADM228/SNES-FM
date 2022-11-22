@@ -32,7 +32,7 @@ else:
     array = array1
 
 
-BRRBuffer = np.zeros(length, np.float128)
+BRRBuffer = np.zeros(length, np.int16)
 brr_old = 0
 brr_oldest = 0
 BRROutput = np.zeros(int((length)*9/16), np.uint8)
