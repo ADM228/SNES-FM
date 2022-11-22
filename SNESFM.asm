@@ -50,6 +50,8 @@ SPCTransferLoop00:
     STX $01         ;   Base address: $01E000
     STZ $00         ;__
 SPCTA:
+    NOP 
+    NOP
     LDY #$0002      ;
     LDA [$00],Y     ;
     STA $2142       ;
@@ -66,7 +68,6 @@ SPCTA:
     LDX $04         ;   If length = 0 it's a jump, therefore end transmission
     BEQ SPCTransferJump;__
     LDA #$CC
-    NOP
     STA $2140
     STA $2141
 SPCTransferLoop01:
@@ -102,6 +103,8 @@ SPCTransferLoop03:
     ADC $05
     STA $01
     TYA
+    INC A
+    INC A
     INC A
     STA $2140
     BRA SPCTA
@@ -784,6 +787,8 @@ arch spc700-inline
 org $2000
 init:       ;init routine, totally not grabbed from tales of phantasia
     NOP
+    NOP
+    NOP
     CLRP
     MOV A, #$00     ;__
     MOV $F4, A      ;
@@ -1025,9 +1030,14 @@ SPC_PhaseModulation_1KB_loop_afterMul:
     CBNE $02, SPC_PhaseModulation_1KB_loop
     RET
 
+
+length = 512
 org $0200
-    dw $0204, $0204+9
+    dw $0204, $0204+9+(length/16*9)
     incbin "brrtest.brr"
 org $0C00
     incbin "quartersinetable.bin"
+org $1000
+    ; Song data
+    incsrc "songData.asm"
 startpos init
