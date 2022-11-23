@@ -5,10 +5,10 @@ The following features are already implemented:
 - Phase modulation on the SPC700
 - Phase modulation on the 65816 (for testing purposes)
 - Basic "UI" to change the mod strength on the 65816
+- PCM to BRR conversion (in python for now) and sound
 
 The following features will be implemented in the future:
 - On-demand pulse and tilted saw/triangle synthesis 
-- PCM to BRR conversion and y'know, sound
 - Channel 8 drum mode (softmixing 8-bit PCM samples into 1 channel)
 - A whole-ass tracker for this
 - Saving tracker data to SRAM and sharing .srm files of songs
