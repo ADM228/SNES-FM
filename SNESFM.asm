@@ -879,43 +879,43 @@ spcinit_000:        ;
     MOV $01, #$0C
     MOV $02, #$40
     MOV $03, #$20
-    CALL SPC_PhaseModulation_1KB
+    CALL SPC_PhaseModulation_512
     MOV $00, #$0C
     MOV $01, #$0C
     MOV $02, #$44
     MOV $03, #$1C
-    CALL SPC_PhaseModulation_1KB
+    CALL SPC_PhaseModulation_512
     MOV $00, #$0C
     MOV $01, #$0C
     MOV $02, #$48
     MOV $03, #$18
-    CALL SPC_PhaseModulation_1KB
+    CALL SPC_PhaseModulation_512
     MOV $00, #$0C
     MOV $01, #$0C
     MOV $02, #$4C
     MOV $03, #$14
-    CALL SPC_PhaseModulation_1KB
+    CALL SPC_PhaseModulation_512
 
     MOV $00, #$0C
     MOV $01, #$0C
     MOV $02, #$50
     MOV $03, #$10
-    CALL SPC_PhaseModulation_1KB
+    CALL SPC_PhaseModulation_512
     MOV $00, #$0C
     MOV $01, #$0C
     MOV $02, #$54
     MOV $03, #$0C
-    CALL SPC_PhaseModulation_1KB
+    CALL SPC_PhaseModulation_512
     MOV $00, #$0C
     MOV $01, #$0C
     MOV $02, #$58
     MOV $03, #$08
-    CALL SPC_PhaseModulation_1KB
+    CALL SPC_PhaseModulation_512
     MOV $00, #$0C
     MOV $01, #$0C
     MOV $02, #$5C
     MOV $03, #$04
-    CALL SPC_PhaseModulation_1KB
+    CALL SPC_PhaseModulation_512
     ;Tryna play a BRR sample
     MOV $F2, #$00;
     MOV $F3, #$80;vol left
@@ -935,39 +935,108 @@ spcinit_000:        ;
     MOV $F3, #$00
     MOV $F2, #$6C
     MOV $F3, #$20
-    MOV $F2, #$4C
-    MOV $F3, #$01;PLAY
+
 
     MOV A, $0202
     MOV Y, $0203
     MOVW $10, YA
 
     MOV $12, #$07
-    MOV $13, #$0A
+    MOV $13, #$03
+    MOV $1D, #$00
+    MOV $1F, #$10
+    MOV $1E, #$00
     MOV A, $FD
-SPC_pointerAdvanceTest:
+SPC_FetchNote:
+    BBS0 $1D, SPC_mainLoop_00
+    MOV Y, #$00
+    MOV A, ($1E)+Y
+    INCW $1E
+    CLRC
+    ROL A
+    BCC SPC_FetchNote_01
+;Retrigger
+    MOV X, A    ;Equivalent of PUSH A but 2 less cycles
+    MOV A, #$09
+    MOV Y, #$04
+    MOVW $10, YA
+    CALL SPC_updatePointer0
+    CLR1 $1D
+    MOV $12, #$07
+    MOV $13, #$03
+    MOV A, X    ;Equivalent of POP A but 2 less cycles
+SPC_FetchNote_01:
+    MOV Y, A
+    MOV A, $0B00+Y
+    MOV $F2, #$02;
+    MOV $F3, A
+    MOV A, $0B01+Y
+    MOV $F2, #$03;
+    MOV $F3, A ;pitch
+    MOV Y, #$00
+    MOV A, ($1E)+Y
+    INCW $1E
+    MOV $15, A
+    MOV $F2, #$4C
+    MOV $F3, #$01;PLAY
+    MOV A, ($1E)+Y
+    CMP A, #$FF
+    BNE SPC_mainLoop_00
+    SET0 $1D
+    BBS1 $1D, SPC_End
+SPC_mainLoop_00:
     MOV $14, $FD
     SETC
     SBC $13, $14
-    BNE SPC_pointerAdvanceTest
-    MOV $13, #$0A
+    BEQ SPC_advancePointerl
+    BMI SPC_advancePointerl
+SPC_mainLoop_01:
+    SETC
+    SBC $15, $14
+    BEQ SPC_FetchNote
+    BMI SPC_FetchNote
+    JMP SPC_mainLoop_00
+
+SPC_advancePointerl:
+    BBS1 $1D, SPC_mainLoop_01
+    MOV $13, #$03
     CALL SPC_advancePointer
-    DBNZ $12, SPC_pointerAdvanceTest
+    DBNZ $12, SPC_mainLoop_01
+    SET1 $1D
+    JMP SPC_mainLoop_01
 
-
+SPC_End:
     MOV $F4, #$89
     MOV $F5, #$AB
     MOV $F6, #$CD
     MOV $F7, #$EF
     STOP
 
+
+
 SPC_advancePointer:
     MOV A, #$48
     MOV Y, #$00
     ADDW YA, $10
+    MOVW $10, YA
+    CALL SPC_updatePointer0
+    RET
+
+SPC_updatePointer0:         ;When the sample is 0
+    MOVW YA, $10
+    BBS7 $1D, SPC_updatePointer1
+    MOV $0206, A
+    MOV $0207, Y
+    MOV $F2, #$04
+    MOV $F3, #$01;SCRN
+    SET7 $1D
+    RET
+SPC_updatePointer1:
     MOV $0202, A
     MOV $0203, Y
-    MOVW $10, YA
+    MOV $F2, #$04
+    MOV $F3, #$00;SCRN
+    CLR7 $1D
     RET
 
 SPC_set_echoFIR:
@@ -999,7 +1068,7 @@ echoFIRtable:
 ;       $06-07 - Modulator index
 ;       $08-09 - Main temp variable
 ;       $0A- - - Page counter
-SPC_PhaseModulation_1KB:
+SPC_PhaseModulation_512:
     MOV X, #$00
     MOV $05, $02
     MOV $07, $01
@@ -1007,11 +1076,11 @@ SPC_PhaseModulation_1KB:
     MOV $0A, X
     MOV $04, X
     MOV $06, X
-SPC_PhaseModulation_1KB_loop:
+SPC_PhaseModulation_512_loop:
     INC $06
     MOV A, ($06+X)
     MOV $09, A
-    BBS7 $09, SPC_PhaseModulation_1KB_loop_negative 
+    BBS7 $09, SPC_PhaseModulation_512_loop_negative 
     MOV Y, $03      ;Mod strength
     MUL YA
     MOVW $08, YA
@@ -1024,8 +1093,8 @@ SPC_PhaseModulation_1KB_loop:
     CLRC
     ADC A, $08
     ADC $09, #$00
-    JMP SPC_PhaseModulation_1KB_loop_afterMul
-SPC_PhaseModulation_1KB_loop_negative:
+    JMP SPC_PhaseModulation_512_loop_afterMul
+SPC_PhaseModulation_512_loop_negative:
     EOR A, #$FF
     MOV Y, $03      ;Mod strength
     MUL YA
@@ -1042,7 +1111,7 @@ SPC_PhaseModulation_1KB_loop_negative:
     ADC $09, #$00
     EOR A, #$FF
     EOR $09, #$FF
-SPC_PhaseModulation_1KB_loop_afterMul:
+SPC_PhaseModulation_512_loop_afterMul:
 
     ROR $09
     ROR A
@@ -1069,17 +1138,104 @@ SPC_PhaseModulation_1KB_loop_afterMul:
     INC $06
     INC $06
     MOV A, $04
-    BNE SPC_PhaseModulation_1KB_loop
+    BNE SPC_PhaseModulation_512_loop
     INC $0A
     INC $05
     INC $07
     MOV A, $05
-    CBNE $02, SPC_PhaseModulation_1KB_loop
+    CBNE $02, SPC_PhaseModulation_512_loop
     RET
 
+;   Memory table:
+;       Inputs:
+;       $00 - Carrier page
+;       $01 - Modulator page
+;       $02 - Output page
+;       $03 - Modulation strength
+;       Temp variables:
+;       $04-05 - Output pointer
+;       $06-07 - Modulator pointer
+;       $08-09 - Main temp variable
+SPC_PhaseModulation_128:
+    MOV X, #$00
+    MOV $05, $02
+    MOV $07, $01
+    ADC $02, #$04
+    MOV $0A, X
+    MOV $04, X
+    MOV $06, X
+SPC_PhaseModulation_128_loop:
+    INC $06
+    MOV A, ($06+X)
+    MOV $09, A
+    BBS7 $09, SPC_PhaseModulation_128_loop_negative 
+    MOV Y, $03      ;Mod strength
+    MUL YA
+    MOVW $08, YA
+
+    DEC $06
+    MOV A, ($06+X)
+    MOV Y, $03      ;Mod strength
+    MUL YA
+    MOV A, Y
+    CLRC
+    ADC A, $08
+    ADC $09, #$00
+    JMP SPC_PhaseModulation_128_loop_afterMul
+SPC_PhaseModulation_128_loop_negative:
+    EOR A, #$FF
+    MOV Y, $03      ;Mod strength
+    MUL YA
+    MOVW $08, YA
+
+    DEC $06
+    MOV A, ($06+X)
+    EOR A, #$FF
+    MOV Y, $03      ;Mod strength
+    MUL YA
+    MOV A, Y
+    CLRC
+    ADC A, $08
+    ADC $09, #$00
+    EOR A, #$FF
+    EOR $09, #$FF
+SPC_PhaseModulation_128_loop_afterMul:
+
+    ROR $09
+    ROR A
+    ROR $09
+    ROR A
+    ROR $09
+    ROR A
+    AND A, #$FE
+    CLRC
+    ADC A, $04 
+
+    ADC $09, $0A
+    AND $09, #$03
+    ADC $09, $00
+    MOV $08, A
+    MOV Y, #$00
+    MOV A, ($08)+Y
+    MOV ($04)+Y, A
+    INC Y
+    MOV A, ($08)+Y
+    MOV ($04)+Y, A
+    INC $04
+    INC $04
+    INC $06
+    INC $06
+    MOV A, $04
+    BNE SPC_PhaseModulation_128_loop
+    INC $0A
+    INC $05
+    INC $07
+    MOV A, $05
+    CBNE $02, SPC_PhaseModulation_128_loop
+    RET
 
 org $0200
-    dw $0400, $0409
+    dw $0400, $0409, $0400, $0409
 org $0400
     db $03, $00, $00, $00, $00, $00, $00, $00, $00
     incbin "brr0.brr"
@@ -1090,6 +1246,8 @@ org $0400
     incbin "brr5.brr"
     incbin "brr6.brr"
     incbin "brr7.brr"
+org $0B00
+    incbin "pitchtable.bin"
 org $0C00
     incbin "quartersinetable.bin"
 org $1000

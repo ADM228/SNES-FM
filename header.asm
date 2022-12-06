@@ -1,6 +1,6 @@
 
 ;==== FRIENDLY HEADER BY alexmush ====;
-!MAPMODE = #$20
+!MAPMODE = #$21
 !ROMTYPE = $00
 !ROMSIZE = $08
 !SRAMSIZE = $00

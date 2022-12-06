@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 filter = False
-
+average = False
 num = 0
 
 def int8_t(entry):
@@ -25,9 +25,14 @@ array = np.zeros(length)
 step = int(len(array1)/length)
 print (step)
 if step > 1:
-    for i in range(0, len(array1), step):
-        print (i)
-        array[int(i/step)] = np.sum(array1[i:(i+step)])/step
+    if average:
+        for i in range(0, len(array1), step):
+            print (i)
+            array[int(i/step)] = np.sum(array1[i:(i+step)])/step
+    else:
+        for i in range(0, len(array1), step):
+            print (i)
+            array[int(i/step)] = np.sum(array1[i])
 else:
     array = array1
 
