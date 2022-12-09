@@ -8,6 +8,21 @@
 ;   TBD
 ;3. Song data
 ;   TBD
+; dw instrdata
+; dw 1chdata
+; dw 1chdata
+; dw 1chdata
+; dw 1chdata
+; dw 1chdata
+; dw 1chdata
+; dw 1chdata
+; dw 1chdata
+
+; instrdata:
+; db $10, $15
+
+
+; 1chdata:
 db $B0, $0C
 db $3C, $0C
 db $30, $0C
