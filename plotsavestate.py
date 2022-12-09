@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 array = np.fromfile("SNESFM-1.bst", dtype=np.int16, offset=147996+0, count=512)
-array2 = np.fromfile("SNESFM-1.bst", dtype=np.int16, offset=66076+0, count=128)
+array2 = np.fromfile("SNESFM-2.bst", dtype=np.int16, offset=147996+0, count=128)
 array3 = np.zeros(512)
 
 for i in range (len(array2)):
@@ -19,8 +19,8 @@ y = np.arange(12, 17)
 
 # PLot
 
-plt.plot(x,array) 
-#plt.plot(x,array3,linestyle="--")
+plt.plot(x,array,linestyle="--") 
+plt.plot(x,array3,linestyle="-")
 
 # Add Title
 

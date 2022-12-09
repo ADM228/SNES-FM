@@ -858,67 +858,69 @@ spcinit_000:        ;
 ; Setting up the sine table
 
     MOV X, #$02     ;__ X contains the source index,
-    MOV Y, #$FE     ;__ Y contains the destination index
+    MOV Y, #$3E     ;__ Y contains the destination index
 
     SPC_SineSetup_loop0:
         MOV A, $0C00+X
         INC X
-        MOV $0D00+Y, A
+        MOV $0C40+Y, A
         MOV A, $0C00+X
         INC X
-        MOV $0D01+Y, A
+        MOV $0C41+Y, A
         DEC Y
         DBNZ Y, SPC_SineSetup_loop0
     
+    MOV Y, #$3F
+
     SPC_SineSetup_loop1:
         MOV A, $0C00+Y
         EOR A, #$FF
-        MOV $0E00+Y, A
-        MOV A, $0D00+Y
+        MOV $0C80+Y, A
+        MOV A, $0C40+Y
         EOR A, #$FF
-        MOV $0F00+Y, A
+        MOV $0CC0+Y, A
         DBNZ Y, SPC_SineSetup_loop1
-    MOV !MOD_512_CAR_PAGE, #$0C
-    MOV !MOD_512_MOD_PAGE, #$0C
-    MOV !MOD_512_OUT_PAGE, #$40
-    MOV !MOD_512_MOD_STRENGTH, #$20
-    CALL SPC_PhaseModulation_512
-    MOV !MOD_512_CAR_PAGE, #$0C
-    MOV !MOD_512_MOD_PAGE, #$0C
-    MOV !MOD_512_OUT_PAGE, #$44
-    MOV !MOD_512_MOD_STRENGTH, #$1C
-    CALL SPC_PhaseModulation_512
-    MOV !MOD_512_CAR_PAGE, #$0C
-    MOV !MOD_512_MOD_PAGE, #$0C
-    MOV !MOD_512_OUT_PAGE, #$48
-    MOV !MOD_512_MOD_STRENGTH, #$18
-    CALL SPC_PhaseModulation_512
-    MOV !MOD_512_CAR_PAGE, #$0C
-    MOV !MOD_512_MOD_PAGE, #$0C
-    MOV !MOD_512_OUT_PAGE, #$4C
-    MOV !MOD_512_MOD_STRENGTH, #$14
-    CALL SPC_PhaseModulation_512
+    MOV !MOD_CAR_PAGE, #$0C
+    MOV !MOD_MOD_PAGE, #$0C
+    MOV !MOD_OUT_PAGE, #$40
+    MOV !MOD_MOD_STRENGTH, #$20
+    CALL SPC_PhaseModulation_128
+    MOV !MOD_CAR_PAGE, #$0C
+    MOV !MOD_MOD_PAGE, #$0C
+    MOV !MOD_OUT_PAGE, #$41
+    MOV !MOD_MOD_STRENGTH, #$1E
+    CALL SPC_PhaseModulation_128
+    MOV !MOD_CAR_PAGE, #$0C
+    MOV !MOD_MOD_PAGE, #$0C
+    MOV !MOD_OUT_PAGE, #$42
+    MOV !MOD_MOD_STRENGTH, #$1C
+    CALL SPC_PhaseModulation_128
+    MOV !MOD_CAR_PAGE, #$0C
+    MOV !MOD_MOD_PAGE, #$0C
+    MOV !MOD_OUT_PAGE, #$43
+    MOV !MOD_MOD_STRENGTH, #$1A
+    CALL SPC_PhaseModulation_128
 
-    MOV !MOD_512_CAR_PAGE, #$0C
-    MOV !MOD_512_MOD_PAGE, #$0C
-    MOV !MOD_512_OUT_PAGE, #$50
-    MOV !MOD_512_MOD_STRENGTH, #$10
-    CALL SPC_PhaseModulation_512
-    MOV !MOD_512_CAR_PAGE, #$0C
-    MOV !MOD_512_MOD_PAGE, #$0C
-    MOV !MOD_512_OUT_PAGE, #$54
-    MOV !MOD_512_MOD_STRENGTH, #$0C
-    CALL SPC_PhaseModulation_512
-    MOV !MOD_512_CAR_PAGE, #$0C
-    MOV !MOD_512_MOD_PAGE, #$0C
-    MOV !MOD_512_OUT_PAGE, #$58
-    MOV !MOD_512_MOD_STRENGTH, #$08
-    CALL SPC_PhaseModulation_512
-    MOV !MOD_512_CAR_PAGE, #$0C
-    MOV !MOD_512_MOD_PAGE, #$0C
-    MOV !MOD_512_OUT_PAGE, #$5C
-    MOV !MOD_512_MOD_STRENGTH, #$04
-    CALL SPC_PhaseModulation_512
+    MOV !MOD_CAR_PAGE, #$0C
+    MOV !MOD_MOD_PAGE, #$0C
+    MOV !MOD_OUT_PAGE, #$40
+    MOV !MOD_MOD_STRENGTH, #$20
+    CALL SPC_PhaseModulation_128
+    MOV !MOD_CAR_PAGE, #$0C
+    MOV !MOD_MOD_PAGE, #$0C
+    MOV !MOD_OUT_PAGE, #$41
+    MOV !MOD_MOD_STRENGTH, #$1E
+    CALL SPC_PhaseModulation_128
+    MOV !MOD_CAR_PAGE, #$0C
+    MOV !MOD_MOD_PAGE, #$0C
+    MOV !MOD_OUT_PAGE, #$42
+    MOV !MOD_MOD_STRENGTH, #$1C
+    CALL SPC_PhaseModulation_128
+    MOV !MOD_CAR_PAGE, #$0C
+    MOV !MOD_MOD_PAGE, #$0C
+    MOV !MOD_OUT_PAGE, #$43
+    MOV !MOD_MOD_STRENGTH, #$1A
+    CALL SPC_PhaseModulation_128
     ;Tryna play a BRR sample
     MOV $F2, #$00;
     MOV $F3, #$80;vol left
@@ -1068,174 +1070,80 @@ echoFIRtable:
 ;       $02 - Output page
 ;       $03 - Modulation strength
 ;       Temp variables:
-;       $04-05 - Output index
-;       $06-07 - Modulator index
-;       $08-09 - Main temp variable
-;       $0A- - - Page counter
-SPC_PhaseModulation_512:
-    MOV X, #$00
-    MOV !MOD_512_OUT_INDEX_H, !MOD_512_OUT_PAGE
-    MOV !MOD_512_MOD_INDEX_H, !MOD_512_MOD_PAGE
-    ADC !MOD_512_OUT_PAGE, #$04
-    MOV !MOD_512_PAGE_COUNT, X
-    MOV !MOD_512_OUT_INDEX_L, X
-    MOV !MOD_512_MOD_INDEX_L, X
-SPC_PhaseModulation_512_loop:
-    INC !MOD_512_MOD_INDEX_L
-    MOV A, (!MOD_512_MOD_INDEX_L+X)
-    MOV !MOD_512_MAIN_TEMP_H, A
-    BBS7 !MOD_512_MAIN_TEMP_H, SPC_PhaseModulation_512_loop_negative 
-    MOV Y, !MOD_512_MOD_STRENGTH      ;Mod strength
-    MUL YA
-    MOVW !MOD_512_MAIN_TEMP_L, YA
-
-    DEC !MOD_512_MOD_INDEX_L
-    MOV A, (!MOD_512_MOD_INDEX_L+X)
-    MOV Y, !MOD_512_MOD_STRENGTH      ;Mod strength
-    MUL YA
-    MOV A, Y
-    CLRC
-    ADC A, !MOD_512_MAIN_TEMP_L
-    ADC !MOD_512_MAIN_TEMP_H, #$00
-    JMP SPC_PhaseModulation_512_loop_afterMul
-SPC_PhaseModulation_512_loop_negative:
-    EOR A, #$FF
-    MOV Y, !MOD_512_MOD_STRENGTH      ;Mod strength
-    MUL YA
-    MOVW !MOD_512_MAIN_TEMP_L, YA
-
-    DEC !MOD_512_MOD_INDEX_L
-    MOV A, (!MOD_512_MOD_INDEX_L+X)
-    EOR A, #$FF
-    MOV Y, !MOD_512_MOD_STRENGTH      ;Mod strength
-    MUL YA
-    MOV A, Y
-    CLRC
-    ADC A, !MOD_512_MAIN_TEMP_L
-    ADC !MOD_512_MAIN_TEMP_H, #$00
-    EOR A, #$FF
-    EOR !MOD_512_MAIN_TEMP_H, #$FF
-SPC_PhaseModulation_512_loop_afterMul:
-
-    ROR !MOD_512_MAIN_TEMP_H
-    ROR A
-    ROR !MOD_512_MAIN_TEMP_H
-    ROR A
-    ROR !MOD_512_MAIN_TEMP_H
-    ROR A
-    AND A, #$FE
-    CLRC
-    ADC A, !MOD_512_OUT_INDEX_L 
-
-    ADC !MOD_512_MAIN_TEMP_H, !MOD_512_PAGE_COUNT
-    AND !MOD_512_MAIN_TEMP_H, #$03
-    ADC !MOD_512_MAIN_TEMP_H, !MOD_512_CAR_PAGE
-    MOV !MOD_512_MAIN_TEMP_L, A
-    MOV Y, #$00
-    MOV A, (!MOD_512_MAIN_TEMP_L)+Y
-    MOV (!MOD_512_OUT_INDEX_L)+Y, A
-    INC Y
-    MOV A, (!MOD_512_MAIN_TEMP_L)+Y
-    MOV (!MOD_512_OUT_INDEX_L)+Y, A
-    INC !MOD_512_OUT_INDEX_L
-    INC !MOD_512_OUT_INDEX_L
-    INC !MOD_512_MOD_INDEX_L
-    INC !MOD_512_MOD_INDEX_L
-    MOV A, !MOD_512_OUT_INDEX_L
-    BNE SPC_PhaseModulation_512_loop
-    INC !MOD_512_PAGE_COUNT
-    INC !MOD_512_OUT_INDEX_H
-    INC !MOD_512_MOD_INDEX_H
-    MOV A, !MOD_512_OUT_INDEX_H
-    CBNE !MOD_512_OUT_PAGE, SPC_PhaseModulation_512_loop
-    RET
-
-;   Memory table:
-;       Inputs:
-;       $00 - Carrier page
-;       $01 - Modulator page
-;       $02 - Output page
-;       $03 - Modulation strength
-;       Temp variables:
 ;       $04-05 - Output pointer
 ;       $06-07 - Modulator pointer
 ;       $08-09 - Main temp variable
 SPC_PhaseModulation_128:
     MOV X, #$00
-    MOV $05, $02
-    MOV $07, $01
-    ADC $02, #$04
-    MOV $0A, X
-    MOV $04, X
-    MOV $06, X
+    MOV !MOD_OUT_INDEX_H, !MOD_OUT_PAGE
+    MOV !MOD_MOD_INDEX_H, !MOD_MOD_PAGE
+    MOV !MOD_OUT_INDEX_L, X
+    MOV !MOD_MOD_INDEX_L, X
 SPC_PhaseModulation_128_loop:
-    INC $06
-    MOV A, ($06+X)
-    MOV $09, A
-    BBS7 $09, SPC_PhaseModulation_128_loop_negative 
-    MOV Y, $03      ;Mod strength
+    INC !MOD_MOD_INDEX_L
+    MOV A, (!MOD_MOD_INDEX_L+X)
+    MOV !MOD_MAIN_TEMP_H, A
+    BBS7 !MOD_MAIN_TEMP_H, SPC_PhaseModulation_128_loop_negative 
+    MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
     MUL YA
-    MOVW $08, YA
+    MOVW !MOD_MAIN_TEMP_L, YA
 
-    DEC $06
-    MOV A, ($06+X)
-    MOV Y, $03      ;Mod strength
+    DEC !MOD_MOD_INDEX_L
+    MOV A, (!MOD_MOD_INDEX_L+X)
+    MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
     MUL YA
     MOV A, Y
     CLRC
-    ADC A, $08
-    ADC $09, #$00
+    ADC A, !MOD_MAIN_TEMP_L
+    ADC !MOD_MAIN_TEMP_H, #$00
     JMP SPC_PhaseModulation_128_loop_afterMul
 SPC_PhaseModulation_128_loop_negative:
     EOR A, #$FF
-    MOV Y, $03      ;Mod strength
+    MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
     MUL YA
-    MOVW $08, YA
+    MOVW !MOD_MAIN_TEMP_L, YA
 
-    DEC $06
-    MOV A, ($06+X)
+    DEC !MOD_MOD_INDEX_L
+    MOV A, (!MOD_MOD_INDEX_L+X)
     EOR A, #$FF
-    MOV Y, $03      ;Mod strength
+    MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
     MUL YA
     MOV A, Y
     CLRC
-    ADC A, $08
-    ADC $09, #$00
+    ADC A, !MOD_MAIN_TEMP_L
+    ADC !MOD_MAIN_TEMP_H, #$00
     EOR A, #$FF
-    EOR $09, #$FF
+    EOR !MOD_MAIN_TEMP_H, #$FF
 SPC_PhaseModulation_128_loop_afterMul:
 
-    ROR $09
+    ROR !MOD_MAIN_TEMP_H
     ROR A
-    ROR $09
+    ROR !MOD_MAIN_TEMP_H
     ROR A
-    ROR $09
+    ROR !MOD_MAIN_TEMP_H
+    ROR A
+    ROR !MOD_MAIN_TEMP_H
+    ROR A
+    ROR !MOD_MAIN_TEMP_H
     ROR A
     AND A, #$FE
     CLRC
-    ADC A, $04 
+    ADC A, !MOD_OUT_INDEX_L 
 
-    ADC $09, $0A
-    AND $09, #$03
-    ADC $09, $00
-    MOV $08, A
+    MOV !MOD_MAIN_TEMP_H, !MOD_CAR_PAGE
+    MOV !MOD_MAIN_TEMP_L, A
     MOV Y, #$00
-    MOV A, ($08)+Y
-    MOV ($04)+Y, A
+    MOV A, (!MOD_MAIN_TEMP_L)+Y
+    MOV (!MOD_OUT_INDEX_L)+Y, A
     INC Y
-    MOV A, ($08)+Y
-    MOV ($04)+Y, A
-    INC $04
-    INC $04
-    INC $06
-    INC $06
-    MOV A, $04
+    MOV A, (!MOD_MAIN_TEMP_L)+Y
+    MOV (!MOD_OUT_INDEX_L)+Y, A
+    INC !MOD_OUT_INDEX_L
+    INC !MOD_OUT_INDEX_L
+    INC !MOD_MOD_INDEX_L
+    INC !MOD_MOD_INDEX_L
+    MOV A, !MOD_OUT_INDEX_L
     BNE SPC_PhaseModulation_128_loop
-    INC $0A
-    INC $05
-    INC $07
-    MOV A, $05
-    CBNE $02, SPC_PhaseModulation_128_loop
     RET
 
 org $0200
