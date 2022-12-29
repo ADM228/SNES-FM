@@ -50,8 +50,6 @@ SPCTransferLoop00:
     STX $01         ;   Base address: $01E000
     STZ $00         ;__
 SPCTA:
-    NOP 
-    NOP
     LDY #$0002      ;
     LDA [$00],Y     ;
     STA $2142       ;
@@ -64,12 +62,12 @@ SPCTA:
     INY             ;   Get the length, put it in $04-$05
     LDA [$00],Y     ;
     STA $05         ;__
-    INY             ;
     LDX $04         ;   If length = 0 it's a jump, therefore end transmission
     BEQ SPCTransferJump;__
     LDA #$CC
     STA $2140
     STA $2141
+    INY
 SPCTransferLoop01:
     LDA $2140
     CMP #$CC
@@ -107,7 +105,7 @@ SPCTransferLoop03:
     INC A
     INC A
     STA $2140
-    BRA SPCTA
+    JMP SPCTA
 
 SPCTransferJump:
     LDA #$00
@@ -774,24 +772,27 @@ arch spc700-inline
 incsrc "SPC_constants.asm"
 ;   ==== Code/data distribution table: ====
 ;   page        purpose
-;   $00         $00 - $7F: Flags & pointers for the note stuff:
-;   |           Song data pointer, Instrument data pointer, Sample pointer, note index, pitch, pitchbend
-;   |__ _ _ _ _ $D0 - $EF: Operating space of subroutines (how exactly described before every subroutine)
-;   $01         $00 - $7F: Some other variables maybe
+;   $00         $00 - $BF: Flags & pointers for the note stuff:
+;   |           Song data pointer, Instrument data pointer, Effect data pointer, Sample pointer, note index, pitch, pitchbend
+;   |__ _ _ _ _ $C0 - $EF: Operating space of subroutines (how exactly described before every subroutine)
+;   $01         $00 - $7F: Effect q
 ;   |__ _ _ _ _ $80 - $FF: Stack
 ;   $02(-$03?)_ Sample Directory
-;   $0C-$0F _ _ Sine table, only $0C00-0D02 is written, everything else is calculated
+;   $04-$07 _ _ BRR conversion buffer
+;   $0A-$0B _ _ 256 instrument data pointers
+;   $0C _ _ _ _ 7/8 multiplication lookup table
+;   $0D _ _ _ _ 15/16 multiplication lookup table
+;   $0E         $00 - $BF: Pitch table, 96 entries long
+;   |__ _ _ _ _ $C0 - $C8: Dummy empty sample (for beginnings and noise)
+;   $0F _ _ _ _ Sine table, only $0F00-$0F42 is written, everything else is calculated
 ;   $10-$1F _ _ Music data and custom BRR samples (indexed from end)
 ;   $20-$3F _ _ Code
-;   $40-$5F _ _ 8 FM generation buffers, 4 pages long each
-;   $60-$6F _ _ BRR conversion buffer
-;   $70-$7F _ _ Channel 8 PCM mode PCM buffer ?
-;   $88-$FF _ _ Echo buffer later
+;   $40-$5F _ _ 32 FM generation buffers, 1 page long each
+;   $60-$FE _ _ Actual sample storage, echo buffer (separated depending on the delay & amount of samples)
+;   $FF         $00 - $BF: Hardsync routine (here for use with PCALL to save 2 cycles)
+;   |__ _ _ _ _ $C0 - $FF: TCALL pointers/Boot ROM
 org $2000
 init:       ;init routine, totally not grabbed from tales of phantasia
-    NOP
-    NOP
-    NOP
     CLRP
     MOV A, #$00     ;__
     MOV $F4, A      ;
@@ -822,22 +823,22 @@ init:       ;init routine, totally not grabbed from tales of phantasia
     MOV $F2, #$7D   ;
     MOV Y, $F3      ;
     CMP Y, #$0F     ;
-    BCC spcinit_000 ;   Load {echo delay}+1 into y, capping off at 16 if needed
+    BCC +           ;   Load {echo delay}+1 into y, capping off at 16 if needed
     MOV Y, #$0F     ;
-spcinit_000:        ;
++:                  ;
     INC Y           ;__
-    spcinit_001:    ;
-        MOV A, $FD      ;
-        BEQ spcinit_001 ;   Time-wasting loop to clear the echo buffer
-        DBNZ Y,spcinit_001;__
+-:                  ;
+    MOV A, $FD      ;
+    BEQ -           ;   Time-wasting loop to clear the echo buffer
+    DBNZ Y,-        ;__
 
     MOV $F2, #$6C   ;
     MOV $F3, #$BF   ;___
     MOV Y, #$06     ;
-    spcinit_002:    ;Wait 97.5 ms for some reason
+    -:              ;Wait 97.5 ms for some reason
         MOV A, $FD  ;
-        BEQ spcinit_002
-        DBNZ Y, spcinit_002
+        BEQ -
+        DBNZ Y, -
                     ;__
     MOV A, #$00     ;
     MOV $F2, #$5C   ;   Key off on all channels
@@ -880,50 +881,50 @@ spcinit_000:        ;
         EOR A, #$FF
         MOV $0CC0+Y, A
         DBNZ Y, SPC_SineSetup_loop1
-    MOV !MOD_CAR_PAGE, #$0C
-    MOV !MOD_MOD_PAGE, #$0C
+    MOV !MOD_CAR_PAGE, #$0F
+    MOV !MOD_MOD_PAGE, #$0F
     MOV !MOD_OUT_PAGE, #$40
     MOV !MOD_MOD_STRENGTH, #$20
     CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0C
-    MOV !MOD_MOD_PAGE, #$0C
+    MOV !MOD_CAR_PAGE, #$0F
+    MOV !MOD_MOD_PAGE, #$0F
     MOV !MOD_OUT_PAGE, #$41
     MOV !MOD_MOD_STRENGTH, #$1E
     CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0C
-    MOV !MOD_MOD_PAGE, #$0C
+    MOV !MOD_CAR_PAGE, #$0F
+    MOV !MOD_MOD_PAGE, #$0F
     MOV !MOD_OUT_PAGE, #$42
     MOV !MOD_MOD_STRENGTH, #$1C
     CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0C
-    MOV !MOD_MOD_PAGE, #$0C
+    MOV !MOD_CAR_PAGE, #$0F
+    MOV !MOD_MOD_PAGE, #$0F
     MOV !MOD_OUT_PAGE, #$43
     MOV !MOD_MOD_STRENGTH, #$1A
     CALL SPC_PhaseModulation_128
 
-    MOV !MOD_CAR_PAGE, #$0C
-    MOV !MOD_MOD_PAGE, #$0C
+    MOV !MOD_CAR_PAGE, #$0F
+    MOV !MOD_MOD_PAGE, #$0F
     MOV !MOD_OUT_PAGE, #$40
     MOV !MOD_MOD_STRENGTH, #$20
     CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0C
-    MOV !MOD_MOD_PAGE, #$0C
+    MOV !MOD_CAR_PAGE, #$0F
+    MOV !MOD_MOD_PAGE, #$0F
     MOV !MOD_OUT_PAGE, #$41
     MOV !MOD_MOD_STRENGTH, #$1E
     CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0C
-    MOV !MOD_MOD_PAGE, #$0C
+    MOV !MOD_CAR_PAGE, #$0F
+    MOV !MOD_MOD_PAGE, #$0F
     MOV !MOD_OUT_PAGE, #$42
     MOV !MOD_MOD_STRENGTH, #$1C
     CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0C
-    MOV !MOD_MOD_PAGE, #$0C
+    MOV !MOD_CAR_PAGE, #$0F
+    MOV !MOD_MOD_PAGE, #$0F
     MOV !MOD_OUT_PAGE, #$43
     MOV !MOD_MOD_STRENGTH, #$1A
     CALL SPC_PhaseModulation_128
     ;Tryna play a BRR sample
     MOV $F2, #$00;
-    MOV $F3, #$80;vol left
+    MOV $F3, #$7F;vol left
     MOV $F2, #$01;
     MOV $F3, #$7F;vol right
     MOV $F2, #$02;
@@ -935,81 +936,229 @@ spcinit_000:        ;
     MOV $F2, #$05
     MOV $F3, #$00;use GAIN
     MOV $F2, #$07
-    MOV $F3, #$7F;max volume right away
+    MOV $F3, #$40;max volume right away
+    ;CH2
+    MOV $F2, #$10;
+    MOV $F3, #$7F;vol left
+    MOV $F2, #$11;
+    MOV $F3, #$7F;vol right
+    MOV $F2, #$12;
+    MOV $F3, #$30;
+    MOV $F2, #$13;
+    MOV $F3, #$04;pitch
+    MOV $F2, #$14
+    MOV $F3, #$00;SCRN
+    MOV $F2, #$15
+    MOV $F3, #$00;use GAIN
+    MOV $F2, #$17
+    MOV $F3, #$10;max volume right away
+
+    MOV $F2, #$20;
+    MOV $F3, #$7F;vol left
+    MOV $F2, #$21;
+    MOV $F3, #$7F;vol right
+    MOV $F2, #$22;
+    MOV $F3, #$30;
+    MOV $F2, #$23;
+    MOV $F3, #$04;pitch
+    MOV $F2, #$24
+    MOV $F3, #$00;SCRN
+    MOV $F2, #$25
+    MOV $F3, #$00;use GAIN
+    MOV $F2, #$27
+    MOV $F3, #$10;max volume right away
+    ;CH2
+    MOV $F2, #$30;
+    MOV $F3, #$7F;vol left
+    MOV $F2, #$31;
+    MOV $F3, #$7F;vol right
+    MOV $F2, #$32;
+    MOV $F3, #$30;
+    MOV $F2, #$33;
+    MOV $F3, #$04;pitch
+    MOV $F2, #$34
+    MOV $F3, #$00;SCRN
+    MOV $F2, #$35
+    MOV $F3, #$00;use GAIN
+    MOV $F2, #$37
+    MOV $F3, #$10;max volume right away
+
     MOV $F2, #$5C
     MOV $F3, #$00
     MOV $F2, #$6C
     MOV $F3, #$20
 
+    MOV X, #$00
 
+    MOV !CH1_FLAGS, #%01000000
+    MOV !CH1_SONG_COUNTER, #$00
+    MOV A, $1001
+    MOV !CH1_SONG_POINTER_H, A
+    MOV A, $1000
+    MOV !CH1_SONG_POINTER_L, A
+    MOV A, $0A01
+    MOV !CH1_INSTRUMENT_POINTER_H, A
+    MOV A, $0A00
+    MOV !CH1_INSTRUMENT_POINTER_L, A
 
-    MOV A, $0202
-    MOV Y, $0203
-    MOVW $10, YA
+    MOV !CH1_FLAGS+8, #%01000000
+    MOV !CH1_SONG_COUNTER+8, #$00
+    MOV A, $1003
+    MOV !CH1_SONG_POINTER_H+8, A
+    MOV A, $1002
+    MOV !CH1_SONG_POINTER_L+8, A
+    MOV A, $0A01
+    MOV !CH1_INSTRUMENT_POINTER_H+8, A
+    MOV A, $0A00
+    MOV !CH1_INSTRUMENT_POINTER_L+8, A
 
-    MOV $12, #$07
-    MOV $13, #$03
-    MOV $1D, #$00
-    MOV $1F, #$10
-    MOV $1E, #$00
+    MOV !CH1_FLAGS+16, #%01000000
+    MOV !CH1_SONG_COUNTER+16, #$00
+    MOV A, $1005
+    MOV !CH1_SONG_POINTER_H+16, A
+    MOV A, $1004
+    MOV !CH1_SONG_POINTER_L+16, A
+    MOV A, $0A01
+    MOV !CH1_INSTRUMENT_POINTER_H+16, A
+    MOV A, $0A00
+    MOV !CH1_INSTRUMENT_POINTER_L+16, A
+
+    MOV !CH1_FLAGS+24, #%01000000
+    MOV !CH1_SONG_COUNTER+24, #$00
+    MOV A, $1007
+    MOV !CH1_SONG_POINTER_H+24, A
+    MOV A, $1006
+    MOV !CH1_SONG_POINTER_L+24, A
+    MOV A, $0A01
+    MOV !CH1_INSTRUMENT_POINTER_H+24, A
+    MOV A, $0A00
+    MOV !CH1_INSTRUMENT_POINTER_L+24, A
+
     MOV A, $FD
-SPC_FetchNote:
-    BBS0 $1D, SPC_mainLoop_00
+    MOV X, #$00
+    JMP SPC_mainLoop_00
+SPC_ParseSongData:
+
+    BBC0 !CHTEMP_FLAGS, +
+    RET
++:
     MOV Y, #$00
-    MOV A, ($1E)+Y
-    INCW $1E
+    MOV A, (!CHTEMP_SONG_POINTER_L)+Y 
     CLRC
     ROL A
-    BCC SPC_FetchNote_01
-;Retrigger
-    MOV X, A    ;Equivalent of PUSH A but 2 less cycles
-    MOV A, #$09
-    MOV Y, #$04
-    MOVW $10, YA
-    CALL SPC_updatePointer0
-    CLR1 $1D
-    MOV $12, #$07
-    MOV $13, #$03
-    MOV A, X    ;Equivalent of POP A but 2 less cycles
-SPC_FetchNote_01:
     MOV Y, A
-    MOV A, $0B00+Y
-    MOV $F2, #$02;
+    BCC SPC_ParseSongData_NoRetrigger
+;Retrigger
+    LSR A
+    SETC
+    SBC A, #$60
+    BMI +
+    ASL A
+    SETC
+    SBC A, #$3A
+    PUSH X
+    MOV X, A
+    JMP (SPC_ParseSongData_routineTable+X)
++:
+    PUSH Y
+    MOV A, $0A01
+    MOV !CHTEMP_INSTRUMENT_POINTER_H, A
+    MOV A, $0A00
+    MOV !CHTEMP_INSTRUMENT_POINTER_L, A
+    CLR1 !CHTEMP_FLAGS
+    SET6 !CHTEMP_FLAGS
+    CALL SPC_ParseInstrumentData
+    MOV $F2, #$5C       ;   Un-keyoff everything
+    MOV $F3, #$00       ;__
+    MOV $F2, #$4C       ;
+    MOV $F3, #$00       ;   Key on the needed channel
+    MOV $EF, #$F3       ;
+    TCALL 13            ;__
+    
+    POP Y
+SPC_ParseSongData_NoRetrigger:
+    INCW !CHTEMP_SONG_POINTER_L
+    MOV A, $0E00+Y
+    AND !CHTEMP_REGISTER_INDEX, #$70
+    OR !CHTEMP_REGISTER_INDEX, #$02
+    MOV $F2, !CHTEMP_REGISTER_INDEX;
     MOV $F3, A
-    MOV A, $0B01+Y
-    MOV $F2, #$03;
+    MOV A, $0E01+Y
+    OR !CHTEMP_REGISTER_INDEX, #$01    
+    MOV $F2, !CHTEMP_REGISTER_INDEX;
     MOV $F3, A ;pitch
+-:
     MOV Y, #$00
-    MOV A, ($1E)+Y
-    INCW $1E
-    MOV $15, A
-    MOV $F2, #$4C
-    MOV $F3, #$01;PLAY
-    MOV A, ($1E)+Y
-    CMP A, #$FF
-    BNE SPC_mainLoop_00
-    SET0 $1D
-    BBS1 $1D, SPC_End
+    MOV A, (!CHTEMP_SONG_POINTER_L)+Y
+    DEC A
+    MOV !CHTEMP_SONG_COUNTER, A
+    INCW !CHTEMP_SONG_POINTER_L
+    MOV A, (!CHTEMP_SONG_POINTER_L)+Y
+    RET
+SPC_ParseSongData_Keyoff:
+    MOV $F2, #$5C
+    MOV $F3, #$00
+    POP X
+    PUSH X
+    MOV $EF, #$F3
+    TCALL 13
+SPC_ParseSongData_NoPitch:
+    INCW !CHTEMP_SONG_POINTER_L
+    POP X
+    JMP -
+SPC_ParseSongData_End:
+    SET0 !CHTEMP_FLAGS
+    JMP SPC_ParseSongData_NoPitch
+SPC_ParseSongData_routineTable:
+    dw SPC_ParseSongData_NoPitch
+    dw SPC_ParseSongData_Keyoff
+    dw SPC_ParseSongData_End
 SPC_mainLoop_00:
-    MOV $14, $FD
+    MOV $E2, $FD
+    MOV A, $E2
+    BEQ SPC_mainLoop_00
+SPC_mainLoop_02:
+    TCALL 15
     SETC
-    SBC $13, $14
-    BEQ SPC_advancePointerl
-    BMI SPC_advancePointerl
-SPC_mainLoop_01:
+    SBC !CHTEMP_SONG_COUNTER, $E2
+    BPL +
+    CALL SPC_ParseSongData
++:
     SETC
-    SBC $15, $14
-    BEQ SPC_FetchNote
-    BMI SPC_FetchNote
+    SBC !CHTEMP_SAMPLE_COUNTER, $E2
+    BPL +
+    CALL SPC_ParseInstrumentData
++:
+    TCALL 14    ;Transfer shit back
+    MOV A, X
+    ADC A, #$08
+    AND A, #$18
+    MOV !CHTEMP_REGISTER_INDEX, A
+    ASL !CHTEMP_REGISTER_INDEX
+    MOV X, A
+    BNE SPC_mainLoop_02
     JMP SPC_mainLoop_00
 
-SPC_advancePointerl:
-    BBS1 $1D, SPC_mainLoop_01
-    MOV $13, #$03
-    CALL SPC_advancePointer
-    DBNZ $12, SPC_mainLoop_01
-    SET1 $1D
-    JMP SPC_mainLoop_01
+SPC_ParseInstrumentData:
+    BBS1 !CHTEMP_FLAGS, +
+    MOV Y, #$00
+    MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y
+    MOV !CHTEMP_SAMPLE_POINTER_L, A
+    INCW !CHTEMP_INSTRUMENT_POINTER_L
+    MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y
+    MOV !CHTEMP_SAMPLE_POINTER_H, A
+    INCW !CHTEMP_INSTRUMENT_POINTER_L
+    CALL SPC_updatePointer0
+    MOV Y, #$00
+    MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y
+    MOV !CHTEMP_SAMPLE_COUNTER, A
+    INCW !CHTEMP_INSTRUMENT_POINTER_L
+    MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y
+    CMP A, #$FF
+    BNE +
+    SET1 !CHTEMP_FLAGS
++:
+    RET
 
 SPC_End:
     MOV $F4, #$89
@@ -1019,44 +1168,90 @@ SPC_End:
     STOP
 
 
-
+;Takes sample 
 SPC_advancePointer:
-    MOV A, #$48
-    MOV Y, #$00
-    ADDW YA, $10
-    MOVW $10, YA
+    MOV $E0, #$48
+    MOV $E1, #$00
+    ADDW YA, $E0
     CALL SPC_updatePointer0
+    MOV !CHTEMP_SAMPLE_POINTER_L, A 
+    MOV A, Y
+    MOV !CHTEMP_SAMPLE_POINTER_H, A 
     RET
 
 SPC_updatePointer0:         ;When the sample is 0
-    MOVW YA, $10
-    BBS7 $1D, SPC_updatePointer1
-    MOV $0206, A
-    MOV $0207, Y
-    MOV $F2, #$04
-    MOV $F3, #$01;SCRN
-    SET7 $1D
+    BBS7 !CHTEMP_FLAGS, SPC_updatePointer1
+    MOV A, !CHTEMP_SAMPLE_POINTER_L
+    MOV $0206+X, A
+    MOV A, !CHTEMP_SAMPLE_POINTER_H
+    MOV $0207+X, A
+    BBS6 !CHTEMP_FLAGS, +
+    MOV A, !CHTEMP_SAMPLE_POINTER_L
+    MOV $0204+X, A
+    MOV A, !CHTEMP_SAMPLE_POINTER_H
+    MOV $0205+X, A
+    JMP ++
++:
+    MOV A, #$C0
+    MOV $0204+X, A
+    MOV A, #$0E
+    MOV $0205+X, A
+    CLR6 !CHTEMP_FLAGS
+++:
+    AND !CHTEMP_REGISTER_INDEX, #$70
+    OR !CHTEMP_REGISTER_INDEX, #$04
+    MOV $F2, !CHTEMP_REGISTER_INDEX
+    MOV A, !CHTEMP_REGISTER_INDEX
+    LSR A
+    LSR A
+    LSR A
+    OR A, #$01 
+    MOV $F3, A;SCRN
+    SET7 !CHTEMP_FLAGS
     RET
+
+
 SPC_updatePointer1:
-    MOV $0202, A
-    MOV $0203, Y
-    MOV $F2, #$04
-    MOV $F3, #$00;SCRN
-    CLR7 $1D
+    MOV A, !CHTEMP_SAMPLE_POINTER_L
+    MOV $0202+X, A
+    MOV A, !CHTEMP_SAMPLE_POINTER_H
+    MOV $0203+X, A
+    BBS6 !CHTEMP_FLAGS, +
+    MOV A, !CHTEMP_SAMPLE_POINTER_L
+    MOV $0200+X, A
+    MOV A, !CHTEMP_SAMPLE_POINTER_H
+    MOV $0201+X, A
+    JMP ++
++:
+    MOV A, #$C0
+    MOV $0200+X, A
+    MOV A, #$0E
+    MOV $0201+X, A
+    CLR6 !CHTEMP_FLAGS
+++:
+    AND !CHTEMP_REGISTER_INDEX, #$70
+    OR !CHTEMP_REGISTER_INDEX, #$04
+    MOV $F2, !CHTEMP_REGISTER_INDEX
+    MOV A, !CHTEMP_REGISTER_INDEX
+    LSR A
+    LSR A
+    LSR A
+    MOV $F3, A;SCRN
+    CLR7 !CHTEMP_FLAGS
     RET
 
 SPC_set_echoFIR:
     MOV $00, #$08
     MOV $01, #$0F
     MOV Y, #$00
-SPC_set_echoFIRloop:
+-:
     MOV $F2, $01
     MOV A, echoFIRtable+Y
     MOV $F3, A
     CLRC
     ADC $01, #$10
     INC Y
-    DBNZ $00, SPC_set_echoFIRloop
+    DBNZ $00, -
     RET
 
 
@@ -1146,10 +1341,123 @@ SPC_PhaseModulation_128_loop_afterMul:
     BNE SPC_PhaseModulation_128_loop
     RET
 
+SPC_transferChToTemp:
+PUSH A
+MOV Y, #$08
+MOV A, X
+CLRC
+ADC A, #$07
+MOV X, A
+-:
+    MOV A, $00+X
+    DEC X
+    MOV !CHTEMP_POINTER_0+Y, A
+    DBNZ Y, -
+MOV Y, #$08
+MOV A, X
+CLRC
+ADC A, #$08
+MOV X, A
+-:
+    MOV A, $40+X
+    DEC X
+    MOV !CHTEMP_POINTER_1+Y, A
+    DBNZ Y, -
+MOV Y, #$08
+MOV A, X
+CLRC
+ADC A, #$08
+MOV X, A
+-:
+    MOV A, $80+X
+    DEC X
+    MOV !CHTEMP_POINTER_2+Y, A
+    DBNZ Y, -
+INC X
+POP A
+RET
+
+SPC_transferTempToCh:
+PUSH A
+MOV Y, #$08
+MOV A, X
+CLRC
+ADC A, #$07
+MOV X, A
+-:
+    MOV.b A, !CHTEMP_POINTER_0+Y
+    MOV.b $00+X, A
+    DEC X
+    DBNZ Y, -
+MOV Y, #$08
+MOV A, X
+CLRC
+ADC A, #$08
+MOV X, A
+-:
+    MOV.b  A, !CHTEMP_POINTER_1+Y
+    MOV.b $40+X, A
+    DEC X
+    DBNZ Y, -
+MOV Y, #$08
+MOV A, X
+CLRC
+ADC A, #$08
+MOV X, A
+-:
+    MOV.b  A, !CHTEMP_POINTER_2+Y
+    MOV.b $80+X, A
+    DEC X
+    DBNZ Y, -
+INC X
+POP A
+RET
+
+SPC_SetFlagdp:  ;TCALL 13
+
+    MOV A, X
+    ASL A
+    ASL A
+    AND A, #$E0
+    OR A, #$02
+    MOV SPC_sfdp_act, A
+    MOV A, $EF
+    MOV SPC_sfdp_act+1, A
+SPC_sfdp_act:
+    SET1 $00
+    RET
+
+SPC_ClrFlagdp:  ;TCALL 12
+
+    MOV A, X
+    ASL A
+    ASL A
+    AND A, #$E0
+    OR A, #$12
+    MOV SPC_cfdp_act, A
+    MOV A, $EF
+    MOV SPC_cfdp_act+1, A
+SPC_cfdp_act:
+    CLR1 $00
+    RET
+
 org $0200
-    dw $0400, $0409, $0400, $0409
-org $0400
-    db $03, $00, $00, $00, $00, $00, $00, $00, $00
+    dw $0EC0, $6000, $0EC0, $6000
+org $0C00
+    incbin "lookuptables.bin"
+org $0E00
+    incbin "pitchtable.bin"
+org $0EC0   ;Dummy empty sample
+    db $03, $00, $00, $00, $00, $00, $00, $00, $00 
+org $0F00
+    incbin "quartersinetable.bin"
+org $1000
+    ; Song data
+    incsrc "songData.asm"
+org $0A00
+    ;instrument data pointers
+    dw Instr00Data
+org $6000   ;Actual samples
     incbin "brr0.brr"
     incbin "brr1.brr"
     incbin "brr2.brr"
@@ -1158,11 +1466,6 @@ org $0400
     incbin "brr5.brr"
     incbin "brr6.brr"
     incbin "brr7.brr"
-org $0B00
-    incbin "pitchtable.bin"
-org $0C00
-    incbin "quartersinetable.bin"
-org $1000
-    ; Song data
-    incsrc "songData.asm"
+org $FFC0   ;For TCALLs
+    dw SPC_transferChToTemp, SPC_transferTempToCh, SPC_SetFlagdp, SPC_ClrFlagdp
 startpos init

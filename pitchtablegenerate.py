@@ -1,3 +1,4 @@
+#pitchtable
 import math
 import numpy as np
 import matplotlib
@@ -18,5 +19,17 @@ b = (a[:int(length/4+1)]).tobytes('C')
 a = a.tobytes('C')
 
 file = open("pitchtable.bin", 'wb')
+file.write(a)
+file.close()
+
+a = np.zeros(512, np.uint8)
+for i in range (256):
+    a[i] = round(i*0.875)
+for i in range (256, 512):
+    a[i] = round(i*0.9375)
+
+a = a.tobytes('C')
+
+file = open("lookuptables.bin", 'wb')
 file.write(a)
 file.close()
