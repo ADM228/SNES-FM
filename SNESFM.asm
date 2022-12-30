@@ -1061,15 +1061,24 @@ SPC_ParseSongData:
     JMP (SPC_ParseSongData_routineTable+X)
 +:
     PUSH Y
-    MOV A, $0A01
+    MOV $F2, #$5C       ;
+    MOV $F3, #$00       ;   Key off the needed channel
+    MOV $EF, #$F3       ;
+    TCALL 13            ;__
+    MOV Y, #$00
+    INCW !CHTEMP_SONG_POINTER_L
+    MOV A, (!CHTEMP_SONG_POINTER_L)+Y
+    ASL A
+    MOV Y, A
+    MOV A, $0A01+Y
     MOV !CHTEMP_INSTRUMENT_POINTER_H, A
-    MOV A, $0A00
+    MOV A, $0A00+Y
     MOV !CHTEMP_INSTRUMENT_POINTER_L, A
     CLR1 !CHTEMP_FLAGS
     SET6 !CHTEMP_FLAGS
     CALL SPC_ParseInstrumentData
-    MOV $F2, #$5C       ;   Un-keyoff everything
-    MOV $F3, #$00       ;__
+    MOV $F2, #$5C       ;
+    MOV $F3, #$00       ;   Key on the needed channel
     MOV $F2, #$4C       ;
     MOV $F3, #$00       ;   Key on the needed channel
     MOV $EF, #$F3       ;
@@ -1140,8 +1149,12 @@ SPC_mainLoop_02:
     JMP SPC_mainLoop_00
 
 SPC_ParseInstrumentData:
-    BBS1 !CHTEMP_FLAGS, +
+    BBS1 !CHTEMP_FLAGS, ++
     MOV Y, #$00
+    MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y
+    MOV $E0, A
+    INCW !CHTEMP_INSTRUMENT_POINTER_L
+    BBC6 $E0, +
     MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y
     MOV !CHTEMP_SAMPLE_POINTER_L, A
     INCW !CHTEMP_INSTRUMENT_POINTER_L
@@ -1149,15 +1162,24 @@ SPC_ParseInstrumentData:
     MOV !CHTEMP_SAMPLE_POINTER_H, A
     INCW !CHTEMP_INSTRUMENT_POINTER_L
     CALL SPC_updatePointer0
++:
+    BBC2 $E0, +
+    AND !CHTEMP_REGISTER_INDEX, #$70
+    OR !CHTEMP_REGISTER_INDEX, #$07
+    MOV $F2, !CHTEMP_REGISTER_INDEX
+    MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y
+    MOV $F3, A
+    INCW !CHTEMP_INSTRUMENT_POINTER_L
++:
     MOV Y, #$00
     MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y
     MOV !CHTEMP_SAMPLE_COUNTER, A
     INCW !CHTEMP_INSTRUMENT_POINTER_L
     MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y
     CMP A, #$FF
-    BNE +
+    BNE ++
     SET1 !CHTEMP_FLAGS
-+:
+++:
     RET
 
 SPC_End:
@@ -1456,7 +1478,7 @@ org $1000
     incsrc "songData.asm"
 org $0A00
     ;instrument data pointers
-    dw Instr00Data
+    dw Instr00Data, Instr01Data
 org $6000   ;Actual samples
     incbin "brr0.brr"
     incbin "brr1.brr"
