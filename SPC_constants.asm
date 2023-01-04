@@ -10,8 +10,11 @@
 !CH1_SONG_COUNTER = $40
 !CH1_EFFECT_COUNTER = $41
 !CH1_INSTRUMENT_COUNTER = $42
-!CH1_SAMPLE_COUNTER = $43       ;Rather, instrument update counter
+!CH1_INSTRUMENT_TYPE = $43
+!CH1_ARPEGGIO = $45
+!CH1_NOTE = $46
 !CH1_FLAGS = $47
+
 
 ;Temporary variables, basically a shitton of names for the same thing
 ;$D0-DF are usually inputs while $E0-EF are just temporary variables used by routines
@@ -46,9 +49,13 @@
 !CHTEMP_SONG_COUNTER = $C8
 !CHTEMP_EFFECT_COUNTER = $C9
 !CHTEMP_INSTRUMENT_COUNTER = $CA
-!CHTEMP_SAMPLE_COUNTER = $CB
+!CHTEMP_INSTRUMENT_TYPE = $CB
+!CHTEMP_ARPEGGIO = $CD
+!CHTEMP_NOTE = $CE
 !CHTEMP_FLAGS = $CF
 
-!CHTEMP_REGISTER_INDEX = $E3
+!PATTERN_END_FLAGS = $E3
+!PATTERN_POINTER_L = $E4
+!PATTERN_POINTER_H = $E5
 
-!KOF_BUFFER = $E4
+!CHTEMP_REGISTER_INDEX = $E1
