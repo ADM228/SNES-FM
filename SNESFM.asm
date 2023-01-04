@@ -184,7 +184,7 @@ init:       ;init routine, totally not grabbed from tales of phantasia
     MOV $F2, #$5C
     MOV $F3, #$00
     MOV $F2, #$6C
-    MOV $F3, #$00
+    MOV $F3, #$20
 
     MOV X, #$00
     MOV !PATTERN_END_FLAGS, #$00
