@@ -26,7 +26,8 @@ a = np.zeros(512, np.uint8)
 for i in range (256):
     a[i] = round(i*0.875)
 for i in range (256, 512):
-    a[i] = round(i*0.9375)
+    a[i] = round((i-256)*0.9375)
+    print ((i-256)*0.9375, a[i])
 
 a = a.tobytes('C')
 

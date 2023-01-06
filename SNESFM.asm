@@ -92,24 +92,24 @@ init:       ;init routine, totally not grabbed from tales of phantasia
     MOV Y, #$3E     ;__ Y contains the destination index
 
     SPC_SineSetup_loop0:
-        MOV A, $0C00+X
+        MOV A, $0F00+X
         INC X
-        MOV $0C40+Y, A
-        MOV A, $0C00+X
+        MOV $0F40+Y, A
+        MOV A, $0F00+X
         INC X
-        MOV $0C41+Y, A
+        MOV $0F41+Y, A
         DEC Y
         DBNZ Y, SPC_SineSetup_loop0
     
     MOV Y, #$3F
 
     SPC_SineSetup_loop1:
-        MOV A, $0C00+Y
+        MOV A, $0F00+Y
         EOR A, #$FF
-        MOV $0C80+Y, A
-        MOV A, $0C40+Y
+        MOV $0F80+Y, A
+        MOV A, $0F40+Y
         EOR A, #$FF
-        MOV $0CC0+Y, A
+        MOV $0FC0+Y, A
         DBNZ Y, SPC_SineSetup_loop1
     MOV !MOD_CAR_PAGE, #$0F
     MOV !MOD_MOD_PAGE, #$0F
@@ -119,7 +119,7 @@ init:       ;init routine, totally not grabbed from tales of phantasia
     MOV !MOD_CAR_PAGE, #$0F
     MOV !MOD_MOD_PAGE, #$0F
     MOV !MOD_OUT_PAGE, #$41
-    MOV !MOD_MOD_STRENGTH, #$1E
+    MOV !MOD_MOD_STRENGTH, #$20
     CALL SPC_PhaseModulation_128
     MOV !MOD_CAR_PAGE, #$0F
     MOV !MOD_MOD_PAGE, #$0F
@@ -134,24 +134,28 @@ init:       ;init routine, totally not grabbed from tales of phantasia
 
     MOV !MOD_CAR_PAGE, #$0F
     MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$40
+    MOV !MOD_OUT_PAGE, #$44
     MOV !MOD_MOD_STRENGTH, #$20
     CALL SPC_PhaseModulation_128
     MOV !MOD_CAR_PAGE, #$0F
     MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$41
+    MOV !MOD_OUT_PAGE, #$45
     MOV !MOD_MOD_STRENGTH, #$1E
     CALL SPC_PhaseModulation_128
     MOV !MOD_CAR_PAGE, #$0F
     MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$42
+    MOV !MOD_OUT_PAGE, #$46
     MOV !MOD_MOD_STRENGTH, #$1C
     CALL SPC_PhaseModulation_128
     MOV !MOD_CAR_PAGE, #$0F
     MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$43
+    MOV !MOD_OUT_PAGE, #$47
     MOV !MOD_MOD_STRENGTH, #$1A
     CALL SPC_PhaseModulation_128
+    MOV !BRR_PCM_PAGE, #$40
+    MOV !BRR_OUT_INDEX, #$00    ;As if it matters lmao
+    MOV !BRR_FLAGS, #%00000000
+    CALL SPC_ConvertToBRR
     ;Tryna play a BRR sample
     MOV $F2, #$00;
     MOV $F3, #$7F;vol left
@@ -241,7 +245,7 @@ SPC_ParseSongData:
     MOV $F3, #$00       ;   Key on the needed channel
     MOV $D0, #$F3       ;
     TCALL 13            ;__
-    SPC_ParseSongData_NoRetrigger:
+.NoRetrigger:
     MOV A, $EF              ;
     MOV !CHTEMP_NOTE, A     ;   Apply arpeggio
     CLRC                    ;
@@ -260,7 +264,7 @@ SPC_ParseSongData:
     MOV $F2, !CHTEMP_REGISTER_INDEX;
     MOV $F3, A ;pitch
     JMP +
-SPC_ParseSongData_NoisePitch:
+.NoisePitch:
     AND A, #$1F  ;
     MOV $F2, #$6C;  Update noise clock
     AND $F3, #$E0;
@@ -279,7 +283,7 @@ SPC_ParseSongData_NoisePitch:
     INCW !CHTEMP_SONG_POINTER_L
     MOV A, (!CHTEMP_SONG_POINTER_L)+Y
     RET
-SPC_ParseSongData_Keyoff:
+.Keyoff:
     SET1 !CHTEMP_FLAGS
     MOV $F2, #$5C
     MOV $F3, #$00
@@ -287,26 +291,27 @@ SPC_ParseSongData_Keyoff:
     PUSH X
     MOV $D0, #$F3
     TCALL 13
-SPC_ParseSongData_NoPitch:
+.NoPitch:
     INCW !CHTEMP_SONG_POINTER_L
     POP X
     JMP -
-SPC_ParseSongData_End:
+.End:
     SET0 !CHTEMP_FLAGS
     MOV $D0, #!PATTERN_END_FLAGS
     POP X
     TCALL 13
     INCW !CHTEMP_SONG_POINTER_L
     JMP -
-SPC_ParseSongData_routineTable:
+.routineTable:
     dw SPC_ParseSongData_NoPitch
     dw SPC_ParseSongData_Keyoff
     dw SPC_ParseSongData_End
-SPC_mainLoop_00:
+SPC_mainLoop:
+.00:
     MOV $E2, $FD
     MOV A, $E2
     BEQ SPC_mainLoop_00
-SPC_mainLoop_02:
+.01:
     TCALL 15
     SETC
     SBC !CHTEMP_SONG_COUNTER, $E2
@@ -326,11 +331,11 @@ SPC_mainLoop_02:
     MOV !CHTEMP_REGISTER_INDEX, A
     ASL !CHTEMP_REGISTER_INDEX
     MOV X, A
-    BNE SPC_mainLoop_02
+    BNE SPC_mainLoop_01
     CMP !PATTERN_END_FLAGS, #$0F
     BNE SPC_mainLoop_00
     CALL SPC_ParsePatternData
-    JMP SPC_mainLoop_02
+    JMP SPC_mainLoop_01
 
 SPC_ParseInstrumentData:
     BBC1 !CHTEMP_FLAGS, +
@@ -353,7 +358,7 @@ SPC_ParseInstrumentData:
     BCC SPC_ParseInstrumentData_Noise0
     TCALL 12
     JMP +
-SPC_ParseInstrumentData_Noise0:
+.Noise0:
     TCALL 13
 +:
     MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y
@@ -538,23 +543,23 @@ SPC_set_echoFIR:
 echoFIRtable:
     db #$7f, #$00, #$00, #$00, #$00, #$00, #$00, #$00
 
-;   Memory table:
-;       Inputs:
-;       $00 - Carrier page
-;       $01 - Modulator page
-;       $02 - Output page
-;       $03 - Modulation strength
-;       Temp variables:
-;       $04-05 - Output pointer
-;       $06-07 - Modulator pointer
-;       $08-09 - Main temp variable
+;Memory table:
+;   Inputs:
+;       $D0 - Carrier page
+;       $D1 - Modulator page
+;       $D2 - Output page
+;       $D3 - Modulation strength
+;   Temp variables:
+;       $EA-EB - Output pointer
+;       $EC-ED - Modulator pointer
+;       $EE-EF - Main temp variable
 SPC_PhaseModulation_128:
     MOV X, #$00
     MOV !MOD_OUT_INDEX_H, !MOD_OUT_PAGE
     MOV !MOD_MOD_INDEX_H, !MOD_MOD_PAGE
     MOV !MOD_OUT_INDEX_L, X
     MOV !MOD_MOD_INDEX_L, X
-SPC_PhaseModulation_128_loop:
+.loop:
     INC !MOD_MOD_INDEX_L
     MOV A, (!MOD_MOD_INDEX_L+X)
     MOV !MOD_MAIN_TEMP_H, A
@@ -572,7 +577,7 @@ SPC_PhaseModulation_128_loop:
     ADC A, !MOD_MAIN_TEMP_L
     ADC !MOD_MAIN_TEMP_H, #$00
     JMP SPC_PhaseModulation_128_loop_afterMul
-SPC_PhaseModulation_128_loop_negative:
+.loop_negative:
     EOR A, #$FF
     MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
     MUL YA
@@ -589,7 +594,7 @@ SPC_PhaseModulation_128_loop_negative:
     ADC !MOD_MAIN_TEMP_H, #$00
     EOR A, #$FF
     EOR !MOD_MAIN_TEMP_H, #$FF
-SPC_PhaseModulation_128_loop_afterMul:
+.loop_afterMul:
 
     ROR !MOD_MAIN_TEMP_H
     ROR A
@@ -620,6 +625,111 @@ SPC_PhaseModulation_128_loop_afterMul:
     MOV A, !MOD_OUT_INDEX_L
     BNE SPC_PhaseModulation_128_loop
     RET
+
+;   Memory table:
+;   Inputs:
+;       $D0 - PCM sample page
+;       $D1 - BRR output index
+;       $D2 - Flags: fsitppbb 
+;               f - whether to use filter mode 1 (doesn't apply to the first sample block as well blocks with jumps larger than their absolute values)
+;               s - short sample mode (32 samples instead of 128)
+;               i - high bit of output index 
+;               t - temporary negative flag, SET BY ROUTINE
+;               pp - PCM sample subpage number (0-3, if s is set)
+;               bb - BRR output subpage number (0-3, if s is set)
+;   Temp variables:
+;       $EC-$ED - Input pointer
+;       $EE-$EF - Output pointer
+SPC_ConvertToBRR:
+.SetupPart1:
+    MOV !BRR_IN_PTR_H, !BRR_PCM_PAGE    ;   Set up the PCM sample page
+    MOV A, !BRR_FLAGS                   ;__
+    XCN A                               ;
+    AND A, #$C0                         ;   Set up the PCM sample subpage 
+    MOV !BRR_IN_PTR_L, A                ;__
+    MOV !BRR_OUT_PTR_L, !BRR_IN_PTR_L   ;
+    MOV !BRR_OUT_PTR_H, !BRR_IN_PTR_H   ;
+    MOV Y, #$00
+    OR !BRR_IN_PTR_L, #$1E
+    OR !BRR_OUT_PTR_L, #$20
+    MOV A, (!BRR_IN_PTR_L)+Y    ;
+    MOV !BRR_SMPPT_L, A         ;
+    INCW !BRR_IN_PTR_L          ;   OG Python code:
+    MOV A, (!BRR_IN_PTR_L)+Y    ;   smppoint = BRRBuffer[15]
+    MOV !BRR_SMPPT_H, A         ;
+    INCW !BRR_IN_PTR_L          ;__
+.Filter1Part:
+    CLR4 !BRR_FLAGS
+    MOV Y, #$00 
+    MOV A, (!BRR_IN_PTR_L)+Y    ;                                       #
+    MOV !BRR_CSMPT_L, A         ;                                       #
+    INCW !BRR_IN_PTR_L          ;   Python code:                        #
+    MOV A, (!BRR_IN_PTR_L)+Y    ;   currentsmppoint = BRRBuffer[i]      #
+    MOV !BRR_CSMPT_H, A         ;                                       #
+    INCW !BRR_IN_PTR_L          ;__                                     #
+    MOVW YA, !BRR_CSMPT_L       ;   Python code:                        #   OG Python code:
+    SUBW YA, !BRR_SMPPT_L       ;   currentsmppoint -= smppoint         #   BRRBuffer[i] -= smppoint
+    MOVW !BRR_CSMPT_L, YA       ;__                                     #
+    MOV Y, #$00                 ;                                       #
+    MOV (!BRR_OUT_PTR_L)+Y, A   ;                                       #
+    INCW !BRR_OUT_PTR_L         ;   Python code:                        #
+    MOV A, !BRR_CSMPT_H         ;   BRRBuffer[i] = currentsmppoint      #
+    MOV (!BRR_OUT_PTR_L)+Y, A   ;                                       #
+    INCW !BRR_OUT_PTR_L         ;__                                     #__
+    BBC7 !BRR_SMPPT_H, +
+    SET4 !BRR_FLAGS
+    EOR !BRR_SMPPT_L, #$FF
+    EOR !BRR_SMPPT_H, #$FF
++:
+    MOV Y, !BRR_SMPPT_L         ;                                       #
+    MOV A, $0D00+Y              ;                                       #
+    BBS4 !BRR_FLAGS, +
+    CLRC                        ;   Python code:                        #
+    ADC A, !BRR_CSMPT_L         ;   currentsmppoint += smppoint_L*15/16 #
+    MOV !BRR_CSMPT_L, A         ;                                       #
+    ADC !BRR_CSMPT_H, #$00      ;__   
+    JMP ++
++:
+    EOR A, #$FF
+    CLRC                        ;   Python code:                        #
+    ADC A, !BRR_CSMPT_L         ;   currentsmppoint += smppoint_L*15/16 #
+    MOV !BRR_CSMPT_L, A         ;                                       #
+
+    SBC !BRR_CSMPT_H, #$00      ;__ 
+++:
+    MOV A, !BRR_SMPPT_H         ;                                       #
+    MOV Y, #$0F                 ;   Python code:                        #
+    MUL YA                      ;   smpppoint_H *=15                    #   OG Python code:
+    MOV !BRR_SMPPT_L, A         ;                                       #
+    AND !BRR_SMPPT_L, #$0F      ;                                       #
+    MOV !BRR_SMPPT_H, Y         ;__                                     #   smppoint *= 0.9375
+    AND !BRR_SMPPT_H, #$0F      ;                                       #   smppoint += BRRBuffer[i]
+    AND A, #$F0                 ;   Python code:                        #
+    OR A, !BRR_SMPPT_H          ;   smppoint_H /= 16                    #
+    XCN A                       ;__                                     #
+    BBC4 !BRR_FLAGS, +
+    EOR A, #$FF
++:
+    MOV Y, A                    ;                                       #
+    MOV A, !BRR_SMPPT_L         ;                                       #
+    XCN A                       ;   Python code:                        #
+    BBC4 !BRR_FLAGS, +
+    EOR A, #$FF
++:
+    ADDW YA, !BRR_CSMPT_L       ;   smppoint_H<<8 += currentsmppoint    #__
+    MOVW !BRR_SMPPT_L, YA       ;__
+    MOV A, !BRR_FLAGS           ;
+    XCN A                       ;   Loop
+    AND A, #$C0                 ;
+    CBNE !BRR_OUT_PTR_L, SPC_ConvertToBRR_Filter1Part
+RET
+
+;just some stray code
+    MOV A, !BRR_OUT_INDEX               ;
+    MOV Y, #$48                         ;   Set up the 
+    MUL YA                              ;
+    MOVW !BRR_OUT_PTR_H, YA             ;__
+
 
 SPC_transferChToTemp:
 PUSH A

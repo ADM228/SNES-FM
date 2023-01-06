@@ -12,6 +12,8 @@ a = np.zeros(length, type)
 for i in range (length):
     a[i] = math.sin(i*sinIncrement*math.pi)*maximum-0.5
 
+print (np.iinfo(a.dtype).min)
+
 b = (a[:int(length/4+1)]).tobytes('C')
 a = a.tobytes('C')
 

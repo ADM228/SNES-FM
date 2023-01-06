@@ -25,12 +25,25 @@
 
 !ECH_FIR_FIRSTBYTE = $D0
 
+!BRR_PCM_PAGE = $D0
+!BRR_OUT_INDEX = $D1
+!BRR_FLAGS = $D2
+
 !MOD_OUT_INDEX_L = $EA
 !MOD_OUT_INDEX_H = $EB
 !MOD_MOD_INDEX_L = $EC
 !MOD_MOD_INDEX_H = $ED
 !MOD_MAIN_TEMP_L = $EE
 !MOD_MAIN_TEMP_H = $EF
+
+!BRR_SMPPT_L = $E8
+!BRR_SMPPT_H = $E9
+!BRR_CSMPT_L = $EA
+!BRR_CSMPT_H = $EB
+!BRR_IN_PTR_L = $EC
+!BRR_IN_PTR_H = $ED
+!BRR_OUT_PTR_L = $EE
+!BRR_OUT_PTR_H = $EF
 
 ;For channel updates, first 2 blocks of 8 bytes are stored in $C0-$CF, while the last one is stored in $D8-$DF
 !CHTEMP_POINTER_0 = $BF
