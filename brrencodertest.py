@@ -17,8 +17,8 @@ def cap_number(num, limit, len):
 
 length = 128
 
-array1 = np.fromfile("SNESFMTrackDAW-1.bst", dtype=np.int16, offset=147996+256, count=128)
-array2 = np.fromfile("SNESFMTrackDAW-1.bst", dtype=np.int16, offset=147996+0, count=128)
+array1 = np.fromfile("SNESFMTrackDAW-1.bst", dtype=np.int16, offset=131612+256*0x40, count=128)
+array2 = np.fromfile("SNESFMTrackDAW-1.bst", dtype=np.int16, offset=131612+256*0x04, count=128)
 array = np.zeros(length)
 
 
@@ -36,6 +36,11 @@ if step > 1:
 else:
     array = array1
 
+maxvalue = np.zeros(length, np.int16)
+for i in range(len(maxvalue)):
+    maxvalue[i] = 0x3f4e
+maxvalue *= -1
+
 
 BRRBuffer = np.zeros(length, np.int16)
 brr_old = 0
@@ -48,7 +53,7 @@ if filter:
         brr_old = BRRBuffer[i]
 else:
     for i in range(len(BRRBuffer)):
-        BRRBuffer[i] = (array[i&(length-1)])
+        BRRBuffer[i] = (array[i&(length-1)])/2
 
 smppoint = BRRBuffer[15]
 
@@ -59,10 +64,10 @@ for i in range(16, len(BRRBuffer)):
 
 x = np.arange(0, 128)
 
-plt.plot(x,BRRBuffer-array2) 
-#plt.plot(x,BRRBuffer,linestyle=":")
+plt.plot(x,array2) 
+plt.plot(x,maxvalue,linestyle=":")
 
-#plt.plot(x,array1,linestyle=":")
+#plt.plot(x,BRRBuffer-array2) 
 
 # Add Title
 

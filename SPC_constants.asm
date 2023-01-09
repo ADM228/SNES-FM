@@ -36,12 +36,18 @@
 !MOD_MAIN_TEMP_L = $EE
 !MOD_MAIN_TEMP_H = $EF
 
-!BRR_SMPPT_L = $E8
-!BRR_SMPPT_H = $E9
-!BRR_CSMPT_L = $EA
-!BRR_CSMPT_H = $EB
-!BRR_IN_PTR_L = $EC
-!BRR_IN_PTR_H = $ED
+!BRR_MAXM0_L = $F8  ;These registers are so unused
+!BRR_MAXM0_H = $F9  ;they're practically RAM!
+!BRR_SMPPT_L = $E6
+!BRR_SMPPT_H = $E7
+!BRR_CSMPT_L = $E8
+!BRR_CSMPT_H = $E9
+!BRR_IN0_PTR_L = $EA
+!BRR_IN0_PTR_H = $EB
+!BRR_IN1_PTR_L = $EC
+!BRR_IN1_PTR_H = $ED
+!BRR_IN2_PTR_L = $E8
+!BRR_IN2_PTR_H = $E9
 !BRR_OUT_PTR_L = $EE
 !BRR_OUT_PTR_H = $EF
 

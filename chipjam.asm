@@ -53,7 +53,7 @@ db $FF
 
 Instr00Data:    ;hi-hat
 db %10000010, %01000110
-dw $6000
+dw $61F8
 db $7F, $1F, $02
 
 db %00000100
@@ -63,7 +63,7 @@ db $FF
 
 Instr01Data:    ;snare
 db %10000010, %01000110
-dw $6000
+dw $61F8
 db $50, $0F, $01
 
 db %00000010
