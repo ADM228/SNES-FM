@@ -645,7 +645,7 @@ SPC_ConvertToBRR:
     MOV !BRR_IN0_PTR_H, !BRR_PCM_PAGE;   Set up the PCM sample page
     MOV A, !BRR_FLAGS               ;__
     XCN A                           ;
-    AND A, #$C0                     ;   Set up the PCM sample subpage 
+    AND A, #$C0                     ;   Set up tBB.7 !BRR_FLhe PCM sample subpage 
     MOV !BRR_IN0_PTR_L, A           ;__
     MOV A, !BRR_FLAGS               ;
     AND A, #$40                     ;   Set up the ending low byte of the address
@@ -773,7 +773,7 @@ SPC_ConvertToBRR:
     PUSH X
     PUSH X
 .BRREncoding:
-    CLR7 !BRR_FLAGS
+    SET7 !BRR_FLAGS
     MOV X, #$02
 ..OuterLoop:
     MOV A, (!BRR_IN0_PTR_L+X)   
@@ -826,7 +826,7 @@ SPC_ConvertToBRR:
     MOVW YA, !BRR_IN0_PTR_L
     MOV X, #$00
     MOVW !BRR_IN2_PTR_L, YA
-    SET7 !BRR_FLAGS
+    CLR7 !BRR_FLAGS
 +: 
     SETC
     SBC !BRR_IN2_PTR_L, #$20
@@ -874,14 +874,6 @@ SPC_ConvertToBRR:
     MOV Y, #$00
     MOV (!BRR_OUT_PTR_L)+Y, A
     INCW !BRR_OUT_PTR_L
-    CLRC
-    BBS7 !BRR_FLAGS, +
-    ;Update 0 pointer
-    ADC !BRR_IN0_PTR_L, #$20
-    JMP ++
-+:
-    ADC !BRR_IN1_PTR_L, #$20
-++:
     POP A
     CMP A, !BRR_IN0_PTR_L+X
     BEQ +

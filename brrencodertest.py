@@ -64,8 +64,10 @@ for i in range(16, len(BRRBuffer)):
 
 x = np.arange(0, 128)
 
-plt.plot(x,array2) 
-plt.plot(x,maxvalue,linestyle=":")
+array1 = array1 / 2
+
+plt.plot(x,array1) 
+plt.plot(x,BRRBuffer,linestyle=":")
 
 #plt.plot(x,BRRBuffer-array2) 
 
@@ -82,34 +84,34 @@ plt.ylabel("y axis")
 
 plt.show()
 
-# outindex = 0
+outindex = 0
 
-# for i in range(0, len(BRRBuffer), 16):
-#     maximumabs = max(abs(np.max(BRRBuffer[(i):(i+15)])), abs(np.min(BRRBuffer[(i):(i+15)])))
-#     if maximumabs > 0:
-#         logarithm = math.floor(np.log2(maximumabs))-2
-#         #print (i, maximumabs, logarithm)
-#         BRROutput[outindex] = ((logarithm<<4)&0xF0) | 2 | 1<<2
-#         outindex += 1
-#         for j in range(8):
-#             BRRBuffer[i+j*2] = max(min((round(BRRBuffer[i+j*2]/(2**logarithm)*7/8)),7), -8)
-#             BRRBuffer[i+j*2+1] = max(min(round(BRRBuffer[i+j*2+1]/(2**logarithm)*7/8), 7), -8)
-#             BRROutput[outindex] = ((np.uint8(BRRBuffer[i+j*2])&0x0F)<<4)
-#             BRROutput[outindex] = BRROutput[outindex] | np.uint8(BRRBuffer[i+j*2+1])&0x0F
-#             outindex += 1
-#     else:
-#         BRROutput[outindex] = 2
-#         outindex += 9
+for i in range(0, len(BRRBuffer), 16):
+    maximumabs = max(abs(np.max(BRRBuffer[(i):(i+15)])), abs(np.min(BRRBuffer[(i):(i+15)])))
+    if maximumabs > 0:
+        logarithm = math.floor(np.log2(maximumabs))-2
+        print (logarithm)
+        BRROutput[outindex] = ((logarithm<<4)&0xF0) | 2 | 1<<2
+        outindex += 1
+        for j in range(8):
+            BRRBuffer[i+j*2] = max(min((round(BRRBuffer[i+j*2]/(2**logarithm)*7/8)),7), -8)
+            BRRBuffer[i+j*2+1] = max(min(round(BRRBuffer[i+j*2+1]/(2**logarithm)*7/8), 7), -8)
+            BRROutput[outindex] = ((np.uint8(BRRBuffer[i+j*2])&0x0F)<<4)
+            BRROutput[outindex] = BRROutput[outindex] | np.uint8(BRRBuffer[i+j*2+1])&0x0F
+            outindex += 1
+    else:
+        BRROutput[outindex] = 2
+        outindex += 9
 
-# BRROutput[0] &= 0xF2
-# BRROutput[outindex-9] |= 1
+BRROutput[0] &= 0xF2
+BRROutput[outindex-9] |= 1
 
-# print( "=====")
-# for i in range(0, len(BRRBuffer), 4):
-#     #print (BRRBuffer[i]/1024)
-#     pass
+print( "=====")
+for i in range(0, len(BRRBuffer), 4):
+    #print (BRRBuffer[i]/1024)
+    pass
 
-# print ("==========")
+print ("==========")
 
 # # Pretty much a BRR decoder for debugging purposes
 
