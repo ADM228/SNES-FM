@@ -7,7 +7,6 @@ incsrc "SPC_constants.asm"
 ;   $01         $00 - $7F: Effect q
 ;   |__ _ _ _ _ $80 - $FF: Stack
 ;   $02(-$03?)_ Sample Directory
-;   $04-$07 _ _ BRR conversion buffer
 ;   $0A-$0B _ _ 256 instrument data pointers
 ;   $0C _ _ _ _ 7/8 multiplication lookup table
 ;   $0D _ _ _ _ 15/16 multiplication lookup table
@@ -155,7 +154,7 @@ init:       ;init routine, totally not grabbed from tales of phantasia
     MOV !BRR_PCM_PAGE, #$40
     MOV !BRR_OUT_INDEX, #$00    ;As if it matters lmao
     MOV !BRR_FLAGS, #%00000000
-    CALL SPC_ConvertToBRR
+    CALL SPC_ConvertToBRR_oldaf
     ;Tryna play a BRR sample
     MOV $F2, #$00;
     MOV $F3, #$7F;vol left
@@ -339,7 +338,7 @@ SPC_mainLoop:
 
 SPC_ParseInstrumentData:
     BBC1 !CHTEMP_FLAGS, +
-    JMP +++
+    RET
 +:
     MOV Y, #$00
     MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y
@@ -421,9 +420,9 @@ SPC_ParseInstrumentData:
     INCW !CHTEMP_INSTRUMENT_POINTER_L       ;__
     MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;
     CMP A, #$FF                             ;   Stop instrument data if the next byte is $FF
-    BNE +++                                 ;   (should really be in the beginning of the code)
+    BNE +                                   ;   (should really be in the beginning of the code)
     SET1 !CHTEMP_FLAGS                      ;__
-+++:
++:
     RET
 
 
@@ -645,6 +644,125 @@ SPC_ConvertToBRR:
     MOV !BRR_IN0_PTR_H, !BRR_PCM_PAGE;   Set up the PCM sample page
     MOV A, !BRR_FLAGS               ;__
     XCN A                           ;
+    AND A, #$C0                     ;   Set up the PCM sample subpage 
+    MOV !BRR_IN0_PTR_L, A           ;__
+    MOV A, !BRR_FLAGS               ;   Set up the ending low byte of the address
+    AND A, #$40                     ;__
+    MOV X, #$00                     ;__ Set up the destination address (it's (X+))
+    MOV Y, #$00
+.CopyLoop:  ;Copy the PCM sample to the PCM buffer while halving it #
+    MOV A, (!BRR_IN0_PTR_L)+Y       ;                               #
+    MOV !BRR_CSMPT_L, A             ;                               #
+    INCW !BRR_IN0_PTR_L             ;   Python code:                #
+    MOV A, (!BRR_IN0_PTR_L)+Y       ;   currentsmppoint = array[i]  #
+    MOV !BRR_CSMPT_H, A             ;                               #
+    INCW !BRR_IN0_PTR_L             ;__                             #
+    BBC7 !BRR_CSMPT_H, +            ;                               #
+    EOR A, #$FF                     ;   Invert negative numbers     #
+    EOR !BRR_CSMPT_L, #$FF          ;__                             #
++:                                  ;                               #
+    CLRC                            ;   Python code:                #
+    ROR A                           ;   currentsmppoint /= 2        #   OG Python code:
+    ROR !BRR_CSMPT_L                ;__                             #   for i in range(len(BRRBuffer)):
+    BBC7 !BRR_CSMPT_H, +            ;                               #       BRRBuffer[i] = (array[i&(length-1)])/2
+    EOR A, #$FF                     ;   Invert negative numbers     #
+    EOR !BRR_CSMPT_L, #$FF          ;__                             #
++:                                  ;                               #
+    MOV !BRR_CSMPT_H, A             ;                               #
+    MOV A, !BRR_CSMPT_L             ;                               #
+    MOV (X+), A                     ;   Python code:                #
+    MOV A, !BRR_CSMPT_H             ;   BRRBuffer[i]=currentsmppoint#
+    MOV (X+), A                     ;                               #
+    CMP X, #$20                     ;   Loop                        #
+    BNE SPC_ConvertToBRR_CopyLoop   ;__                             #
+.SetupFilter
+    MOV X, #$00
+    MOV !BRR_SMPPT_L, $1E           ;   OG Python code:
+    MOV !BRR_SMPPT_H, $1F           ;__ smppoint = BRRBuffer[15]
+    MOV !BRR_CSMPT_L, #$00          ;   OG Python code:
+    MOV !BRR_CSMPT_H, #$00          ;__ currentsmppoint = 0
+    ; TODO: MULTIPLY !BRR_SMPPT BY 15/16
+.FilterLoop:
+
++:                              ;                                       #
+    MOV Y, !BRR_SMPPT_L         ;                                       #
+    MOV A, $0D00+Y              ;                                       #
+    BBS4 !BRR_FLAGS, +          ;                                       #                        
+    CLRC                        ;   Python code:                        #
+    ADC A, !BRR_CSMPT_L         ;   currentsmppoint += smppoint_L*15/16 #
+    MOV !BRR_CSMPT_L, A         ;   (for positive numbers)              #
+    ADC !BRR_CSMPT_H, #$00      ;                                       #
+    JMP ++                      ;__                                     #
++:                              ;                                       #
+    EOR A, #$FF                 ;                                       #
+    SETC                        ;   Python code:                        #
+    ADC A, !BRR_CSMPT_L         ;   currentsmppoint += smppoint_L*15/16 #
+    MOV !BRR_CSMPT_L, A         ;   (for negative numbers)              #
+    SBC !BRR_CSMPT_H, #$00      ;__                                     #
+++:                             ;                                       #   OG Python code:
+    MOV A, !BRR_SMPPT_H         ;                                       #   smppoint *= 0.9375
+    MOV Y, #$0F                 ;   Python code:                        #   smppoint += BRRBuffer[i]
+    MUL YA                      ;   smpppoint_H *=15                    #
+    MOV !BRR_SMPPT_L, A         ;                                       #
+    AND !BRR_SMPPT_L, #$0F      ;                                       #
+    MOV !BRR_SMPPT_H, Y         ;__                                     #
+    AND !BRR_SMPPT_H, #$0F      ;                                       #
+    AND A, #$F0                 ;   Python code:                        #
+    OR A, !BRR_SMPPT_H          ;   smppoint_H /= 16                    #
+    XCN A                       ;__                                     #
+    BBC4 !BRR_FLAGS, +          ;   Invert negative high byte           #
+    EOR A, #$FF                 ;__                                     #
++:                              ;                                       #
+    MOV Y, A                    ;                                       #
+    MOV A, !BRR_SMPPT_L         ;   Get low nybble                      #
+    XCN A                       ;__                                     #
+    BBC4 !BRR_FLAGS, +          ;   Invert negative low nybble          #   
+    EOR A, #$FF                 ;__                                     #
++:                              ;   Python code:                        #
+    ADDW YA, !BRR_CSMPT_L       ;   smppoint_H<<8 += currentsmppoint    #
+    MOVW !BRR_SMPPT_L, YA       ;__                                     #__
+
+
+
+    CLR4 !BRR_FLAGS
+    MOV A, (X+)                 ;                                       #
+    MOV !BRR_CSMPT_L, A         ;                                       #
+    MOV A, (X+)                 ;   currentsmppoint = BRRBuffer[i]      #
+    MOV !BRR_CSMPT_H, A         ;                                       #
+    MOVW YA, !BRR_CSMPT_L       ;   Python code:                        #   OG Python code:
+    SUBW YA, !BRR_SMPPT_L       ;   currentsmppoint -= smppoint         #   BRRBuffer[i] -= smppoint
+    MOVW !BRR_CSMPT_L, YA       ;__                                     #
+    MOV !BRR_BUFF1_PTR_L+X, A   ;                                       #
+    MOV A, !BRR_CSMPT_H         ;   BRRBuffer[i] = currentsmppoint      #
+    MOV !BRR_BUFF1_PTR_L+X, A   ;__                                     #
+    BBC7 !BRR_SMPPT_H, +        ;                                       #
+    SET4 !BRR_FLAGS             ;   Inverting negative numbers          #
+    EOR !BRR_SMPPT_L, #$FF      ;                                       #
+    EOR !BRR_SMPPT_H, #$FF      ;__                                     #
+
+    CMP X, #$20                 ;   Loop                                #
+    BNE SPC_ConvertToBRR_FilterLoop;__ 
+.SetupBRREncoding:
+    MOV A, !BRR_OUT_INDEX       ;
+    MOV Y, #$48                 ;   Set up the OUT pointer
+    MUL YA                      ;
+    MOVW !BRR_OUT_PTR_L, YA     ;__
+    BBC5 !BRR_FLAGS, +          ;
+    CLRC                        ;   Apply the i flag
+    ADC !BRR_OUT_PTR_H, #$48    ;__
++:                              ;
+    CLRC                        ;   Actually make it an index
+    ADC !BRR_OUT_PTR_H, #$60    ;__
+    PUSH X
+    PUSH X
+
+
+
+SPC_ConvertToBRR_oldaf:
+.SetupCopy:
+    MOV !BRR_IN0_PTR_H, !BRR_PCM_PAGE;   Set up the PCM sample page
+    MOV A, !BRR_FLAGS               ;__
+    XCN A                           ;
     AND A, #$C0                     ;   Set up tBB.7 !BRR_FLhe PCM sample subpage 
     MOV !BRR_IN0_PTR_L, A           ;__
     MOV A, !BRR_FLAGS               ;
@@ -679,7 +797,7 @@ SPC_ConvertToBRR:
     MOV (!BRR_OUT_PTR_L)+Y, A       ;                               #
     INCW !BRR_OUT_PTR_L             ;                               #
     MOV A, X                        ;   Loop                        #
-    CBNE !BRR_OUT_PTR_L, SPC_ConvertToBRR_CopyLoop  ;               #
+    CBNE !BRR_OUT_PTR_L, SPC_ConvertToBRR_oldaf_CopyLoop  ;               #
 .SetupFilter
     MOV !BRR_IN0_PTR_L, #$1E    ;
     MOV !BRR_IN0_PTR_H, #$04    ;
@@ -751,7 +869,7 @@ SPC_ConvertToBRR:
     ADDW YA, !BRR_CSMPT_L       ;   smppoint_H<<8 += currentsmppoint    #
     MOVW !BRR_SMPPT_L, YA       ;__                                     #__
     MOV A, X                    ;   Loop
-    CBNE !BRR_OUT_PTR_L, SPC_ConvertToBRR_FilterLoop
+    CBNE !BRR_OUT_PTR_L, SPC_ConvertToBRR_oldaf_FilterLoop
 .SetupBRREncoding:
     MOV !BRR_IN1_PTR_L, #$00    ;   Set up the IN pointer
     MOV !BRR_IN1_PTR_H, #$04    ;__
@@ -782,7 +900,7 @@ SPC_ConvertToBRR:
     MOV A, (!BRR_IN0_PTR_L+X)  
     MOV !BRR_SMPPT_H, A         
     INC !BRR_IN0_PTR_L+X
-    BBC7 !BRR_SMPPT_H, SPC_ConvertToBRR_BRREncoding_MaximumFilter1
+    BBC7 !BRR_SMPPT_H, SPC_ConvertToBRR_oldaf_BRREncoding_MaximumFilter1
     EOR !BRR_SMPPT_L, #$FF
     EOR !BRR_SMPPT_H, #$FF
 ..MaximumFilter1:
@@ -803,14 +921,14 @@ SPC_ConvertToBRR:
 +:
     MOV A, !BRR_IN0_PTR_L+X
     AND A, #$1F
-    BNE SPC_ConvertToBRR_BRREncoding_MaximumFilter1
+    BNE SPC_ConvertToBRR_oldaf_BRREncoding_MaximumFilter1
     MOV A, X
     BEQ +
     MOVW YA, !BRR_SMPPT_L
     MOVW !BRR_MAXM0_L, YA
     ;Set up the routine for maximum in the OG PCM buffer
     MOV X, #$00
-    JMP  SPC_ConvertToBRR_BRREncoding_OuterLoop
+    JMP  SPC_ConvertToBRR_oldaf_BRREncoding_OuterLoop
 +:
     MOV X, #$02
     MOVW YA, !BRR_IN1_PTR_L
@@ -837,7 +955,7 @@ SPC_ConvertToBRR:
     BEQ +
 -
     ROL A
-    BCS SPC_ConvertToBRR_BRREncoding_FormHeader
+    BCS SPC_ConvertToBRR_oldaf_BRREncoding_FormHeader
     DEC Y
     CMP Y, #$04
     BNE -
@@ -848,7 +966,7 @@ SPC_ConvertToBRR:
     CLRC
 -
     ROL A
-    BCS SPC_ConvertToBRR_BRREncoding_FormHeader
+    BCS SPC_ConvertToBRR_oldaf_BRREncoding_FormHeader
     DEC Y
     BNE -
 ..FormHeader:
@@ -879,7 +997,7 @@ SPC_ConvertToBRR:
     BEQ +
     PUSH Y
     PUSH Y
-    JMP SPC_ConvertToBRR_BRREncoding
+    JMP SPC_ConvertToBRR_oldaf_BRREncoding
 +:
 
 

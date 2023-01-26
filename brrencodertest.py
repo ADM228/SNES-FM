@@ -55,18 +55,23 @@ else:
     for i in range(len(BRRBuffer)):
         BRRBuffer[i] = (array[i&(length-1)])/2
 
-smppoint = BRRBuffer[15]
+BRRBufferNew = BRRBuffer.copy()
 
-for i in range(16, len(BRRBuffer)):
-    BRRBuffer[i] -= smppoint
+smppoint = BRRBufferNew[15]
+currentsmppoint = 0
+for i in range(16, len(BRRBufferNew)):
     smppoint *= 0.9375
-    smppoint += BRRBuffer[i]
+    smppoint += currentsmppoint
+    currentsmppoint = BRRBufferNew[i]
+    currentsmppoint -= smppoint
+    BRRBufferNew[i] = currentsmppoint
+
 
 x = np.arange(0, 128)
 
 array1 = array1 / 2
 
-plt.plot(x,array1) 
+plt.plot(x,BRRBufferNew) 
 plt.plot(x,BRRBuffer,linestyle=":")
 
 #plt.plot(x,BRRBuffer-array2) 
