@@ -1,20 +1,27 @@
 # SNES-FM
 SNES-FM is a frequency modulation synthesis engine for the SNES (or specifically, the SPC700).
 The following features are already implemented:
-- Uploading data to the SPC700 (although it refuses to work sometimes which is why there might be NOPs in the SPC700 code)
-- Phase modulation on the SPC700
+On 65816 (main CPU, controls visuals and SPC700):
+- Uploading data to the SPC700
 - Phase modulation on the 65816 (for testing purposes)
 - Basic "UI" to change the mod strength on the 65816
+On SPC700 (audio CPU, controls just audio):
+- Phase modulation on the SPC700
 - PCM to BRR conversion (in python for now) and sound
+- Basic sound driver stuff - instruments, patterns and notes
 
 The following features will be implemented in the future:
-- On-demand pulse and tilted saw/triangle synthesis 
-- Channel 8 drum mode (softmixing 8-bit PCM samples into 1 channel)
+On 65816:
 - A whole-ass tracker for this
+- Also a DAW too (design will be completely stolen from FamiStudio at https://github.com/BleuBleu/FamiStudio) 
+- Softmixing several samples into 1 
 - Saving tracker data to SRAM and sharing .srm files of songs
-- SNES Mouse and NTT Data Pad support along with standard controllers
-- Miracle Piano Teaching System keyboard support (if anyone i know gets one)
-- XBAND ASCII keyboard support (if anyone i know gets one)
+- SNES Mouse (up to 4 simultaneously) and NTT Data Pad (up to 8) support along with standard controllers (up to 8) 
+- Miracle Piano Teaching System keyboard support (up to 4 (maybe 8 if additional buttons)) (if anyone i know gets one)
+- XBAND ASCII keyboard support (up to 2)
+On SPC700:
+- On-demand pulse and tilted saw/triangle synthesis 
+- Effects
 
 The engine is not realtime since the SPC700 is slow af, the engine generates all the instruments before playing a song.
 
