@@ -36,8 +36,8 @@
 !MOD_MAIN_TEMP_L = $EE
 !MOD_MAIN_TEMP_H = $EF
 
-!BRR_BUFF1_PTR_L = $1E
-!BRR_BUFF1_PTR_H = $1F
+!BRR_BUFF1_PTR_L = $20
+!BRR_BUFF1_PTR_H = $21
 !BRR_MAXM0_L = $F8  ;These registers are so unused
 !BRR_MAXM0_H = $F9  ;they're practically RAM!
 !BRR_SMPPT_L = $E6
@@ -46,8 +46,8 @@
 !BRR_CSMPT_H = $E9
 !BRR_LSMPT_L = $EA  ;Last sample point of previous block for filter 1 adjustment
 !BRR_LSMPT_H = $EB  ;
-!BRR_IN0_PTR_L = $EE
-!BRR_IN0_PTR_H = $EF
+!BRR_IN0_PTR_L = $EC
+!BRR_IN0_PTR_H = $ED
 !BRR_OUT_PTR_L = $EE
 !BRR_OUT_PTR_H = $EF
 
