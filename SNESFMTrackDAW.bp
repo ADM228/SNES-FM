@@ -1,6 +1,6 @@
-00224a::cpu
+00224a:x:cpu
 000007::dsp
-00227f::smp
+00227f:x:smp
 0000e3::smp
 0000ee-0000ef::smp
-00255e:x:smp
+00255e::smp

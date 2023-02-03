@@ -590,7 +590,7 @@ SPC_PhaseModulation_128:
     INC !MOD_MOD_INDEX_L
     MOV A, (!MOD_MOD_INDEX_L+X)
     MOV !MOD_MAIN_TEMP_H, A
-    BBS7 !MOD_MAIN_TEMP_H, SPC_PhaseModulation_128_loop_negative 
+    BMI SPC_PhaseModulation_128_loop_negative 
     MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
     MUL YA
     MOVW !MOD_MAIN_TEMP_L, YA
@@ -760,23 +760,13 @@ SPC_ConvertToBRR:
     SBC !BRR_CSMPT_H, #$00      ;__                                     #
 ++:                             ;                                       #   OG Python code:
     MOV A, !BRR_SMPPT_H         ;                                       #   smppoint *= 0.9375
-    MOV Y, #$0F                 ;   Python code:                        #   smppoint += BRRBuffer[i]
-    MUL YA                      ;   smpppoint_H *=15                    #
-    MOV !BRR_SMPPT_L, A         ;                                       #
-    AND !BRR_SMPPT_L, #$0F      ;                                       #
-    MOV !BRR_SMPPT_H, Y         ;__                                     #
-    AND !BRR_SMPPT_H, #$0F      ;                                       #
-    AND A, #$F0                 ;   Python code:                        #
-    OR A, !BRR_SMPPT_H          ;   smppoint_H /= 16                    #
-    XCN A                       ;__                                     #
-    BBC4 !BRR_FLAGS, +          ;   Invert negative high byte           #
-    EOR A, #$FF                 ;__                                     #
-+:                              ;                                       #
-    MOV Y, A                    ;                                       #
-    MOV A, !BRR_SMPPT_L         ;   Get low nybble                      #
-    XCN A                       ;__                                     #
-    BBC4 !BRR_FLAGS, +          ;   Invert negative low nybble          #   
-    EOR A, #$FF                 ;__                                     #
+    MOV Y, #$F0                 ;   Python code:                        #   smppoint += BRRBuffer[i]
+    MUL YA                      ;__ smpppoint_H *=15                    #
+    BBC4 !BRR_FLAGS, +          ;                                       #
+    MOV !BRR_SMPPT_H, Y         ;   Invert negative                     #
+    EOR A, #$FF                 ;                                       #
+    EOR !BRR_SMPPT_H, #$FF      ;__                                     #
+    MOV Y, !BRR_SMPPT_H         ;                                       #
 +:                              ;   Python code:                        #
     ADDW YA, !BRR_CSMPT_L       ;   smppoint_H<<8 += currentsmppoint    #
     MOVW !BRR_SMPPT_L, YA       ;__                                     #__
@@ -803,13 +793,10 @@ SPC_ConvertToBRR:
     
     MOV !BRR_LSMPT_L, !BRR_SMPPT_L
     MOV !BRR_LSMPT_H, !BRR_SMPPT_H
-    BBC4 !BRR_FLAGS, +
+    BBC4 !BRR_FLAGS, SPC_ConvertToBRR_BRREncoding
     EOR !BRR_LSMPT_L, #$FF
     EOR !BRR_LSMPT_H, #$FF
     CLR4 !BRR_FLAGS
-
-+:
-    MOV X, #$00
 
 .BRREncoding:
     SET7 !BRR_FLAGS
@@ -818,20 +805,21 @@ SPC_ConvertToBRR:
     MOV A, (X+)   
     MOV !BRR_SMPPT_L, A         
     MOV A, (X+)
-    MOV !BRR_SMPPT_H, A         
-    BBC7 !BRR_SMPPT_H, SPC_ConvertToBRR_BRREncoding_MaximumFilter1
+    BPL +
     EOR !BRR_SMPPT_L, #$FF
-    EOR !BRR_SMPPT_H, #$FF
+    EOR A, #$FF
++:
+    MOV !BRR_SMPPT_H, A         
 ..MaximumFilter1:
     MOV A, (X+)  
     MOV !BRR_CSMPT_L, A         
     MOV A, (X+)  
-    MOV !BRR_CSMPT_H, A         
-    BBC7 !BRR_CSMPT_H, +
+    BPL +
     EOR !BRR_CSMPT_L, #$FF
-    EOR !BRR_CSMPT_H, #$FF
+    EOR A, #$FF
 +:
-    MOVW YA, !BRR_CSMPT_L
+    MOV Y, A
+    MOV A, !BRR_CSMPT_L
     CMPW YA, !BRR_SMPPT_L
     BMI +
     MOVW !BRR_SMPPT_L, YA
@@ -857,7 +845,6 @@ SPC_ConvertToBRR:
 ..ShiftValuePart1:
     MOV Y, #12
     MOV A, !BRR_MAXM0_H
-    CLRC
     BEQ +
 -
     ROL A
@@ -915,30 +902,19 @@ SPC_ConvertToBRR:
     MOV A, (X+)
     MOV !BRR_CSMPT_L, A
     MOV A, (X+)
-    MOV !BRR_CSMPT_H, A
-    BBC7 !BRR_CSMPT_H, +
-    EOR !BRR_CSMPT_H, #$FF
+    BPL +
+    EOR A, #$FF
     EOR !BRR_CSMPT_L, #$FF
     SET4 !BRR_FLAGS
 +:
+    MOV !BRR_CSMPT_H, A ;
     MOV Y, !BRR_CSMPT_L ;
     MOV A, $0C00+Y      ;
     MOV !BRR_CSMPT_L, A ;
     MOV Y, !BRR_CSMPT_H ;
-    MOV A, #$07         ;
+    MOV A, #$E0         ;   7/8 multiplication
     MUL YA              ;
     MOV !BRR_CSMPT_H, Y ;
-    ROL A               ;
-    ROL !BRR_CSMPT_H    ;
-    ROL A               ;
-    ROL !BRR_CSMPT_H    ;   7/8 multiplication
-    ROL A               ;
-    ROL !BRR_CSMPT_H    ;
-    ROL A               ;
-    ROL !BRR_CSMPT_H    ;
-    ROL A               ;
-    ROL !BRR_CSMPT_H    ;
-    AND A, #$E0         ;
     CLRC                ;
     ADC A, !BRR_CSMPT_L ;
     MOV !BRR_CSMPT_L, A ;__
