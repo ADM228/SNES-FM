@@ -7,7 +7,7 @@ The following features are already implemented:
   - Basic "UI" to change the mod strength on the 65816
 - On SPC700 (audio CPU, controls just audio):
   - Phase modulation on the SPC700
-  - PCM to BRR conversion (in python for now) and sound
+  - PCM to BRR conversion and sound
   - Basic sound driver stuff - instruments, patterns and notes
 
 The following features will be implemented in the future:
