@@ -20,7 +20,7 @@ org $078000
 incbin "tilemap.bin"
 org $07A000
 incbin "bg3map.map"
-org $01FFFF ;set size of the file, irrelevant lmao
+org $07FFFF ;set size of the file, irrelevant lmao
 db $00
 
 

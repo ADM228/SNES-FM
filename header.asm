@@ -2,7 +2,7 @@
 ;==== FRIENDLY HEADER BY alexmush ====;
 !MAPMODE = #$20
 !ROMTYPE = $00
-!ROMSIZE = $08
+!ROMSIZE = $09
 !SRAMSIZE = $00
 !DEVNAME = $01
 !VERSION = $00
@@ -23,7 +23,7 @@
 
 ;=== Actually setting the sh*t ===;
 org $00fFC0 ;adress of the header 
-db "SNES ASAR TILE TEST  ",!MAPMODE,!ROMTYPE,!ROMSIZE,!SRAMSIZE,!DEVNAME,$00,!VERSION
+db "SNESFM               ",!MAPMODE,!ROMTYPE,!ROMSIZE,!SRAMSIZE,!DEVNAME,$00,!VERSION
 dw !CHECKSUM,!CHECKSUMCOMPLEMENT
 org $00Ffb2
 db "SNES"

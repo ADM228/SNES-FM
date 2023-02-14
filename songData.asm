@@ -51,12 +51,16 @@
 ;   $FE t - Wait 
 ;   $FF - End effect data
 PatternData:
-db $00, $01, $02, $03, $FF
+db $00, $01, $02, $03
+db $04, $05, $05, $05
+db $FF
 PatternPointers:
 dw NoteDataCh1
 dw NoteDataCh2
 dw NoteDataCh3
 dw NoteDataCh4
+dw NoteDataNoise
+dw NoteDataNone
 
 ;instrument data
 Instr00Data:
@@ -138,6 +142,14 @@ db %00000110
 db $8C, $19, $01
 db %00000010
 db $1C, $03
+
+db $FF
+
+Instr03Data:
+db %10000010
+
+db %00000110
+db $7F, $00, $7F
 
 db $FF
 
@@ -421,5 +433,16 @@ db $FE, $0C
 db $D4, $00, $18
 db $FE, $18
 
+NoteDataNone:
+db $FF
 
+NoteDataNoise:
+db $81, $03, $7F
+db $80, $03, $7F
+db $81, $03, $7F
+db $80, $03, $7F
+db $81, $03, $7F
+db $80, $03, $7F
+db $81, $03, $7F
+db $80, $03, $7F
 db $FF

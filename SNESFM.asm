@@ -403,7 +403,7 @@ SPC_ParseInstrumentData:
     MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;
     MOV !CHTEMP_SAMPLE_POINTER_H, A         ;
     INCW !CHTEMP_INSTRUMENT_POINTER_L       ;__
-    CALL SPC_updatePointer0                 ;__ Updating the sample pointer
+    CALL SPC_updatePointer                  ;__ Updating the sample pointer
 +:
     BBC2 $E0, +                             ;__ If no envelope update, skip
     AND !CHTEMP_REGISTER_INDEX, #$70        ;
@@ -491,65 +491,64 @@ SPC_End:
     MOV $F7, #$EF
     STOP
 
-SPC_updatePointer0:         ;When the sample is 0
-    BBS7 !CHTEMP_FLAGS, SPC_updatePointer1
-    MOV A, !CHTEMP_SAMPLE_POINTER_L
-    MOV $0206+X, A
-    MOV A, !CHTEMP_SAMPLE_POINTER_H
-    MOV $0207+X, A
-    BBS6 !CHTEMP_FLAGS, +
-    MOV A, !CHTEMP_SAMPLE_POINTER_L
-    MOV $0204+X, A
-    MOV A, !CHTEMP_SAMPLE_POINTER_H
-    MOV $0205+X, A
-    JMP ++
-+:
-    MOV A, #$C0
-    MOV $0204+X, A
-    MOV A, #$0E
-    MOV $0205+X, A
-    CLR6 !CHTEMP_FLAGS
-++:
-    AND !CHTEMP_REGISTER_INDEX, #$70
-    OR !CHTEMP_REGISTER_INDEX, #$04
-    MOV $F2, !CHTEMP_REGISTER_INDEX
-    MOV A, !CHTEMP_REGISTER_INDEX
-    LSR A
-    LSR A
-    LSR A
-    OR A, #$01 
-    MOV $F3, A;SCRN
-    SET7 !CHTEMP_FLAGS
+SPC_updatePointer:         ;When the sample is 0
+    BBS7 !CHTEMP_FLAGS, SPC_updatePointer_1  ;If the sample currently playing is 1, update sample 0
+.0:
+    MOV A, !CHTEMP_SAMPLE_POINTER_H     ;   Check if high byte is the same
+    CMP A, $0203+X                      ;__
+    BNE SPC_updatePointer_0_withRestart
+    MOV A, !CHTEMP_SAMPLE_POINTER_L     ;
+    MOV $0202+X, A                      ;__ Update low byte of sample pointer
+    RET
+    
+..withRestart:
+    MOV $0207+X, A                      ;   If high byte is different,
+    MOV A, !CHTEMP_SAMPLE_POINTER_L     ;   Update sample 1 loop pointer
+    MOV $0206+X, A                      ;__
+    MOV A, #$C0                         ;
+    MOV $0204+X, A                      ;   Reset sample 1 start pointer to blank sample
+    MOV A, #$0E                         ;
+    MOV $0205+X, A                      ;__
+    CLR6 !CHTEMP_FLAGS                  ;
+    AND !CHTEMP_REGISTER_INDEX, #$70    ;   Write address to DSP
+    OR !CHTEMP_REGISTER_INDEX, #$04     ;
+    MOV $F2, !CHTEMP_REGISTER_INDEX     ;__
+    MOV A, !CHTEMP_REGISTER_INDEX       ;
+    LSR A                               ;
+    LSR A                               ;   Write Source Number to DSP
+    LSR A                               ;
+    OR A, #$01                          ;
+    MOV $F3, A                          ;__
+    SET7 !CHTEMP_FLAGS                  ;__ Next time update sample 0
     RET
 
 
-SPC_updatePointer1:
-    MOV A, !CHTEMP_SAMPLE_POINTER_L
-    MOV $0202+X, A
-    MOV A, !CHTEMP_SAMPLE_POINTER_H
-    MOV $0203+X, A
-    BBS6 !CHTEMP_FLAGS, +
-    MOV A, !CHTEMP_SAMPLE_POINTER_L
-    MOV $0200+X, A
-    MOV A, !CHTEMP_SAMPLE_POINTER_H
-    MOV $0201+X, A
-    JMP ++
-+:
-    MOV A, #$C0
-    MOV $0200+X, A
-    MOV A, #$0E
-    MOV $0201+X, A
-    CLR6 !CHTEMP_FLAGS
-++:
-    AND !CHTEMP_REGISTER_INDEX, #$70
-    OR !CHTEMP_REGISTER_INDEX, #$04
-    MOV $F2, !CHTEMP_REGISTER_INDEX
-    MOV A, !CHTEMP_REGISTER_INDEX
-    LSR A
-    LSR A
-    LSR A
-    MOV $F3, A;SCRN
-    CLR7 !CHTEMP_FLAGS
+.1:
+    MOV A, !CHTEMP_SAMPLE_POINTER_H     ;   Check if high byte is the same
+    CMP A, $0207+X                      ;__
+    BNE SPC_updatePointer_1_withRestart
+    MOV A, !CHTEMP_SAMPLE_POINTER_L     ;
+    MOV $0206+X, A                      ;__ Update low byte of sample pointer
+    RET
+    
+..withRestart:
+    MOV $0203+X, A                      ;   If high byte is different,
+    MOV A, !CHTEMP_SAMPLE_POINTER_L     ;   Update sample 1 loop pointer
+    MOV $0202+X, A                      ;__
+    MOV A, #$C0                         ;
+    MOV $0200+X, A                      ;   Reset sample 1 start pointer to blank sample
+    MOV A, #$0E                         ;
+    MOV $0201+X, A                      ;__
+    CLR6 !CHTEMP_FLAGS                  ;
+    AND !CHTEMP_REGISTER_INDEX, #$70    ;   Write address to DSP
+    OR !CHTEMP_REGISTER_INDEX, #$04     ;
+    MOV $F2, !CHTEMP_REGISTER_INDEX     ;__
+    MOV A, !CHTEMP_REGISTER_INDEX       ;
+    LSR A                               ;
+    LSR A                               ;   Write Source Number to DSP
+    LSR A                               ;
+    MOV $F3, A                          ;__
+    CLR7 !CHTEMP_FLAGS                  ;__ Next time sample 1 is updated
     RET
 
 SPC_set_echoFIR:
@@ -699,11 +698,11 @@ SPC_ConvertToBRR:
     INCW !BRR_IN0_PTR_L             ;   Python code:                #
     MOV A, (!BRR_IN0_PTR_L)+Y       ;   currentsmppoint = array[i]  #
     MOV !BRR_CSMPT_H, A             ;                               #
-    INCW !BRR_IN0_PTR_L             ;__                             #
-    BBC7 !BRR_CSMPT_H, +            ;                               #
+    BPL +                           ;                               #
     EOR A, #$FF                     ;   Invert negative numbers     #
     EOR !BRR_CSMPT_L, #$FF          ;__                             #
 +:                                  ;                               #
+    INCW !BRR_IN0_PTR_L             ;__                             #
     CLRC                            ;   Python code:                #
     ROR A                           ;   currentsmppoint /= 2        #   OG Python code:
     ROR !BRR_CSMPT_L                ;__                             #   for i in range(len(BRRBuffer)):
@@ -1112,7 +1111,7 @@ org $1000
     incsrc "songData.asm"
 org $0A00
     ;instrument data pointers
-    dw Instr00Data, Instr01Data, Instr02Data
+    dw Instr00Data, Instr01Data, Instr02Data, Instr03Data
 org $FFC0   ;For TCALLs
     dw SPC_transferChToTemp, SPC_transferTempToCh, SPC_SetFlagdp, SPC_ClrFlagdp
 startpos init
