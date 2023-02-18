@@ -58,9 +58,9 @@ PatternPointers:
 dw NoteDataNone
 dw NoteDataBass1
 dw NoteDataDrums1
-dw NoteDataBass2
-dw NoteDataCh4
-dw NoteDataNoise
+dw NoteDataNone
+dw NoteDataNone
+dw NoteDataNone
 
 ;instrument data
 Instr00Data:
