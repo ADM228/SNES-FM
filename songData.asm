@@ -2,15 +2,15 @@
 ;1. Instrument data
 ;   t {f ([s s]/[s]) ([v v]/[v]) [a] [p p] t}
 ;   t - Instrument type
-;       000000et
+;       00000pet
+;       p - Sample index "page" number
 ;       e - Envelope type (if 0 - ADSR, if 1 - GAIN) (basically reverse x5.7)
 ;       t - Instrument type (0 - Noise, 1 - sample)
 ;   f - Flags
-;       0sirnvap
+;       00sirvap
 ;       s - Update sample
 ;       i - Choose sample by index, not absolute position
 ;       r - Update sample position relative to current position (works independently of i)
-;       n - Index "page" number (when i is set)
 ;       v - Update envelope 
 ;       a - Arpeggio (always relative)
 ;       p - Pitchbend
@@ -51,54 +51,54 @@
 ;   $FE t - Wait 
 ;   $FF - End effect data
 PatternData:
-db $00, $01, $02, $03
-db $04, $05, $05, $05
+db $03, $00, $00, $00, $00, $00, $00, $00
+db $02, $00, $00, $00, $00, $00, $00, $00
 db $FF
 PatternPointers:
-dw NoteDataCh1
-dw NoteDataCh2
-dw NoteDataCh3
+dw NoteDataNone
+dw NoteDataBass1
+dw NoteDataDrums1
+dw NoteDataBass2
 dw NoteDataCh4
 dw NoteDataNoise
-dw NoteDataNone
 
 ;instrument data
 Instr00Data:
-db %10000011
+db !COMMAND_CHANGE_INSTRUMENT_TYPE|!SAMPLE_INDEX_PAGE_0|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
 
-db %01000110
+db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
 dw $6000
 db $7F, $00, $02
 
-db %01000100
+db !UPD_SAMPLE|!UPD_ENVELOPE
 dw $6048
 db $8A, $03
 
-db %01000000
+db !UPD_SAMPLE
 dw $6090
 db $03
 
-db %01000000
+db !UPD_SAMPLE
 dw $60D8
 db $03
 
-db %01000000
+db !UPD_SAMPLE
 dw $6120
 db $03
 
-db %01000000
+db !UPD_SAMPLE
 dw $6168
 db $03
 
-db %01000000
+db !UPD_SAMPLE
 dw $61B0
 db $03
 
-db %01000000
+db !UPD_SAMPLE
 dw $61F8
 db $03
 
-db %01000000
+db !UPD_SAMPLE
 dw $6240
 db $03
 
@@ -108,183 +108,93 @@ db $03
 db $FF
 
 Instr01Data:
-db %10000011
+db !COMMAND_CHANGE_INSTRUMENT_TYPE|!SAMPLE_INDEX_PAGE_0|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
 
-db %01000110
-dw $6240
+db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
+dw $6288
 db $7F, $00, $01
-db %00000110, $8D, $F4, $00
-db %00000010, $EE, $00
-db %00000010, $E8, $00
-db %00000010, $E5, $00
-db %00000010, $E2, $00
-db %00000010, $DF, $00
-db %00000010, $DC, $00
-db %00000010, $DB, $00
-db %00000010, $DA, $00
-db %00000010, $D9, $00
-db %00000010, $D8, $00
-db %00000110, $00, $00, $00
+db !UPD_ENVELOPE|!UPD_ARPEGGIO, $8D, $F4, $01
+db !UPD_ARPEGGIO, $EE, $01
+db !UPD_ARPEGGIO, $E8, $01
+db !UPD_ARPEGGIO, $E5, $01
+db !UPD_ARPEGGIO, $E2, $01
+db !UPD_ARPEGGIO, $DF, $01
+db !UPD_ARPEGGIO, $DC, $01
+db !UPD_ARPEGGIO, $DB, $01
+db !UPD_ARPEGGIO, $DA, $01
+db !UPD_ARPEGGIO, $D9, $01
+db !UPD_ARPEGGIO, $D8, $01
+db !UPD_ENVELOPE|!UPD_ARPEGGIO, $00, $01, $01
 
 
 db $FF
 
 Instr02Data:
-db %10000011
+db !COMMAND_CHANGE_INSTRUMENT_TYPE|!SAMPLE_INDEX_PAGE_0|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
 
-db %01000110
+db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
 dw $6240
 db $60, $00, $01
-db %00000110, $30, $EE, $00
+db !UPD_ENVELOPE|!UPD_ARPEGGIO, $30, $EE, $01
 
-db %10000010
-db %00000110
+db !COMMAND_CHANGE_INSTRUMENT_TYPE|!SAMPLE_INDEX_PAGE_0|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_NOISE
+db !UPD_ENVELOPE|!UPD_ARPEGGIO
 db $8C, $19, $01
-db %00000010
+db !UPD_ARPEGGIO
 db $1C, $03
 
 db $FF
 
 Instr03Data:
-db %10000010
+db !COMMAND_CHANGE_INSTRUMENT_TYPE|!SAMPLE_INDEX_PAGE_0|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
 
-db %00000110
-db $7F, $00, $7F
+db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
+dw $6288
+db $7F, $00, $02
 
+db !UPD_ENVELOPE
+db $8A, $03
 db $FF
 
-NoteDataCh1:
-db $B0, $00, $0C
-db $3C, $0C
-db $30, $0C
-db $3c, $0C
+NoteDataBass1:
+db $B0, $00, $10
+db $B0, $00, $10
+db $B0, $00, $10
+db $BC, $00, $10
+db $B0, $00, $10
+db $B3, $00, $10
+db $BF, $00, $10
+db $B3, $00, $10
+db $B6, $00, $10
+db $C2, $00, $10
+db $B9, $00, $10
 
-db $B0, $00, $0C
-db $33, $0C
-db $34, $0C
-db $B5, $00, $18
-db $B5, $00, $0C
-db $41, $0C 
-db $BF, $00, $18
-db $41, $0C 
-db $B5, $00, $0C
-db $34, $0C
+db !END_DATA
 
-db $B3, $00, $24
-db $BF, $00, $18
-db $B3, $00, $18
-db $B0, $00, $18
-db $B0, $00, $18
-db $BC, $00, $18
-db $B0, $00, $0C
-db $BC, $00, $18
+NoteDataBass2:
+db $B0, $03, $10
+db $B0, $03, $10
+db $B0, $03, $10
+db $BC, $03, $10
+db $B0, $03, $10
+db $B3, $03, $10
+db $BF, $03, $10
+db $B3, $03, $10
+db $B6, $03, $10
+db $C2, $03, $10
+db $B9, $03, $10
 
-db $B5, $00, $18
-db $C1, $00, $0C
-db $B3, $00, $18
-db $BF, $00, $0C
-db $B0, $00, $18
+db !END_DATA
 
-db $BC, $00, $0C
-db $AE, $00, $18
-db $BA, $00, $0C
+NoteDataDrums1:
+db $BC, $01, $10
+db !KEY_OFF, $40
+db $BC, $01, $10
+db !KEY_OFF, $20
+db $BC, $01, $10
+db !KEY_OFF, $20
 
-db $AB, $00, $0C
-db $A9, $00, $0C
-db $AE, $00, $0C
-db $AB, $00, $18
-db $B0, $00, $30
-db $A4, $00, $24
-
-db $B0, $00, $0C
-db $AE, $00, $0C
-db $FE, $0C
-db $A9, $00, $0C
-
-db $FE, $0C
-db $AB, $00, $0C
-db $FE, $0C
-db $AE, $00, $0C
-
-db $B0, $00, $0C
-db $3C, $0C
-db $30, $0C
-db $3c, $0C
-
-db $B0, $00, $0C
-db $33, $0C
-db $34, $0C
-db $B5, $00, $18
-db $B5, $00, $0C
-db $41, $0C 
-db $BF, $00, $18
-db $41, $0C 
-db $B5, $00, $0C
-db $34, $0C
-
-db $B3, $00, $24
-db $BF, $00, $18
-db $B3, $00, $18
-db $B0, $00, $18
-db $B0, $00, $18
-db $BC, $00, $18
-db $B0, $00, $0C
-db $BC, $00, $18
-
-db $B5, $00, $18
-db $C1, $00, $0C
-db $B3, $00, $18
-db $BF, $00, $0C
-db $B0, $00, $18
-
-db $BC, $00, $0C
-db $AE, $00, $18
-db $BA, $00, $0C
-
-db $AB, $00, $0C
-db $A9, $00, $0C
-db $AE, $00, $0C
-db $AB, $00, $18
-db $B0, $00, $30
-db $A4, $00, $24
-
-db $B0, $00, $0C
-db $AE, $00, $0C
-db $FE, $0C
-db $A9, $00, $0C
-
-db $FE, $0C
-db $AB, $00, $0C
-db $FE, $0C
-db $AE, $00, $0C
-
-db $FE, $80
-
-db $FF
-
-NoteDataCh2:
-db $FE, $80
-db $FE, $80
-db $FE, $80
-db $FE, $80
-
-db $FE, $80
-db $FE, $80
-db $FE, $80
-db $FE, $80
-
-db $FE, $80
-db $FE, $80
-db $FE, $80
-db $FE, $80
-
-db $FE, $18
-db $CB, $00, $24
-db $CB, $00, $24
-db $CD, $00, $24
-db $FE, $01
-
-db $FF
+db !END_DATA
 
 NoteDataCh3:
 db $FE, $80
@@ -434,7 +344,7 @@ db $D4, $00, $18
 db $FE, $18
 
 NoteDataNone:
-db $FF
+db !END_DATA
 
 NoteDataNoise:
 db $81, $03, $7F

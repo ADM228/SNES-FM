@@ -192,6 +192,10 @@ init:       ;init routine, totally not grabbed from tales of phantasia
     MOV !BRR_OUT_INDEX, #$00    ;As if it matters lmao
     MOV !BRR_FLAGS, #%00000000
     CALL SPC_ConvertToBRR
+    MOV !BRR_PCM_PAGE, #$48
+    MOV !BRR_OUT_INDEX, #$09
+    MOV !BRR_FLAGS, #%01000000
+    CALL SPC_ConvertToBRR
     ;Tryna play a BRR sample
     MOV $F2, #$00;
     MOV $F3, #$7F;vol left
@@ -261,7 +265,7 @@ SPC_ParseSongData:
     MOV !CHTEMP_NOTE, $EF
     MOV $F2, #$5C       ;
     MOV $F3, #$00       ;   Key off the needed channel
-    MOV $D0, #$F3       ;
+    MOV !CHG_BIT_ADDRESS, #$F3       ;
     TCALL 13            ;__
     MOV Y, #$00
     INCW !CHTEMP_SONG_POINTER_L
@@ -273,13 +277,13 @@ SPC_ParseSongData:
     MOV A, $0A00+Y
     MOV !CHTEMP_INSTRUMENT_POINTER_L, A
     CLR1 !CHTEMP_FLAGS
-    SET6 !CHTEMP_FLAGS
     CALL SPC_ParseInstrumentData
+    INC !CHTEMP_INSTRUMENT_COUNTER
     MOV $F2, #$5C       ;
     MOV $F3, #$00       ;   Key off nothing (so no overrides happen)
     MOV $F2, #$4C       ;
     MOV $F3, #$00       ;   Key on the needed channel
-    MOV $D0, #$F3       ;
+    MOV !CHG_BIT_ADDRESS, #$F3       ;
     TCALL 13            ;__
 .NoRetrigger:
     MOV A, $EF              ;
@@ -321,7 +325,7 @@ SPC_ParseSongData:
     MOV $F3, #$00
     POP X
     PUSH X
-    MOV $D0, #$F3
+    MOV !CHG_BIT_ADDRESS, #$F3
     TCALL 13
 .NoPitch:
     INCW !CHTEMP_SONG_POINTER_L
@@ -329,7 +333,7 @@ SPC_ParseSongData:
     JMP -
 .End:
     SET0 !CHTEMP_FLAGS
-    MOV $D0, #!PATTERN_END_FLAGS
+    MOV !CHG_BIT_ADDRESS, #!PATTERN_END_FLAGS
     POP X
     TCALL 13
     INCW !CHTEMP_SONG_POINTER_L
@@ -385,7 +389,7 @@ SPC_ParseInstrumentData:
     AND A, #$07
     MOV !CHTEMP_INSTRUMENT_TYPE, A
     MOV $F2, #$3D                           ;   Enable noise if needed
-    MOV $D0, #$F3
+    MOV !CHG_BIT_ADDRESS, #$F3
     BBC0 !CHTEMP_INSTRUMENT_TYPE, SPC_ParseInstrumentData_Noise0
     TCALL 12
     JMP +
@@ -396,7 +400,7 @@ SPC_ParseInstrumentData:
     MOV $E0, A
     INCW !CHTEMP_INSTRUMENT_POINTER_L
 ++:
-    BBC6 $E0, +                             ;__ If no sample pointer update, skip
+    BBC5 $E0, +                             ;__ If no sample pointer update, skip
     MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;
     MOV !CHTEMP_SAMPLE_POINTER_L, A         ;
     INCW !CHTEMP_INSTRUMENT_POINTER_L       ;   Loading sample pointer into memory
@@ -509,9 +513,8 @@ SPC_updatePointer:         ;When the sample is 0
     MOV $0204+X, A                      ;   Reset sample 1 start pointer to blank sample
     MOV A, #$0E                         ;
     MOV $0205+X, A                      ;__
-    CLR6 !CHTEMP_FLAGS                  ;
-    AND !CHTEMP_REGISTER_INDEX, #$70    ;   Write address to DSP
-    OR !CHTEMP_REGISTER_INDEX, #$04     ;
+    AND !CHTEMP_REGISTER_INDEX, #$70    ;   
+    OR !CHTEMP_REGISTER_INDEX, #$04     ;   Write address to DSP
     MOV $F2, !CHTEMP_REGISTER_INDEX     ;__
     MOV A, !CHTEMP_REGISTER_INDEX       ;
     LSR A                               ;
@@ -539,9 +542,8 @@ SPC_updatePointer:         ;When the sample is 0
     MOV $0200+X, A                      ;   Reset sample 1 start pointer to blank sample
     MOV A, #$0E                         ;
     MOV $0201+X, A                      ;__
-    CLR6 !CHTEMP_FLAGS                  ;
-    AND !CHTEMP_REGISTER_INDEX, #$70    ;   Write address to DSP
-    OR !CHTEMP_REGISTER_INDEX, #$04     ;
+    AND !CHTEMP_REGISTER_INDEX, #$70    ;   
+    OR !CHTEMP_REGISTER_INDEX, #$04     ;   Write address to DSP
     MOV $F2, !CHTEMP_REGISTER_INDEX     ;__
     MOV A, !CHTEMP_REGISTER_INDEX       ;
     LSR A                               ;
