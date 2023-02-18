@@ -192,6 +192,13 @@ init:       ;init routine, totally not grabbed from tales of phantasia
     MOV !BRR_OUT_INDEX, #$00    ;As if it matters lmao
     MOV !BRR_FLAGS, #%00000000
     CALL SPC_ConvertToBRR
+
+
+    MOV !MOD_CAR_PAGE, #$0F
+    MOV !MOD_MOD_PAGE, #$0F
+    MOV !MOD_OUT_PAGE, #$48
+    MOV !MOD_MOD_STRENGTH, #$00
+    CALL SPC_PhaseModulation_128
     MOV !BRR_PCM_PAGE, #$48
     MOV !BRR_OUT_INDEX, #$09
     MOV !BRR_FLAGS, #%01000000
@@ -675,8 +682,10 @@ SPC_ConvertToBRR:
     XCN A                           ;
     AND A, #$C0                     ;   Set up the PCM sample subpage 
     MOV !BRR_IN0_PTR_L, A           ;__
-    MOV A, !BRR_FLAGS               ;   Set up the ending low byte of the address
-    AND A, #$40                     ;__
+    MOV A, !BRR_FLAGS               ;
+    AND A, #$40                     ;   Set up the ending low byte of the address
+    CLRC                            ;
+    ADC A, !BRR_IN0_PTR_L           ;__
     MOV !BRR_LSMPT_L, #$00          ;   
     MOV !BRR_LSMPT_H, #$00          ;__ smppoint = 0
     PUSH A
@@ -684,6 +693,13 @@ SPC_ConvertToBRR:
     MOV A, !BRR_OUT_INDEX       ;
     MOV Y, #$48                 ;   Set up the OUT pointer
     MUL YA                      ;
+    MOVW !BRR_OUT_PTR_L, YA     ;__
+    MOV A, !BRR_FLAGS           ;
+    AND A, #$03                 ;
+    MOV Y, A                    ;   Set up the BRR sample subpage
+    MOV A, SPC_ConvertToBRR_LookuptableMul18+Y
+    MOV Y, #$00                 ;
+    ADDW YA, !BRR_OUT_PTR_L     ;
     MOVW !BRR_OUT_PTR_L, YA     ;__
     BBC5 !BRR_FLAGS, +          ;
     CLRC                        ;   Apply the i flag
@@ -995,6 +1011,9 @@ ret
     MOV !BRR_MAXM0_H, #$7F
     MOV X, #$20
     JMP SPC_ConvertToBRR_BRREncoding_OuterLoop
+
+.LookuptableMul18:
+db $00, $12, $24, $36
 
 
 SPC_transferChToTemp:

@@ -51,8 +51,8 @@
 ;   $FE t - Wait 
 ;   $FF - End effect data
 PatternData:
-db $03, $00, $00, $00, $00, $00, $00, $00
-db $02, $00, $00, $00, $00, $00, $00, $00
+db $01, $00, $00, $00, $00, $00, $00, $00
+db $01, $02, $00, $00, $00, $00, $00, $00
 db $FF
 PatternPointers:
 dw NoteDataNone
@@ -168,21 +168,6 @@ db $B3, $00, $10
 db $B6, $00, $10
 db $C2, $00, $10
 db $B9, $00, $10
-
-db !END_DATA
-
-NoteDataBass2:
-db $B0, $03, $10
-db $B0, $03, $10
-db $B0, $03, $10
-db $BC, $03, $10
-db $B0, $03, $10
-db $B3, $03, $10
-db $BF, $03, $10
-db $B3, $03, $10
-db $B6, $03, $10
-db $C2, $03, $10
-db $B9, $03, $10
 
 db !END_DATA
 
