@@ -13,11 +13,9 @@ incsrc "initSNES.asm"
 org $068000
 incbin "palette.pal"
 org $06A000
-incbin "tiles.chr"
+incbin "tilesetUnicode.bin"
 org $06FC00
 incbin "sinetable.bin"
-org $078000
-incbin "tilemap.bin"
 org $07A000
 incbin "bg3map.map"
 org $07FFFF ;set size of the file, irrelevant lmao
@@ -140,38 +138,33 @@ dmaToCGRAM:
     STX $05			;DMA 0 Number of bytes
     LDA #%00000000	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (000 = 1 byte, write once)
     STA $00
-dmaToVRAM1:
-    LDX #$0000		;Address to write to in VRAM
-    STX $2116		;Write it to tell Snes that
-    LDA #$18		;VRAM Write register
-    STA $11			;DMA 1 B Address
-    LDA #$06		;Bank of tileset
-    STA $14			;DMA 1 A Bank
-    LDX #$A000		;Address of tiles
-    STX $12			;DMA 1 A Offset
-    LDX #$0C00		;Amount of data
-    STX $15			;DMA 1 Number of bytes
-    LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
-    STA $10
-    LDA #%00000011	;bit 2 corresponds to channel 0
+    LDA #%00000001	;bit 2 corresponds to channel 0
     STA $420B		;Init
+dmaToVRAM1:
+    STZ $0000
+    STZ $0001
+    JSL DecompressUnicodeBlock
+    LDA #$01
+    STA $0000
+    STA $0001
+    JSL DecompressUnicodeBlock
 dmaToVRAM2:
-    LDX #$0800		;Address to write to in VRAM
+    LDX #$7000		;Address to write to in VRAM
     STX $2116		;Write it to tell Snes that
     LDA #$18		;VRAM Write register
     STA $21			;DMA 2 B Address
     LDA #$07		;Bank of tilemap
     STA $24			;DMA 2 A Bank
-    LDX #$8000		;Address of tilemap
+    LDX #$A000		;Address of tilemap
     STX $22			;DMA 2 A Offset
-    LDX #$2700		;Amount of data
+    LDX #$0700		;Amount of data
     STX $25			;DMA 2 Number of bytes
     LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
     STA $20
     LDA #%00000100	;bit 2 corresponds to channel 0
     STA $420B		;Init
 EmptyPlotData:
-    LDX #$0280		;Address to write to in VRAM
+    LDX #$1000		;Address to write to in VRAM
     STX $2116		;Write it to tell Snes that
     LDA #$18		;VRAM Write register
     STA $11			;DMA 1 B Address
@@ -198,15 +191,19 @@ TurnOnScreen:
     sta $4200
     REP #%00010000 ;set xy to 16bit
     SEP #%00100000 ;set a to 8bit
-    LDA #%00001001	; = 8/8/8/8 px tile size, BG3 hpri, mode 1
+    LDA #%00000101	; = 8/8/8/8 px tile size, mode 5
     STA $2105
     STZ $210E
-    LDA #%00000100
+    LDA #%00000011
     STA $212C
-    LDA #%00001000
+    STA $212D
+    LDA #%01110000
     STA $2107
-    LDA #%00011000
-    STA $2109
+    LDA #%01110000
+    STA $2108
+    ;LDA #$03|$04      ;Interlace|Overscan
+    LDA #$04    ;Overscan
+    STA $2133
     lda #$80            ; = 10000000
     sta $2100           ; F-Blank
     LDA #$00
@@ -237,7 +234,7 @@ nmi:
     STA $210E
 
     ;Update the mod strength number
-    LDX #$1ACC
+    LDX #$72CC
     STX $2116
 
     LDA $10
@@ -254,7 +251,7 @@ nmi:
     ORA #$10
     STA $2118
 
-    LDX #$16EC
+    LDX #$72EC
     STX $2116
 
     LDA $11
@@ -279,10 +276,7 @@ incsrc "controllerRoutine.asm"
 REP #%00010000 ;set XY to 16bit
 SEP #%00100000 ;set A to 8bit
 
-LDA #%00000101
-STA $212C
-LDA #%00000100
-STA $212D
+
 lda #$0F            ; = 00001111
 sta $2100           ; Turn on screen, full brightness
 
@@ -322,6 +316,60 @@ PLP
 PLA
 RTI 
 
+;Mem table:
+;$00 - Unicode block to use
+;$01 - VRAM block to write to - 0..5
+DecompressUnicodeBlock:
+    PHD
+    PHP
+    PEA $4300
+    PLD				;set dp to 43
+    
+    REP #%00010000	;set xy to 16bit
+    SEP #%00100000 	;set a to 8bit
+    LDA $0001
+    ASL A
+    ASL A    
+    ASL A
+    ASL A
+    STA $0002
+    STZ $0001
+    LDY $0001		;Address to write to in VRAM
+    LDA #%10000101
+    STA $2115
+    LDA #$18		;VRAM Write register
+    STA $11			;DMA 1 B Address
+    LDA #$06		;Bank of tileset
+    STA $14			;DMA 1 A Bank
+    LDA $0000
+    ASL A
+    ASL A
+    ASL A
+    CLC
+    ADC #$A0
+    STA $13			;DMA 1 A Offset
+    STZ $12
+    LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
+    STA $10
+-:
+    STY $2116		;Write it to tell Snes that
+    LDX #$0100		;Amount of data
+    STX $15			;DMA 1 Number of bytes
+    LDA #%00000010	;bit 2 corresponds to channel 0
+    STA $420B		;Init
+    INY
+    INY
+    INY
+    INY
+    TYA
+    CMP #$20
+    BNE -
+
+    LDA #%10000000
+    STA $2115
+    PLP
+    PLD
+RTS
 org $018000 ;The plotting engine for now
 ;1bpp to 2bpp converter
 
@@ -598,7 +646,7 @@ Afterloop:
 WRAMtoVRAM:
 	lda #$80            ; = 10000000
     sta $2100           ; F-Blank
-    LDX #$0280		;Address to write to in VRAM
+    LDX #$1000		;Address to write to in VRAM
     STX $2116		;Write it to tell Snes that
     LDA #$18		;VRAM Write register
     STA $01			;DMA 1 B Address

@@ -114,6 +114,7 @@ init:       ;init routine, totally not grabbed from tales of phantasia
     MOV !MOD_MOD_PAGE, #$0F
     MOV !MOD_OUT_PAGE, #$48
     MOV !MOD_MOD_STRENGTH, #$40
+    MOV !MOD_MOD_PHASE_SHIFT, #$00
     CALL SPC_PhaseModulation_128
     MOV !MOD_CAR_PAGE, #$0F
     MOV !MOD_MOD_PAGE, #$0F
