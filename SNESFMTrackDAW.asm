@@ -7,13 +7,16 @@
 ;#038000 [#078000] - Tilemap information
 ;VAR NOTES
 ;$7FFFFD - Modulation Strength
+;RAM Map:
+;$00F0-00FE: Columns list (00 means empty)
+;$00FF - Row tile number
 incsrc "header.asm"
 incsrc "initSNES.asm"
 
 org $068000
 incbin "palette.pal"
-org $06A000
-incbin "tilesetUnicode.bin"
+org $028000
+incbin "tilesetUnicode.chr"
 org $06FC00
 incbin "sinetable.bin"
 org $07A000
@@ -27,14 +30,13 @@ db $00
 ;========================
 
 org $008129
-    lda #$80            ; = 10000000
-    sta $2100           ; Turn on screen, full brightness
+    LDA #$01            ;   Enable FastROM
+    STA $420D           ;__
+    lda #$80            ;    Turn on screen, full brightness
+    sta $2100           ;__
 SPCTransfer:         ;__
     PEA $0000       ;   set dp to 00 since RAM
     PLD				;__
-    LDA #$01        ;
-    PHA             ;   set db to 01 since that's where the code is
-    PLB
 
 SPCTransferLoop00:
     LDA $2140
@@ -44,8 +46,8 @@ SPCTransferLoop00:
     CMP #$BB
     BNE SPCTransferLoop00
                     ;__
-    LDX #$01E0      ;
-    STX $01         ;   Base address: $01E000
+    LDX #$81E0      ;
+    STX $01         ;   Base address: $81E000
     STZ $00         ;__
 SPCTA:
     LDY #$0002      ;
@@ -112,14 +114,6 @@ SPCTransferJump:
     LDA #$0F
     STA $60
 dmaToCGRAM:
-    LDA #$00        ;
-    PHA             ;   set db to 00
-    PLB
-
-    PHA
-    PHX
-    PHP
-    PHD
     
     PEA $4300
     PLD				;set dp to 43
@@ -157,7 +151,7 @@ dmaToVRAM2:
     STA $24			;DMA 2 A Bank
     LDX #$A000		;Address of tilemap
     STX $22			;DMA 2 A Offset
-    LDX #$0700		;Amount of data
+    LDX #$0800		;Amount of data
     STX $25			;DMA 2 Number of bytes
     LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
     STA $20
@@ -178,32 +172,36 @@ EmptyPlotData:
     STA $10
     LDA #%00001010  ;bit 2 corresponds to channel 0
     STA $420B		;Init
-    
-    PLD
-    PLP
-    PLX
-    PLA
 
 TurnOnScreen:
+    REP #%00010000 ;set xy to 16bit
     SEP #%00100000 ;A 8-bit
     
     lda #%00000001
     sta $4200
-    REP #%00010000 ;set xy to 16bit
-    SEP #%00100000 ;set a to 8bit
     LDA #%00000101	; = 8/8/8/8 px tile size, mode 5
     STA $2105
     STZ $210E
     LDA #%00000011
     STA $212C
     STA $212D
-    LDA #%01110000
+    LDA #%01110010
     STA $2107
-    LDA #%01110000
+    LDA #%01111010
     STA $2108
-    ;LDA #$03|$04      ;Interlace|Overscan
-    LDA #$04    ;Overscan
+    LDA #$03|$04      ;Interlace|Overscan
+    ;LDA #$04    ;Overscan
     STA $2133
+    LDA #$40
+    STA $210B
+    STZ $210D
+    STZ $210D
+    STZ $210E
+    STZ $210E
+    STZ $210F
+    STZ $210F
+    STZ $2110
+    STZ $2110
     lda #$80            ; = 10000000
     sta $2100           ; F-Blank
     LDA #$00
@@ -223,15 +221,15 @@ forever:
         jmp forever
 org $008400
 nmi:
-    ; Scrolling
-    LDA $20
-    STA $210d
-    LDA $21
-    STA $210d
-    LDA $22
-    STA $210E
-    LDA $23
-    STA $210E
+    lda #$8F            ; = 10001111
+    sta $2100           ; F-BLANK
+    JSR DrawColumn
+
+    ; Plot the graph
+    JSL Decompress
+
+    lda #$0F             ; = 00001111
+    sta $2100           ; Turn on screen, full brightness
 
     ;Update the mod strength number
     LDX #$72CC
@@ -258,14 +256,6 @@ nmi:
     STA $2118
     LDA $12
     STA $2118
-
-    ; Plot the graph
-    lda #$8F            ; = 10001111
-    sta $2100           ; Turn on screen, full brightness
-    JSL Decompress
-    lda #$0F             ; = 00001111
-    sta $2100           ; Turn on screen, full brightness
-
     PHA
     PHP
     REP #%00100000 ;set xy to 8bit
@@ -316,10 +306,244 @@ PLP
 PLA
 RTI 
 
+DrawColumn:
+    PHB             ;
+    PHD             ;   Back up some registers
+    PHP             ;__
+    PEA $2100       ;   Set Direct Page to $2100 
+    PLD             ;__ because PPU registers
+    REP #%00100000  ;   Set XY to 8 bit
+    SEP #%00010000  ;__ Set A to 16 bit
+    LDX #%10000001  ;   Increment by 32
+    STX $15         ;__
+    LDA #$0003      ;
+    LSR A           ;   Choose BG1 or BG2 tilemap
+    BCC +           ;
+    ADC #$07FF      ;__
++:                  ;
+    ORA #$7000      ;   Write the address
+    STA $16         ;__
+    LDY #$00
+-:
+    LDA #$0006
+    CPY $00FF
+    BNE +
+    DEC A
++   ASL A
+    STA $18
+    INY
+    CPY #$40
+    BNE -
+
+    PLP
+    PLD
+    PLB
+RTS
+
+
 ;Mem table:
 ;$00 - Unicode block to use
-;$01 - VRAM block to write to - 0..5
+;$01 - VRAM block to write to - 0..3
 DecompressUnicodeBlock:
+    PHB             ;
+    PHD             ;   Back up some registers
+    PHP             ;__
+    PEA $0000       ;   Set Direct Page to 0
+    PLD             ;__
+    PEA $8282       ;
+    PLB             ;   Set Data Bank to 82
+    PLB             ;__
+    REP #%00110000  ;__ Set XY, A to 16 bit
+    LDA $00         ;
+    ASL A           ;
+    ASL A           ;
+    ASL A           ;   Set up the source pointer
+    AND #$00FF      ;
+    ORA #$0080      ;
+    XBA             ;
+    STA $10         ;__
+    LDY #$0000
+    LDX #$0000
+-:
+    LDA ($10), Y    ;
+    STA $0110, X    ;   Line 1/8 of tile
+    INY             ;
+    INY             ;__
+    LDA ($10), Y    ;
+    STA $0112, X    ;   Line 2/8 of tile
+    INY             ;
+    INY             ;__
+    LDA ($10), Y    ;
+    STA $0114, X    ;   Line 3/8 of tile
+    INY             ;
+    INY             ;__
+    LDA ($10), Y    ;
+    STA $0116, X    ;   Line 4/8 of tile
+    INY             ;
+    INY             ;__
+    LDA ($10), Y    ;
+    STA $0118, X    ;   Line 5/8 of tile
+    INY             ;
+    INY             ;__
+    LDA ($10), Y    ;
+    STA $011A, X    ;   Line 6/8 of tile
+    INY             ;
+    INY             ;__
+    LDA ($10), Y    ;
+    STA $011C, X    ;   Line 7/8 of tile
+    INY             ;
+    INY             ;__
+    LDA ($10), Y    ;
+    STA $011E, X    ;   Line 8/8 of tile
+    INY             ;
+    INY             ;__
+    TXA             ;
+    CLC             ;
+    ADC #$0020      ;   Update tile pointer
+    TAX             ;
+    CMP #$1000      ;__
+    BNE -
+;DMA TRANSFER 0: 2BPP
+    PEA $4300       ;
+    PLD				;set dp to 43
+    SEP #%00100000 	;set a to 8bit
+    LDA $0001
+    ASL A
+    ASL A    
+    ASL A
+    AND #$18
+    ORA #$40
+    STA $0013
+    STZ $0012
+    LDX $0012		;Address to write to in VRAM
+    STX $2116		;Write it to tell Snes that
+    LDA #$18		;VRAM Write register
+    STA $11			;DMA 1 B Address
+    LDX #$7E01		;Address of tileset
+    STX $13			;DMA 1 A Bank
+    STZ $12
+    LDX #$1000		;Amount of data
+    STX $15			;DMA 1 Number of bytes
+    LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
+    STA $10
+    LDA #%00000010	;bit 1 corresponds to channel 1
+    STA $420B		;Init
+    PEA $0000       ;   Set Direct Page to 0
+    PLD             ;__
+; 4bpp
+.4bpp:
+    STZ $001F
+    REP #%00110000  ;__ Set XY, A to 16 bit
+    LDX #$0000
+-:
+    STZ $0100, X
+    INX
+    CPX #$1000
+    BNE -
+    LDA $00         ;
+    ASL A           ;
+    ASL A           ;
+    ASL A           ;   Set up the source pointer
+    AND #$00FF      ;
+    ORA #$0080      ;
+    XBA             ;
+    STA $10         ;__
+    LDY #$0000
+    LDX #$0000
+-:
+    LDA ($10), Y    ;
+    STA $0100, X    ;   Line 1/8 of tile
+    INY             ;
+    INY             ;__
+    LDA ($10), Y    ;
+    STA $0102, X    ;   Line 2/8 of tile
+    INY             ;
+    INY             ;__
+    LDA ($10), Y    ;
+    STA $0104, X    ;   Line 3/8 of tile
+    INY             ;
+    INY             ;__
+    LDA ($10), Y    ;
+    STA $0106, X    ;   Line 4/8 of tile
+    INY             ;
+    INY             ;__
+    LDA ($10), Y    ;
+    STA $0108, X    ;   Line 5/8 of tile
+    INY             ;
+    INY             ;__
+    LDA ($10), Y    ;
+    STA $010A, X    ;   Line 6/8 of tile
+    INY             ;
+    INY             ;__
+    LDA ($10), Y    ;
+    STA $010C, X    ;   Line 7/8 of tile
+    INY             ;
+    INY             ;__
+    LDA ($10), Y    ;
+    STA $010E, X    ;   Line 8/8 of tile
+    INY             ;
+    INY             ;__
+    TXA             ;
+    CLC             ;
+    ADC #$0040      ;   Update tile pointer
+    TAX             ;
+    CMP #$1000      ;__
+    BNE -
+    PHY
+;DMA TRANSFER 1/2: 4BPP
+    PEA $4300       ;
+    PLD				;set dp to 43
+    SEP #%00100000 	;set a to 8bit
+    LDA $0001
+    ASL A
+    ORA $001F
+    ASL A    
+    ASL A
+    ASL A
+    AND #$38
+    STA $0013
+    STZ $0012
+    LDX $0012		;Address to write to in VRAM
+    STX $2116		;Write it to tell Snes that
+    LDA #$18		;VRAM Write register
+    STA $11			;DMA 1 B Address
+    LDX #$7E01		;Address of tileset
+    STX $13			;DMA 1 A Bank
+    STZ $12
+    LDX #$1000		;Amount of data
+    STX $15			;DMA 1 Number of bytes
+    LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
+    STA $10
+    LDA #%00000010	;bit 1 corresponds to channel 1
+    STA $420B		;Init
+
+    INC $001F
+    LDA $001F
+    BIT #$01
+    BEQ +
+    PEA $0000       ;   Set Direct Page to 0
+    PLD             ;__
+    REP #%00110000  ;__ Set XY, A to 16 bit
+    PLY
+    LDX #$0000
+    JMP -
++:
+    PEA $0000       ;   Set Direct Page to 0
+    PLD             ;__
+    REP #%00110000  ;__ Set XY, A to 16 bit
+    LDX #$0000      ;
+    --:             ;
+    STZ $0100, X    ;   Clear the graphics buffer
+    INX             ;
+    CPX #$1000      ;
+    BNE --          ;__
+    PLY
+    PLP
+    PLD
+    PLB
+RTS
+
+DecompressUnicodeBlock4bpp:
     PHD
     PHP
     PEA $4300
@@ -335,25 +559,23 @@ DecompressUnicodeBlock:
     STA $0002
     STZ $0001
     LDY $0001		;Address to write to in VRAM
-    LDA #%10000101
+    LDA #%10001111
     STA $2115
     LDA #$18		;VRAM Write register
     STA $11			;DMA 1 B Address
-    LDA #$06		;Bank of tileset
+    LDA #$02		;Bank of tileset
     STA $14			;DMA 1 A Bank
     LDA $0000
     ASL A
     ASL A
     ASL A
-    CLC
-    ADC #$A0
+    ORA #$80
     STA $13			;DMA 1 A Offset
     STZ $12
     LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
     STA $10
 -:
-    STY $2116		;Write it to tell Snes that
-    LDX #$0100		;Amount of data
+    LDX #$0020		;Amount of data
     STX $15			;DMA 1 Number of bytes
     LDA #%00000010	;bit 2 corresponds to channel 0
     STA $420B		;Init
@@ -362,7 +584,7 @@ DecompressUnicodeBlock:
     INY
     INY
     TYA
-    CMP #$20
+    CMP #$80
     BNE -
 
     LDA #%10000000

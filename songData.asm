@@ -53,7 +53,7 @@
 PatternData:
 db $01, $00, $00, $00, $00, $00, $00, $00
 db $01, $02, $00, $00, $00, $00, $00, $00
-db $FF
+db !END_DATA
 PatternPointers:
 dw NoteDataNone
 dw NoteDataBass1
@@ -105,7 +105,7 @@ db $03
 ;db %00000100, $10, $00
 
 
-db $FF
+db !END_DATA
 
 Instr01Data:
 db !COMMAND_CHANGE_INSTRUMENT_TYPE|!SAMPLE_INDEX_PAGE_0|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
@@ -127,7 +127,7 @@ db !UPD_ARPEGGIO, $D8, $01
 db !UPD_ENVELOPE|!UPD_ARPEGGIO, $00, $01, $01
 
 
-db $FF
+db !END_DATA
 
 Instr02Data:
 db !COMMAND_CHANGE_INSTRUMENT_TYPE|!SAMPLE_INDEX_PAGE_0|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
@@ -143,7 +143,7 @@ db $8C, $19, $01
 db !UPD_ARPEGGIO
 db $1C, $03
 
-db $FF
+db !END_DATA
 
 Instr03Data:
 db !COMMAND_CHANGE_INSTRUMENT_TYPE|!SAMPLE_INDEX_PAGE_0|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
@@ -154,7 +154,7 @@ db $7F, $00, $02
 
 db !UPD_ENVELOPE
 db $8A, $03
-db $FF
+db !END_DATA
 
 NoteDataBass1:
 db $B0, $00, $10
@@ -207,7 +207,7 @@ db $FE, $0C
 db $FE, $01
 
 
-db $FF
+db !END_DATA
 
 NoteDataCh4:
 db $C8, $01, $0C
@@ -340,4 +340,4 @@ db $81, $03, $7F
 db $80, $03, $7F
 db $81, $03, $7F
 db $80, $03, $7F
-db $FF
+db !END_DATA

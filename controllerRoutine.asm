@@ -21,7 +21,7 @@ CPU_ControllerRead_RoutineTable:
     dw CPU_ControllerRead_End
     dw CPU_ControllerRead_End
     dw CPU_ControllerRead_End
-    dw CPU_ControllerRead_End           ;Konami Justifier
+    dw CPU_ControllerRead_End           ;Konami Justifier + other shit
     dw CPU_ControllerRead_End           ;Super Scope
 
 ; Routines for controllers
@@ -60,12 +60,14 @@ CPU_ControllerRead_0_Left:
     LDA $20
     DEC A
     STA $20
+    STA $FF
     RTS
 
 CPU_ControllerRead_0_Right:
     LDA $20
     INC A
     STA $20
+    STA $FF
     RTS
 
 CPU_ControllerRead_0_EmptyRTS:
