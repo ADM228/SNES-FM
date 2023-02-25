@@ -8,8 +8,17 @@
 ;VAR NOTES
 ;$7FFFFD - Modulation Strength
 ;RAM Map:
-;$00F0-00FE: Columns list (00 means empty)
-;$00FF - Row tile number
+;$0000-000F:    Arguments passed to subroutines
+;$0010-001F:    RAM for subroutines, extremely volatile
+;$0020:         Program mode:
+;                   $00 - Tracker
+;                   $01 - DAW
+;                   $02 - Instrument editor
+;                   $03 - Modular synth
+;                   bit 7 - resolution (0 = 512x478; 1 = 256x239)
+;$00F0-00FE:    Columns list, 00 or length terminated
+;$00FF:         Row tile number
+;$8000-FFFF:    Song data buffer
 incsrc "header.asm"
 incsrc "initSNES.asm"
 
@@ -117,7 +126,6 @@ dmaToCGRAM:
     
     PEA $4300
     PLD				;set dp to 43
-    
     REP #%00010000	;set xy to 16bit
     SEP #%00100000 	;set a to 8bit
     LDA #$00		;Address to write to in CGRAM
@@ -174,62 +182,73 @@ EmptyPlotData:
     STA $420B		;Init
 
 TurnOnScreen:
-    REP #%00010000 ;set xy to 16bit
-    SEP #%00100000 ;A 8-bit
-    
-    lda #%00000001
-    sta $4200
-    LDA #%00000101	; = 8/8/8/8 px tile size, mode 5
-    STA $2105
-    STZ $210E
-    LDA #%00000011
-    STA $212C
-    STA $212D
-    LDA #%01110010
-    STA $2107
-    LDA #%01111010
-    STA $2108
-    LDA #$03|$04      ;Interlace|Overscan
-    ;LDA #$04    ;Overscan
-    STA $2133
-    LDA #$40
-    STA $210B
-    STZ $210D
-    STZ $210D
-    STZ $210E
-    STZ $210E
-    STZ $210F
-    STZ $210F
-    STZ $2110
-    STZ $2110
-    lda #$80            ; = 10000000
-    sta $2100           ; F-Blank
+    lda #$80            ;   F-Blank 
+    sta $2100           ;__
+    REP #%00010000      ;   Set XY to 16 bit
+    SEP #%00100000      ;__ Set A to 8 bit
+    PEA $2100           ;   Set Direct Page to 2100
+    PLD				    ;__ For PPU registers
+    lda #%00000001      ;   Enable Auto Joypad Read
+    sta $4200           ;__
+    LDA #%00000101	    ;   8x16 tile size on both BGs, Mode 5
+    STA $05             ;__
+    LDA #%00000011      ;
+    STA $2C             ;   Enable both BGs on both screens
+    STA $2D             ;__
+    LDA #%01110010      ;   32x64 tilemap size, 
+    STA $07             ;__ at word address $7000 for BG1
+    LDA #%01111010      ;   32x64 tilemap size, 
+    STA $08             ;__ at word address $7800 for BG2
+    LDA #$03|$04        ;   Enable Interlace and Overscan
+    STA $33             ;__
+    LDA #$40            ;   BG1's tileset is at word address $0000,
+    STA $0B             ;__ BG2's tileset is at word address $4000
+    STZ $0D             ;
+    STZ $0D             ;
+    STZ $0E             ;
+    STZ $0E             ;   Reset scroll positions
+    STZ $0F             ;
+    STZ $0F             ;
+    STZ $10             ;
+    STZ $10             ;__
+    PEA $0000           ;   Set Direct Page to 0000 for RAM
+    PLD				    ;__
+    LDA #$04            ;
+    STA $F0             ;
+    LDA #$06            ;
+    STA $F1             ;
+    LDA #$18            ;   Draw some example columns
+    STA $F2             ;
+    LDA #$19            ;
+    STA $F3             ;__
+    LDA #$03            ;   Put the row at 3
+    STA $FF             ;
+    STA $00             ;__
     LDA #$00
-    PEA $0000
-    PLD				;set dp to 00
+    JSR UpdateRow
+    JSR DrawColumn
     JSL tableROMtoWRAM
     JSL clearPaletteData
     JSL RoutineSelect
     JSL Decompress
     SEP #%00100000 ;A 8-bit
-    lda #$0F            ; = 00001111
-    sta $2100           ; Turn on screen, full brightness
-    lda #%10000001
-    sta $4200
-    STZ $2115
+    lda #$0F            ;   Turn on screen, full brightness
+    sta $2100           ;__
+    lda #%10000001      ;   Enable NMI and Auto Joypad Read
+    sta $4200           ;__
+    STZ $2115           ;__ Make the PPU bus normal
 forever:
         jmp forever
 org $008400
 nmi:
+
+
+    
     lda #$8F            ; = 10001111
     sta $2100           ; F-BLANK
-    JSR DrawColumn
-
-    ; Plot the graph
-    JSL Decompress
-
     lda #$0F             ; = 00001111
     sta $2100           ; Turn on screen, full brightness
+
 
     ;Update the mod strength number
     LDX #$72CC
@@ -266,6 +285,24 @@ incsrc "controllerRoutine.asm"
 REP #%00010000 ;set XY to 16bit
 SEP #%00100000 ;set A to 8bit
 
+    LDA $FF
+    SEC
+    SBC #$05
+    ASL A
+    ASL A
+    ASL A
+    STA $1F
+    LDA #$00
+    ROL A
+    STA $1E
+    LDA $1F
+    STA $210E
+    LDA $1E
+    STA $210E
+    LDA $1F
+    STA $2110
+    LDA $1E
+    STA $2110
 
 lda #$0F            ; = 00001111
 sta $2100           ; Turn on screen, full brightness
@@ -316,10 +353,14 @@ DrawColumn:
     SEP #%00010000  ;__ Set A to 16 bit
     LDX #%10000001  ;   Increment by 32
     STX $15         ;__
-    LDA #$0003      ;
-    LSR A           ;   Choose BG1 or BG2 tilemap
-    BCC +           ;
-    ADC #$07FF      ;__
+    LDX #$00
+.Loop:
+    LDA $00F0, X    ;   Get column value, 
+    AND #$00FF      ;   skip if 0
+    BEQ DrawColumn_End;__ 
+    LSR A           ;
+    BCC +           ;   Choose BG1 or BG2 tilemap
+    ORA #$0800      ;__
 +:                  ;
     ORA #$7000      ;   Write the address
     STA $16         ;__
@@ -327,20 +368,170 @@ DrawColumn:
 -:
     LDA #$0006
     CPY $00FF
-    BNE +
-    DEC A
-+   ASL A
+    BEQ +
+    ASL A
     STA $18
     INY
     CPY #$40
     BNE -
-
+    JMP DrawColumn_Skip
++:
+    DEC A
+    ASL A
+    STA $18
+    INY
+    CPY #$40
+    BEQ DrawColumn_Skip
+.Lite:
+    LDA #$0006
+    ASL A
+    STA $18
+    INY
+    CPY #$40
+    BNE .Lite
+.Skip:
+    INX
+    CPX #$0F
+    BNE DrawColumn_Loop
+.End:
+    LDX #%10000000  ;   Increment by 1
+    STX $15         ;__
     PLP
     PLD
     PLB
 RTS
 
+UpdateColumn:
+    PHB             ;
+    PHD             ;   Back up some registers
+    PHP             ;__
+    PEA $2100       ;   Set Direct Page to $2100 
+    PLD             ;__ because PPU registers
+    REP #%00100000  ;   Set XY to 8 bit
+    SEP #%00010000  ;__ Set A to 16 bit
+    LDA $00FF       ;
+    ASL A           ;
+    ASL A           ;
+    ASL A           ;   Get old row address 
+    ASL A           ;
+    ASL A           ;
+    STA $0010       ;__
+    LDX #$00
+.EraseLoop:
+    LDA $00F0, X    ;   Get column value, 
+    AND #$00FF      ;   end if 0
+    BEQ UpdateColumn_ReplacePrep;__ 
+    LSR A           ;
+    BCC +           ;   Choose BG1 or BG2 tilemap
+    ORA #$0800      ;__
++   ORA $0010       ;
+    ORA #$7000      ;   Write the address
+    STA $16         ;__
+    LDA #$000C      ;
+    STA $18         ;
+    INX             ;
+    CPX #$0F        ;
+    BNE UpdateColumn_EraseLoop
+.ReplacePrep:
+    LDA $0000       ;
+    STA $00FF       ;
+    ASL A           ;
+    ASL A           ;
+    ASL A           ;   Get new row address 
+    ASL A           ;
+    ASL A           ;
+    STA $0010       ;__
+    LDX #$00
+.ReplaceLoop:
+    LDA $00F0, X    ;   Get column value, 
+    AND #$00FF      ;   end if 0
+    BEQ UpdateColumn_End;__ 
+    LSR A           ;
+    BCC +           ;   Choose BG1 or BG2 tilemap
+    ORA #$0800      ;__
++   ORA $0010       ;
+    ORA #$7000      ;   Write the address
+    STA $16         ;__
+    LDA #$000A      ;
+    STA $18         ;
+    INX             ;
+    CPX #$0F        ;
+    BNE UpdateColumn_ReplaceLoop
+.End:
+    PLP
+    PLD
+    PLB
+RTS
 
+UpdateRow:
+    PHB             ;
+    PHD             ;   Back up some registers
+    PHP             ;__
+    PEA $2100       ;   Set Direct Page to $2100 
+    PLD             ;__ because PPU registers
+    REP #%00100000  ;   Set XY to 8 bit
+    SEP #%00010000  ;__ Set A to 16 bit
+    LDA $00FF       ;
+    AND #$00FF      ;
+    ASL A           ;
+    ASL A           ;
+    ASL A           ;   Get old row address 
+    ASL A           ;
+    ASL A           ;
+    STA $0010       ;
+    ORA #$7000      ;__
+    STA $16         ;
+    LDX #$00        ;
+    LDA #$0000      ;
+-:                  ;   Erase the old row on BG1
+    STA $18         ;
+    INX             ;
+    CPX #$20        ;
+    BNE -           ;__
+    LDX #$00        ;
+    LDA $0010       ;
+    ORA #$7800      ;
+    STA $16         ;
+    LDA #$0000      ;
+-:                  ;   Erase the old row on BG2
+    STA $18         ;
+    INX             ;
+    CPX #$20        ;
+    BNE -           ;__
+.DrawNewRow:
+    LDA $0000       ;
+    AND #$00FF      ;
+    ASL A           ;
+    ASL A           ;
+    ASL A           ;   Get new row address 
+    ASL A           ;
+    ASL A           ;
+    STA $0010       ;
+    ORA #$7000      ;__
+    STA $16         ;
+    LDX #$00        ;
+    LDA #$0008      ;
+-:                  ;   Draw the new row on BG1
+    STA $18         ;
+    INX             ;
+    CPX #$20        ;
+    BNE -           ;__
+    LDX #$00        ;
+    LDA $0010       ;
+    ORA #$7800      ;
+    STA $16         ;
+    LDA #$0008      ;
+-:                  ;   Draw the new row on BG2
+    STA $18         ;
+    INX             ;
+    CPX #$20        ;
+    BNE -           ;__
+
+
+    PLP
+    PLD
+    PLB
+RTS
 ;Mem table:
 ;$00 - Unicode block to use
 ;$01 - VRAM block to write to - 0..3
@@ -884,8 +1075,6 @@ WRAMtoVRAM:
     STA $420B		;Init
     PEA $0000
     PLD				;set dp to 00
-	lda #$0F            ; = 00001111
-    sta $2100           ; Turn on screen, full brightness
 RTL
 
 RoutineSelect:

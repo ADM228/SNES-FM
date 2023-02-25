@@ -57,18 +57,20 @@ CPU_ControllerRead_RoutineTable0:   ;The jump table for the standard joypad (sig
     dw CPU_ControllerRead_0_EmptyRTS    ;R
 
 CPU_ControllerRead_0_Left:
-    LDA $20
+    LDA $FF
     DEC A
-    STA $20
-    STA $FF
-    RTS
+    AND #$003F
+    STA $00
+    JSR UpdateRow
+    JMP UpdateColumn    ;This is a subroutine so the RTS is contained there
 
 CPU_ControllerRead_0_Right:
-    LDA $20
+    LDA $FF
     INC A
-    STA $20
-    STA $FF
-    RTS
+    AND #$003F
+    STA $00
+    JSR UpdateRow
+    JMP UpdateColumn    ;This is a subroutine so the RTS is contained there
 
 CPU_ControllerRead_0_EmptyRTS:
     RTS
