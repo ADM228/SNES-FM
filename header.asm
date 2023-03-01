@@ -1,10 +1,11 @@
 
 ;==== FRIENDLY HEADER BY alexmush ====;
-!MAPMODE = #$20
-!ROMTYPE = $00
-!ROMSIZE = $09
-!SRAMSIZE = $00
-!DEVNAME = $01
+!MAPMODE = $30
+!ROMTYPE = $02
+!ROMSIZE = $09      ; = 512 Kibibytes
+!SRAMSIZE = $09     ; = 512 Kibibytes (impossible apparently)
+!COUNTRY = $00      ;   International
+!DEVNAME = $00
 !VERSION = $00
 !CHECKSUM = $7329
 !CHECKSUMCOMPLEMENT = $BCD6
@@ -23,7 +24,7 @@
 
 ;=== Actually setting the sh*t ===;
 org $00fFC0 ;adress of the header 
-db "SNESFM               ",!MAPMODE,!ROMTYPE,!ROMSIZE,!SRAMSIZE,!DEVNAME,$00,!VERSION
+db "SNESFM Tracker/DAW   ",!MAPMODE,!ROMTYPE,!ROMSIZE,!SRAMSIZE,!COUNTRY,!DEVNAME,!VERSION
 dw !CHECKSUM,!CHECKSUMCOMPLEMENT
 org $00Ffb2
 db "SNES"

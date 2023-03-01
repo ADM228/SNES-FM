@@ -13,7 +13,7 @@ incsrc "SPC_constants.asm"
 ;   $0E         $00 - $BF: Pitch table, 96 entries long
 ;   |__ _ _ _ _ $C0 - $C8: Dummy empty sample (for beginnings and noise)
 ;   $0F _ _ _ _ Sine table, only $0F00-$0F42 is written, everything else is calculated
-;   $10-$1F _ _ Music data and custom BRR samples (indexed from end)
+;   $10-$1F _ _ Music data
 ;   $20-$3F _ _ Code
 ;   $40-$5F _ _ 32 FM generation buffers, 1 page long each
 ;   $60-$FE _ _ Actual sample storage, echo buffer (separated depending on the delay & amount of samples)
@@ -110,88 +110,62 @@ init:       ;init routine, totally not grabbed from tales of phantasia
         EOR A, #$FF
         MOV $0FC0+Y, A
         DBNZ Y, SPC_SineSetup_loop1
-    MOV !MOD_CAR_PAGE, #$0F
-    MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$48
-    MOV !MOD_MOD_STRENGTH, #$40
-    MOV !MOD_MOD_PHASE_SHIFT, #$00
-    CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0F
-    MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$40
-    MOV !MOD_MOD_STRENGTH, #$20
-    CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0F
-    MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$41
-    MOV !MOD_MOD_STRENGTH, #$1C
-    CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0F
-    MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$42
-    MOV !MOD_MOD_STRENGTH, #$18
-    CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0F
-    MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$43
-    MOV !MOD_MOD_STRENGTH, #$14
-    CALL SPC_PhaseModulation_128
+    MOV !PUL_OUT_PAGE, #$48
+    MOV !PUL_DUTY, #$3C
+    MOV !PUL_FLAGS, #$03
+    CALL SPC_GeneratePulse_32
+    MOV !PUL_OUT_PAGE, #$40
+    MOV !PUL_DUTY, #$20
+    CALL SPC_GeneratePulse_32
+    MOV !PUL_OUT_PAGE, #$41
+    MOV !PUL_DUTY, #$1E
+    CALL SPC_GeneratePulse_32
+    MOV !PUL_OUT_PAGE, #$42
+    MOV !PUL_DUTY, #$1C
+    CALL SPC_GeneratePulse_32
+    MOV !PUL_OUT_PAGE, #$43
+    MOV !PUL_DUTY, #$1A
+    CALL SPC_GeneratePulse_32
 
-    MOV !MOD_CAR_PAGE, #$0F
-    MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$44
-    MOV !MOD_MOD_STRENGTH, #$10
-    CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0F
-    MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$45
-    MOV !MOD_MOD_STRENGTH, #$0C
-    CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0F
-    MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$46
-    MOV !MOD_MOD_STRENGTH, #$08
-    CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0F
-    MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$47
-    MOV !MOD_MOD_STRENGTH, #$04
-    CALL SPC_PhaseModulation_128
+    MOV !PUL_OUT_PAGE, #$44
+    MOV !PUL_DUTY, #$18
+    CALL SPC_GeneratePulse_32
+    MOV !PUL_OUT_PAGE, #$45
+    MOV !PUL_DUTY, #$16
+    CALL SPC_GeneratePulse_32
+    MOV !PUL_OUT_PAGE, #$46
+    MOV !PUL_DUTY, #$14
+    CALL SPC_GeneratePulse_32
+    MOV !PUL_OUT_PAGE, #$47
+    MOV !PUL_DUTY, #$12
+    CALL SPC_GeneratePulse_32
     MOV !BRR_PCM_PAGE, #$40
     MOV !BRR_OUT_INDEX, #$01    ;As if it matters lmao
-    MOV !BRR_FLAGS, #%00000000
+    MOV !BRR_FLAGS, #%11000000
     CALL SPC_ConvertToBRR
     MOV !BRR_PCM_PAGE, #$41
     MOV !BRR_OUT_INDEX, #$02    ;As if it matters lmao
-    MOV !BRR_FLAGS, #%00000000
     CALL SPC_ConvertToBRR
     MOV !BRR_PCM_PAGE, #$42
     MOV !BRR_OUT_INDEX, #$03    ;As if it matters lmao
-    MOV !BRR_FLAGS, #%00000000
     CALL SPC_ConvertToBRR
     MOV !BRR_PCM_PAGE, #$43
     MOV !BRR_OUT_INDEX, #$04    ;As if it matters lmao
-    MOV !BRR_FLAGS, #%00000000
     CALL SPC_ConvertToBRR
     MOV !BRR_PCM_PAGE, #$44
     MOV !BRR_OUT_INDEX, #$05    ;As if it matters lmao
-    MOV !BRR_FLAGS, #%00000000
     CALL SPC_ConvertToBRR
     MOV !BRR_PCM_PAGE, #$45
     MOV !BRR_OUT_INDEX, #$06    ;As if it matters lmao
-    MOV !BRR_FLAGS, #%00000000
     CALL SPC_ConvertToBRR
     MOV !BRR_PCM_PAGE, #$46
     MOV !BRR_OUT_INDEX, #$07    ;As if it matters lmao
-    MOV !BRR_FLAGS, #%00000000
     CALL SPC_ConvertToBRR
     MOV !BRR_PCM_PAGE, #$47
     MOV !BRR_OUT_INDEX, #$08    ;As if it matters lmao
-    MOV !BRR_FLAGS, #%00000000
     CALL SPC_ConvertToBRR
     MOV !BRR_PCM_PAGE, #$48
     MOV !BRR_OUT_INDEX, #$00    ;As if it matters lmao
-    MOV !BRR_FLAGS, #%00000000
     CALL SPC_ConvertToBRR
 
 
@@ -581,6 +555,232 @@ echoFIRtable:
 
 ;Memory table:
 ;   Inputs:
+;       $D0 - Output page
+;       $D1 - Duty cycle
+;       $D2 - Flags: ddddddsz
+;           dddddd - Duty cycle (fractional part, highest bit of fractional part in $D1)
+;           s - starting value (0 - 0/-1, 1 - 1)
+;           z - the low value is -1 instead of 0 (for not ringmod)
+;   Temp variables:
+;       $EE-EF - Output pointer
+SPC_GeneratePulse_128:
+;Low byte of first part
+    MOV !PUL_OUT_INDEX_H, !PUL_OUT_PAGE
+    MOV !PUL_OUT_INDEX_L, #$00
+    MOV A, !PUL_DUTY        ;   Get finishing low byte
+    AND A, #$FE             ;__
+    MOV Y, A                ;   If there are no bytes in the first part, skip the part
+    BEQ +                   ;__
+    MOV A, !PUL_FLAGS
+    AND A, #$02
+    MOV X, A
+    MOV A, SPC_GeneratePulse_128_LookupTable+1+X
+-:
+    DEC Y
+    DEC Y
+    MOV (!PUL_OUT_INDEX_L)+Y, A
+    CMP Y, #$00
+    BNE -
+;High byte of first part
+    MOV A, !PUL_DUTY        ;   Get finishing high byte
+    OR A, #$01              ;__
+    MOV Y, A
+    MOV A, !PUL_FLAGS
+    AND A, #$03
+    MOV X, A
+    MOV A, SPC_GeneratePulse_128_LookupTable+X
+    EOR A, #$80
+-:
+    DEC Y
+    DEC Y
+    MOV (!PUL_OUT_INDEX_L)+Y, A
+    CMP Y, #$01
+    BNE -
++:
+;Second part, the fractional value
+    MOV A, !PUL_FLAGS           ;
+    AND A, #$03                 ;
+    MOV X, A                    ;   Get the inversion value into "temp variable"
+    MOV A, SPC_GeneratePulse_128_LookupTable+4+X
+    MOV !PUL_OUT_INDEX_L, A     ;__
+    MOV A, !PUL_DUTY            ;
+    LSR A                       ;   Get the actual fraction,
+    MOV A, !PUL_FLAGS           ;   while also getting 
+    ROR A                       ;   z flag into carry
+    AND A, #$FE                 ;__
+    BCC +                       ;   If z flag is set, 
+    LSR A                       ;__ halve the fraction
++   EOR A, !PUL_OUT_INDEX_L     ;__ Invert the fraction as needed
+    MOV Y, A
+    MOV A, !PUL_DUTY            ;   Get index for the fraction
+    AND A, #$FE                 ;
+    MOV !PUL_OUT_INDEX_L, A     ;__
+    MOV A, Y
+    MOV Y, #$01
+    MOV (!PUL_OUT_INDEX_L)+Y, A
+    MOV A, #$00
+    DEC Y
+    MOV (!PUL_OUT_INDEX_L)+Y, A
+    INC !PUL_OUT_INDEX_L
+    INC !PUL_OUT_INDEX_L
+;Third part
+    MOV A, !PUL_DUTY
+    EOR A, #$FE
+    AND A, #$FE
+    MOV Y, A
+    MOV A, !PUL_FLAGS
+    AND A, #$02
+    EOR A, #$02
+    MOV X, A
+    MOV A, SPC_GeneratePulse_128_LookupTable+1+X
+-:
+    DEC Y
+    DEC Y
+    MOV (!PUL_OUT_INDEX_L)+Y, A
+    CMP Y, #$00
+    BNE -
+;High byte of first part
+    MOV A, !PUL_DUTY        ;   Get finishing high byte
+    EOR A, #$FE             ;
+    OR A, #$01              ;__
+    MOV Y, A
+    MOV A, !PUL_FLAGS
+    AND A, #$03
+    EOR A, #$02
+    MOV X, A
+    MOV A, SPC_GeneratePulse_128_LookupTable+X
+    EOR A, #$80
+-:
+    DEC Y
+    DEC Y
+    MOV (!PUL_OUT_INDEX_L)+Y, A
+    CMP Y, #$01
+    BNE -
++:
+RET
+.LookupTable:   ;In order:
+;Highbyte with sz = 00 (8000),
+;Lowbyte with s=0 (8000/0000) / Highbyte with sz = 01 (0000), 
+;Highbyte with sz = 1- (7FFF),
+;Lowbyte with s=1 (7FFF) / Highbyte with sz = 1- (7FFF)
+;Highbytes are EOR #$80'd.
+db $80, $00, $FF, $FF
+;Inversion values for fractional value
+db $7F, $FE, $00, $80
+
+;Memory table:
+;   Inputs:
+;       $D0 - Output page
+;       $D1 - Duty cycle: ppdddddd
+;           pp - subpage number
+;           dddddd - Duty cycle 
+;       $D2 - Flags: ddddddsz
+;           dddddd - Duty cycle (fractional part, highest bit of fractional part in $D1)
+;           s - starting value (0 - 0/-1, 1 - 1)
+;           z - the low value is -1 instead of 0 (for not ringmod)
+;   Temp variables:
+;       $EE-EF - Output pointer
+SPC_GeneratePulse_32:
+;Low byte of first part
+    MOV !PUL_OUT_INDEX_H, !PUL_OUT_PAGE
+    MOV !PUL_OUT_INDEX_L, !PUL_DUTY
+    AND !PUL_OUT_INDEX_L, #$C0
+    MOV A, !PUL_DUTY        ;   Get finishing low index
+    AND A, #$3E             ;__
+    MOV Y, A                ;   If there are no bytes in the first part, skip the part
+    BEQ +                   ;__
+    MOV A, !PUL_FLAGS
+    AND A, #$02
+    MOV X, A
+    MOV A, SPC_GeneratePulse_128_LookupTable+1+X
+-:
+    DEC Y
+    DEC Y
+    MOV (!PUL_OUT_INDEX_L)+Y, A
+    CMP Y, #$00
+    BNE -
+;High byte of first part
+    MOV A, !PUL_DUTY        ;
+    AND A, #$3E             ;   Get finishing high index
+    OR A, #$01              ;__
+    MOV Y, A
+    MOV A, !PUL_FLAGS
+    AND A, #$03
+    MOV X, A
+    MOV A, SPC_GeneratePulse_128_LookupTable+X
+    EOR A, #$80
+-:
+    DEC Y
+    DEC Y
+    MOV (!PUL_OUT_INDEX_L)+Y, A
+    CMP Y, #$01
+    BNE -
++:
+;Second part, the fractional value
+    MOV A, !PUL_FLAGS           ;
+    AND A, #$03                 ;
+    MOV X, A                    ;   Get the inversion value into "temp variable"
+    MOV A, SPC_GeneratePulse_128_LookupTable+4+X
+    MOV !PUL_OUT_INDEX_L, A     ;__
+    MOV A, !PUL_DUTY            ;
+    LSR A                       ;   Get the actual fraction,
+    MOV A, !PUL_FLAGS           ;   while also getting 
+    ROR A                       ;   z flag into carry
+    AND A, #$FE                 ;__
+    BCC +                       ;   If z flag is set, 
+    LSR A                       ;__ halve the fraction
++   EOR A, !PUL_OUT_INDEX_L     ;__ Invert the fraction as needed
+    MOV Y, A
+    MOV A, !PUL_DUTY            ;   Get index for the fraction
+    AND A, #$FE                 ;
+    MOV !PUL_OUT_INDEX_L, A     ;__
+    MOV A, Y
+    MOV Y, #$01
+    MOV (!PUL_OUT_INDEX_L)+Y, A
+    MOV A, #$00
+    DEC Y
+    MOV (!PUL_OUT_INDEX_L)+Y, A
+    INC !PUL_OUT_INDEX_L
+    INC !PUL_OUT_INDEX_L
+;Third part
+    MOV A, !PUL_DUTY
+    EOR A, #$FE
+    AND A, #$3E
+    MOV Y, A
+    MOV A, !PUL_FLAGS
+    AND A, #$02
+    EOR A, #$02
+    MOV X, A
+    MOV A, SPC_GeneratePulse_128_LookupTable+1+X
+-:
+    DEC Y
+    DEC Y
+    MOV (!PUL_OUT_INDEX_L)+Y, A
+    CMP Y, #$00
+    BNE -
+;High byte of first part
+    MOV A, !PUL_DUTY        ;   Get finishing high byte
+    EOR A, #$3E             ;
+    AND A, #$3E             ;
+    OR A, #$01              ;__
+    MOV Y, A
+    MOV A, !PUL_FLAGS
+    AND A, #$03
+    EOR A, #$02
+    MOV X, A
+    MOV A, SPC_GeneratePulse_128_LookupTable+X
+    EOR A, #$80
+-:
+    DEC Y
+    DEC Y
+    MOV (!PUL_OUT_INDEX_L)+Y, A
+    CMP Y, #$01
+    BNE -
++:
+RET
+
+;Memory table:
+;   Inputs:
 ;       $D0 - Carrier page
 ;       $D1 - Modulator page
 ;       $D2 - Output page
@@ -632,15 +832,15 @@ SPC_PhaseModulation_128:
     EOR !MOD_MAIN_TEMP_H, #$FF
 .loop_afterMul:
 
-    ROR !MOD_MAIN_TEMP_H
+    LSR !MOD_MAIN_TEMP_H
     ROR A
-    ROR !MOD_MAIN_TEMP_H
+    LSR !MOD_MAIN_TEMP_H
     ROR A
-    ROR !MOD_MAIN_TEMP_H
+    LSR !MOD_MAIN_TEMP_H
     ROR A
-    ROR !MOD_MAIN_TEMP_H
+    LSR !MOD_MAIN_TEMP_H
     ROR A
-    ROR !MOD_MAIN_TEMP_H
+    LSR !MOD_MAIN_TEMP_H
     ROR A
     AND A, #$FE
     CLRC
@@ -666,18 +866,22 @@ SPC_PhaseModulation_128:
 ;   Inputs:
 ;       $D0 - PCM sample page
 ;       $D1 - BRR output index
-;       $D2 - Flags: fsitppbb 
+;       $D2 - Flags: fsi-ppbb 
 ;               f - whether to use filter mode 1 (doesn't apply to the first sample block as well blocks with jumps larger than their absolute values)
 ;               s - short sample mode (32 samples instead of 128)
 ;               i - high bit of output index 
-;               t - temporary flag, SET BY ROUTINE
 ;               pp - PCM sample subpage number (0-3, if s is set)
 ;               bb - BRR output subpage number (0-3, if s is set)
 ;   Temp variables:
+;       $E5 - Temporary flags: bf-n----
+;               b - whether it is the first block
+;               f - whether to use filter mode 1
+;               n - negative flag
 ;       $EC-$ED - Input pointer
 ;       $EE-$EF - Output pointer
 SPC_ConvertToBRR:
 ;Set up the first time
+    SET7 !BRR_TEMP_FLAGS
     MOV !BRR_IN0_PTR_H, !BRR_PCM_PAGE;   Set up the PCM sample page
     MOV A, !BRR_FLAGS               ;__
     XCN A                           ;
@@ -723,7 +927,7 @@ SPC_ConvertToBRR:
 +:                                  ;                               #
     INCW !BRR_IN0_PTR_L             ;__                             #
     CLRC                            ;   Python code:                #
-    ROR A                           ;   currentsmppoint /= 2        #   OG Python code:
+    LSR A                           ;   currentsmppoint /= 2        #   OG Python code:
     ROR !BRR_CSMPT_L                ;__                             #   for i in range(len(BRRBuffer)):
     BBC7 !BRR_CSMPT_H, +            ;                               #       BRRBuffer[i] = (array[i&(length-1)])/2
     EOR A, #$FF                     ;   Invert negative numbers     #
@@ -737,21 +941,16 @@ SPC_ConvertToBRR:
     CMP X, #$40                     ;   Loop                        #
     BNE SPC_ConvertToBRR_CopyLoop   ;__                             #
 .SetupFilter
-    MOV A, !BRR_FLAGS               ;
-    XCN A                           ;
-    AND A, #$C0                     ;   If it's the first block,
-    CLRC                            ;
-    ADC A, #$20                     ;
-    CMP A, !BRR_IN0_PTR_L           ;__
-    BNE +                           ;   Encode as filter 0
-    JMP SPC_ConvertToBRR_FirstBlockHack
-+   MOV X, #$00
+    BBS7 !BRR_TEMP_FLAGS, SPC_ConvertToBRR_FirstBlock;   If this is the first block, Or filter 0 is forced,
+    BBS7 !BRR_FLAGS, SPC_ConvertToBRR_FirstBlock     ;Skip doing filter 1 entirely   
+    MOV X, #$00
 
-    CLR4 !BRR_FLAGS
+
+    CLR4 !BRR_TEMP_FLAGS
     MOV !BRR_SMPPT_L, !BRR_LSMPT_L  ;   OG Python code:
     MOV !BRR_SMPPT_H, !BRR_LSMPT_H  ;__ currentsmppoint = 0
     BBC7 !BRR_SMPPT_H, +        ;                                       #
-    SET4 !BRR_FLAGS             ;   Inverting negative numbers          #
+    SET4 !BRR_TEMP_FLAGS        ;   Inverting negative numbers          #
     EOR !BRR_SMPPT_L, #$FF      ;                                       #
     EOR !BRR_SMPPT_H, #$FF      ;__     
 +:
@@ -759,12 +958,19 @@ SPC_ConvertToBRR:
     MOV !BRR_CSMPT_H, A
     POP A
     MOV !BRR_CSMPT_L, A
+    JMP SPC_ConvertToBRR_FilterLoop
+.FirstBlock:
+
+    MOV !BRR_MAXM0_L, #$FF
+    MOV !BRR_MAXM0_H, #$7F
+    MOV X, #$20
+    JMP SPC_ConvertToBRR_BRREncoding_OuterLoop
 .FilterLoop:
 
 -:                              ;                                       #
     MOV Y, !BRR_SMPPT_L         ;                                       #
     MOV A, $0D00+Y              ;                                       #
-    BBS4 !BRR_FLAGS, +          ;                                       #                        
+    BBS4 !BRR_TEMP_FLAGS, +     ;                                       #                        
     CLRC                        ;   Python code:                        #
     ADC A, !BRR_CSMPT_L         ;   currentsmppoint += smppoint_L*15/16 #
     MOV !BRR_CSMPT_L, A         ;   (for positive numbers)              #
@@ -780,7 +986,7 @@ SPC_ConvertToBRR:
     MOV A, !BRR_SMPPT_H         ;                                       #   smppoint *= 0.9375
     MOV Y, #$F0                 ;   Python code:                        #   smppoint += BRRBuffer[i]
     MUL YA                      ;__ smpppoint_H *=15                    #
-    BBC4 !BRR_FLAGS, +          ;                                       #
+    BBC4 !BRR_TEMP_FLAGS, +     ;                                       #
     MOV !BRR_SMPPT_H, Y         ;   Invert negative                     #
     EOR A, #$FF                 ;                                       #
     EOR !BRR_SMPPT_H, #$FF      ;__                                     #
@@ -791,7 +997,7 @@ SPC_ConvertToBRR:
 
 
 
-    CLR4 !BRR_FLAGS
+    CLR4 !BRR_TEMP_FLAGS
     MOV A, !BRR_BUFF1_PTR_L+X   ;                                       #
     MOV !BRR_CSMPT_L, A         ;                                       #
     MOV A, !BRR_BUFF1_PTR_H+X   ;   currentsmppoint = BRRBuffer[i]      #
@@ -803,7 +1009,7 @@ SPC_ConvertToBRR:
     MOV A, !BRR_CSMPT_H         ;   BRRBuffer[i] = currentsmppoint      #
     MOV (X+), A   ;__                                     #
     BBC7 !BRR_SMPPT_H, +        ;                                       #
-    SET4 !BRR_FLAGS             ;   Inverting negative numbers          #
+    SET4 !BRR_TEMP_FLAGS        ;   Inverting negative numbers          #
     EOR !BRR_SMPPT_L, #$FF      ;                                       #
     EOR !BRR_SMPPT_H, #$FF      ;__                                     #
 +   CMP X, #$20                 ;   Loop                                #
@@ -811,13 +1017,13 @@ SPC_ConvertToBRR:
     
     MOV !BRR_LSMPT_L, !BRR_SMPPT_L
     MOV !BRR_LSMPT_H, !BRR_SMPPT_H
-    BBC4 !BRR_FLAGS, SPC_ConvertToBRR_BRREncoding
+    BBC4 !BRR_TEMP_FLAGS, SPC_ConvertToBRR_BRREncoding
     EOR !BRR_LSMPT_L, #$FF
     EOR !BRR_LSMPT_H, #$FF
-    CLR4 !BRR_FLAGS
+    CLR4 !BRR_TEMP_FLAGS
 
 .BRREncoding:
-    SET7 !BRR_FLAGS
+    SET6 !BRR_TEMP_FLAGS
     MOV X, #$00
 ..OuterLoop:
     MOV A, (X+)   
@@ -858,14 +1064,14 @@ SPC_ConvertToBRR:
     BPL +
     MOVW !BRR_MAXM0_L, YA
     MOV X, #$20
-    CLR7 !BRR_FLAGS
+    CLR6 !BRR_TEMP_FLAGS
 +: 
 ..ShiftValuePart1:
     MOV Y, #12
     MOV A, !BRR_MAXM0_H
     BEQ +
 -
-    ROL A
+    ASL A
     BCS SPC_ConvertToBRR_BRREncoding_CheckIf8
     DEC Y
     CMP Y, #$04
@@ -876,7 +1082,7 @@ SPC_ConvertToBRR:
     MOV A, !BRR_MAXM0_L
     CLRC
 -
-    ROL A
+    ASL A
     BCS SPC_ConvertToBRR_BRREncoding_CheckIf8
     DEC Y
     BNE -
@@ -892,9 +1098,9 @@ SPC_ConvertToBRR:
     JMP ++
 +   MOV A, !BRR_MAXM0_L ;Executed if Y = 5, aka both bits to check are in the low byte
 ..Check8:   ;Executed if Y = 1..4 or Y = 7..12 - aka the bits to check are in the same byte
-    ROL A
+    ASL A
     BCS SPC_ConvertToBRR_FormHeader
-    ROL A
+    ASL A
     BCC ++      ; = BCS FormHeader; JMP +
 .FormHeader:
     INC Y
@@ -907,8 +1113,7 @@ SPC_ConvertToBRR:
     BNE +               ;   Set the end flag if it's the last block
     OR A, #%00010000    ;__
 +:
-    MOV !BRR_MAXM0_H, !BRR_FLAGS    ;
-    LSR !BRR_MAXM0_H                ;   Set the filter to 1
+    MOV !BRR_MAXM0_H, !BRR_TEMP_FLAGS;   Set the filter to 1
     AND !BRR_MAXM0_H, #%01000000    ;   if appropriate
     OR A, !BRR_MAXM0_H              ;__
     XCN A                           ;__ Swap the nybbles to make a valid header
@@ -916,14 +1121,14 @@ SPC_ConvertToBRR:
     MOV (!BRR_OUT_PTR_L)+Y, A       ;   Write the header out
     INCW !BRR_OUT_PTR_L             ;__
 .FormData:
-    CLR4 !BRR_FLAGS
+    CLR4 !BRR_TEMP_FLAGS
     MOV A, (X+)
     MOV !BRR_CSMPT_L, A
     MOV A, (X+)
     BPL +
     EOR A, #$FF
     EOR !BRR_CSMPT_L, #$FF
-    SET4 !BRR_FLAGS
+    SET4 !BRR_TEMP_FLAGS
 +:
     MOV !BRR_CSMPT_H, A ;
     MOV Y, !BRR_CSMPT_L ;
@@ -943,7 +1148,7 @@ SPC_ConvertToBRR:
     BMI +
 -:
     CLRC
-    ROR A
+    LSR A
     ROR !BRR_CSMPT_L
     DEC Y
     CMP Y, #$04
@@ -954,7 +1159,7 @@ SPC_ConvertToBRR:
     BEQ +
 -:
     CLRC
-    ROR A
+    LSR A
     DEC Y
     BNE -
 +:
@@ -963,7 +1168,7 @@ SPC_ConvertToBRR:
     CMP A, #$08
     BMI +
     MOV A, #$07
-+   BBC4 !BRR_FLAGS, +
++   BBC4 !BRR_TEMP_FLAGS, +
     EOR A, #$0F
     INC A
     CMP A, #$10
@@ -983,20 +1188,20 @@ SPC_ConvertToBRR:
     MOV A, X
     AND A, #$1F
     BNE SPC_ConvertToBRR_FormData
-
-
+    CLR7 !BRR_TEMP_FLAGS
     POP A                           ;
     CMP A, !BRR_IN0_PTR_L           ;   If this is the last block, end
-    BEQ ++                          ;__
+    BEQ SPC_ConvertToBRR_End        ;__
     PUSH A                          ;   If it ain't, push the finishing low byte back
     PUSH A                          ;__      
-    CMP X, #$20                     ;   
+    BBS7 !BRR_FLAGS, ++             ;
++   CMP X, #$20                     ;   
     BNE +                           ;   If we just used filter mode 1, 
     MOV A, $1E                      ;
     PUSH A                          ;   currentsmppoint = BRRBuffer[last]
     MOV A, $1F                      ;
     PUSH A                          ;__
-    JMP SPC_ConvertToBRR_SetupCopy
+++  JMP SPC_ConvertToBRR_SetupCopy
 +:                                  ;   If we just used filter mode 0,   
     MOV !BRR_LSMPT_L, $3E           ;   smppoint = BRRBuffer[last]
     MOV !BRR_LSMPT_H, $3F           ;__
@@ -1004,14 +1209,9 @@ SPC_ConvertToBRR:
     PUSH A                          ;   currentsmppoint = 0
     PUSH A                          ;__
     JMP SPC_ConvertToBRR_SetupCopy
-++:
+.End:
     
 ret
-.FirstBlockHack:
-    MOV !BRR_MAXM0_L, #$FF
-    MOV !BRR_MAXM0_H, #$7F
-    MOV X, #$20
-    JMP SPC_ConvertToBRR_BRREncoding_OuterLoop
 
 .LookuptableMul18:
 db $00, $12, $24, $36

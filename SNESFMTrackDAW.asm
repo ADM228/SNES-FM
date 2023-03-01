@@ -11,14 +11,15 @@
 ;$0000-000F:    Arguments passed to subroutines
 ;$0010-001F:    RAM for subroutines, extremely volatile
 ;$0020:         Program mode:
-;                   $00 - Tracker
-;                   $01 - DAW
-;                   $02 - Instrument editor
-;                   $03 - Modular synth
+;                   $00 - Tracker/DAW
+;                   $01 - Modular synth
+;                   $02 - Envelope macro editor
+;                   $03 - Arpeggio editor
+;                   bit 6 - Tracker (0, instrument list on top side) or DAW (1, instrument list on right side)
 ;                   bit 7 - resolution (0 = 512x478; 1 = 256x239)
 ;$00F0-00FE:    Columns list, 00 or length terminated
 ;$00FF:         Row tile number
-;$8000-FFFF:    Song data buffer
+;$9800-FFFF:    Song data buffer (6 bytes per cell/6*8+4 bytes per row, up to 512 rows can fit before compressing to SRAM)
 incsrc "header.asm"
 incsrc "initSNES.asm"
 
@@ -43,22 +44,22 @@ org $008129
     STA $420D           ;__
     lda #$80            ;    Turn on screen, full brightness
     sta $2100           ;__
-SPCTransfer:         ;__
+SPCTransfer:        ;   Kept in SlowROM for compatibility/laziness
     PEA $0000       ;   set dp to 00 since RAM
     PLD				;__
 
-SPCTransferLoop00:
+.LoopConfirm:
     LDA $2140
     CMP #$AA
-    BNE SPCTransferLoop00
+    BNE SPCTransfer_LoopConfirm
     LDA $2141
     CMP #$BB
-    BNE SPCTransferLoop00
+    BNE SPCTransfer_LoopConfirm
                     ;__
     LDX #$81E0      ;
     STX $01         ;   Base address: $81E000
     STZ $00         ;__
-SPCTA:
+.TransferAddress:
     LDY #$0002      ;
     LDA [$00],Y     ;
     STA $2142       ;
@@ -72,15 +73,15 @@ SPCTA:
     LDA [$00],Y     ;
     STA $05         ;__
     LDX $04         ;   If length = 0 it's a jump, therefore end transmission
-    BEQ SPCTransferJump;__
+    BEQ SPCTransfer_Jump;__
     LDA #$CC
     STA $2140
     STA $2141
     INY
-SPCTransferLoop01:
+.Loop01:
     LDA $2140
     CMP #$CC
-    BNE SPCTransferLoop01
+    BNE SPCTransfer_Loop01
     LDY #$0000
     CLC
     LDA $00
@@ -89,19 +90,19 @@ SPCTransferLoop01:
     LDA $01
     ADC #$00
     STA $01
-SPCTransferLoop02:
+.Loop02:
     LDA [$00],Y
     STA $2141
     TYA
     STA $2140
     STA $03
-SPCTransferLoop03:
+.Loop03:
     LDA $2140
     CMP $03
-    BNE SPCTransferLoop03
+    BNE SPCTransfer_Loop03
     INY
     CPY $04
-    BNE SPCTransferLoop02
+    BNE SPCTransfer_Loop02
     TYA
     CLC
     ADC $00
@@ -114,14 +115,16 @@ SPCTransferLoop03:
     INC A
     INC A
     STA $2140
-    JMP SPCTA
+    JMP SPCTransfer_TransferAddress
 
-SPCTransferJump:
+.Jump:
     LDA #$00
     STA $2141
     STA $2140
     LDA #$0F
     STA $60
+    JML $8081C7 ;81C3-81C6  ;__ Use FastROM for faster execution
+org $8081C7         ;Here purely for not causing errors purpose
 dmaToCGRAM:
     
     PEA $4300
@@ -145,11 +148,11 @@ dmaToCGRAM:
 dmaToVRAM1:
     STZ $0000
     STZ $0001
-    JSL DecompressUnicodeBlock
+    JSR DecompressUnicodeBlock
     LDA #$01
     STA $0000
     STA $0001
-    JSL DecompressUnicodeBlock
+    JSR DecompressUnicodeBlock
 dmaToVRAM2:
     LDX #$7000		;Address to write to in VRAM
     STX $2116		;Write it to tell Snes that
@@ -239,9 +242,9 @@ TurnOnScreen:
     STZ $2115           ;__ Make the PPU bus normal
 forever:
         jmp forever
-org $008400
+org $808400
 nmi:
-
+    JML $808404         ;Takes 8400-8403; Take advantage of FastROM
 
     
     lda #$8F            ; = 10001111
@@ -783,7 +786,7 @@ DecompressUnicodeBlock4bpp:
     PLP
     PLD
 RTS
-org $018000 ;The plotting engine for now
+org $818000 ;The plotting engine for now
 ;1bpp to 2bpp converter
 
 tableROMtoWRAM:		
@@ -1047,7 +1050,7 @@ PlotLoop:
     SEC
     SBC #$0040
     BMI Afterloop
-    JML PlotLoop
+    JMP PlotLoop
 Afterloop:
     REP #%00010000 ;set xy to 16bit
     SEP #%00100000 ;set a to 8bit
@@ -1131,7 +1134,7 @@ PhaseModulation20Loop:
     DEY             ;2 _ 15
     CPY #$0000
     BPL PhaseModulation20Loop ;2
-    JML PhaseModulationFinish
+    JMP PhaseModulationFinish
 
 PhaseModulation10:
     SEC
@@ -1226,6 +1229,6 @@ PhaseModulationFinish:
     PLB
     RTL
 
-org $01E000
+org $81E000
 arch spc700-inline
 incsrc "SNESFM.asm"

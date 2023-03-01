@@ -1,7 +1,13 @@
 0081ef:x:cpu
 821ff0-821fff::cpu
 0082a8:x:cpu
-008409:x:cpu
-0081f7:x:cpu
-0082aa:x:cpu
-008299:x:cpu
+008409::cpu
+0082aa::cpu
+008299::cpu
+808132::cpu
+8081a5::cpu
+8081c5::cpu
+008129::cpu
+002110::smp
+0025d2::smp
+002768::smp

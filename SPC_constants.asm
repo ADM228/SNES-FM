@@ -48,19 +48,26 @@
 
 ;Temporary variables, basically a shitton of names for the same thing
 ;$D0-DF are usually inputs while $E0-EF are just temporary variables used by routines
+!ECH_FIR_FIRSTBYTE = $D0
+
+!PUL_OUT_PAGE = $D0
+!PUL_DUTY = $D1
+!PUL_FLAGS = $D2
+
 !MOD_CAR_PAGE = $D0
 !MOD_MOD_PAGE = $D1
 !MOD_OUT_PAGE = $D2
 !MOD_MOD_STRENGTH = $D3
 !MOD_MOD_PHASE_SHIFT = $D4
 
-!ECH_FIR_FIRSTBYTE = $D0
-
 !CHG_BIT_ADDRESS = $D0
 
 !BRR_PCM_PAGE = $D0
 !BRR_OUT_INDEX = $D1
 !BRR_FLAGS = $D2
+
+!PUL_OUT_INDEX_L = $EE
+!PUL_OUT_INDEX_H = $EF
 
 !MOD_OUT_INDEX_L = $EA
 !MOD_OUT_INDEX_H = $EB
@@ -73,6 +80,7 @@
 !BRR_BUFF1_PTR_H = $21
 !BRR_MAXM0_L = $F8  ;These registers are so unused
 !BRR_MAXM0_H = $F9  ;they're practically RAM!
+!BRR_TEMP_FLAGS = $E5
 !BRR_SMPPT_L = $E6
 !BRR_SMPPT_H = $E7
 !BRR_CSMPT_L = $E8
