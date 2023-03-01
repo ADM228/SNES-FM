@@ -2,14 +2,16 @@
 ;1. Instrument data
 ;   t {f ([s s]/[s]) ([v v]/[v]) [a] [p p] t}
 ;   t - Instrument type
-;       00000pet
-;       p - Sample index "page" number
+;       ---hiret
+;       h - Sample index "page" number
+;       i - Choose sample by index, not absolute position
+;       r - Relative pitchbends
 ;       e - Envelope type (if 0 - ADSR, if 1 - GAIN) (basically reverse x5.7)
 ;       t - Instrument type (0 - Noise, 1 - sample)
 ;   f - Flags
-;       00sirvap
+;       -sllrvap
 ;       s - Update sample
-;       i - Choose sample by index, not absolute position
+;       ll - Subpage of sample index
 ;       r - Update sample position relative to current position (works independently of i)
 ;       v - Update envelope 
 ;       a - Arpeggio (always relative)
@@ -19,9 +21,8 @@
 ;       ccc - Special command
 ;       dddd - Argument
 ;       Command list:
-;           000 - Change instrument type to dddd
-;           111:
-;               if dddd = 1111, end of instrument data
+;           00 - Change instrument type to ddddd
+;           11 - End of instrument data
 ;       Afterwards, another f byte is there
 ;   [s s] - Raw sample position/offset in memory (if i is clear and s is set) / 
 ;   [s] - Sample index position/offset (if i is set and s is set)
@@ -64,43 +65,34 @@ dw NoteDataNone
 
 ;instrument data
 Instr00Data:
-db !COMMAND_CHANGE_INSTRUMENT_TYPE|!SAMPLE_INDEX_PAGE_0|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
+db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
 
-db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
-dw $6000
-db $7F, $00, $02
+db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO|!SAMPLE_SUBPAGE_0
+db $00, $7F, $00, $02
 
-db !UPD_SAMPLE|!UPD_ENVELOPE
-dw $6048
-db $8A, $03
+db !UPD_SAMPLE|!UPD_ENVELOPE|!SAMPLE_SUBPAGE_0
+db $01, $8A, $03
 
-db !UPD_SAMPLE
-dw $6090
-db $03
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $02, $03
 
-db !UPD_SAMPLE
-dw $60D8
-db $03
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $03, $03
 
-db !UPD_SAMPLE
-dw $6120
-db $03
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $04, $03
 
-db !UPD_SAMPLE
-dw $6168
-db $03
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $05, $03
 
-db !UPD_SAMPLE
-dw $61B0
-db $03
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $06, $03
 
-db !UPD_SAMPLE
-dw $61F8
-db $03
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $07, $03
 
-db !UPD_SAMPLE
-dw $6240
-db $03
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $08, $03
 
 ;db %00000100, $10, $00
 
@@ -108,7 +100,7 @@ db $03
 db !END_DATA
 
 Instr01Data:
-db !COMMAND_CHANGE_INSTRUMENT_TYPE|!SAMPLE_INDEX_PAGE_0|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
+db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
 
 db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
 dw $6288
@@ -130,14 +122,14 @@ db !UPD_ENVELOPE|!UPD_ARPEGGIO, $00, $01, $01
 db !END_DATA
 
 Instr02Data:
-db !COMMAND_CHANGE_INSTRUMENT_TYPE|!SAMPLE_INDEX_PAGE_0|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
+db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
 
 db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
 dw $6240
 db $60, $00, $01
 db !UPD_ENVELOPE|!UPD_ARPEGGIO, $30, $EE, $01
 
-db !COMMAND_CHANGE_INSTRUMENT_TYPE|!SAMPLE_INDEX_PAGE_0|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_NOISE
+db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_NOISE
 db !UPD_ENVELOPE|!UPD_ARPEGGIO
 db $8C, $19, $01
 db !UPD_ARPEGGIO
@@ -146,7 +138,7 @@ db $1C, $03
 db !END_DATA
 
 Instr03Data:
-db !COMMAND_CHANGE_INSTRUMENT_TYPE|!SAMPLE_INDEX_PAGE_0|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
+db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
 
 db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
 dw $6288

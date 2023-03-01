@@ -233,7 +233,7 @@ TurnOnScreen:
     JSL tableROMtoWRAM
     JSL clearPaletteData
     JSL RoutineSelect
-    JSL Decompress
+    JSL PlotGraph
     SEP #%00100000 ;A 8-bit
     lda #$0F            ;   Turn on screen, full brightness
     sta $2100           ;__
@@ -848,7 +848,8 @@ clearPaletteData:
     LDA #%00000001  ;bit 2 corresponds to channel 0
     STA $420B		;Init
     RTL
-Decompress:
+PlotGraph:
+.Decompress
     REP #%00010000 ;set xy to 16bit
     SEP #%00100000 ;set a to 8bit
     PEA $0000
@@ -858,7 +859,7 @@ Decompress:
     PLB
     LDX #$00FF
     LDY #$003F
-DecompressLoop:
+..Loop:
     LDA $0000, X
     EOR #$80
     STA $FDC0, Y
@@ -872,12 +873,12 @@ DecompressLoop:
     STA $01
     LDX $00
     DEY
-    BPL DecompressLoop
-Plot:
+    BPL PlotGraph_Decompress_Loop
+.InWRAM:
     REP #%00110000 ;set xy and a to 16bit
     LDA #$01C0
     LDY #$0000
-PlotLoop:
+..Loop:
     TAX
     SEP #%00100000 ;set a to 8bit
 	LDA #$FF
@@ -1049,9 +1050,9 @@ PlotLoop:
     TXA
     SEC
     SBC #$0040
-    BMI Afterloop
-    JMP PlotLoop
-Afterloop:
+    BMI PlotGraph_DMA
+    JMP PlotGraph_InWRAM_Loop
+.DMA:
     REP #%00010000 ;set xy to 16bit
     SEP #%00100000 ;set a to 8bit
     PEA $4300
@@ -1059,7 +1060,6 @@ Afterloop:
     LDA #$00
     PHA
 	PLB
-WRAMtoVRAM:
 	lda #$80            ; = 10000000
     sta $2100           ; F-Blank
     LDX #$1000		;Address to write to in VRAM

@@ -1,6 +1,6 @@
 incsrc "SPC_constants.asm"
 ;   ==== Code/data distribution table: ====
-;   page        purpose
+;   Page        Purpose
 ;   $00         $00 - $BF: Flags & pointers for the note stuff:
 ;   |           Song data pointer, Instrument data pointer, Effect data pointer, Sample pointer, note index, pitch, pitchbend
 ;   |__ _ _ _ _ $C0 - $EF: Operating space of subroutines (how exactly described before every subroutine)
@@ -13,13 +13,19 @@ incsrc "SPC_constants.asm"
 ;   $0E         $00 - $BF: Pitch table, 96 entries long
 ;   |__ _ _ _ _ $C0 - $C8: Dummy empty sample (for beginnings and noise)
 ;   $0F _ _ _ _ Sine table, only $0F00-$0F42 is written, everything else is calculated
-;   $10-$1F _ _ Music data
-;   $20-$3F _ _ Code
-;   $40-$5F _ _ 32 FM generation buffers, 1 page long each
+;   $10-$1F _ _ Instrument data      \_ Combined for
+;   $20-$4F _ _ FM generation buffers/  song data   (16KB!!!!)
+;   $50-$5F _ _ Code
 ;   $60-$FE _ _ Actual sample storage, echo buffer (separated depending on the delay & amount of samples)
 ;   $FF         $00 - $BF: Hardsync routine (here for use with PCALL to save 2 cycles)
 ;   |__ _ _ _ _ $C0 - $FF: TCALL pointers/Boot ROM
-org $2000
+;   ==== Communication with SNES: ====
+;       === To SNES: ===
+;    Pt1    |    Pt2    |    Pt3    |    Pt4    |   Meaning
+;    $55    |    $DA    |    location - $1000   |   $55DAxxxx - Send ~~nudes~~ Song DatA
+;    $CE    |    $00    |  16-bit tick counter  |   $CE00xxxx - CurrEnt lOcatiOn, while song playing
+;           |           |
+org $5000
 init:       ;init routine, totally not grabbed from tales of phantasia
     CLRP
     MOV A, #$00     ;__
@@ -110,71 +116,69 @@ init:       ;init routine, totally not grabbed from tales of phantasia
         EOR A, #$FF
         MOV $0FC0+Y, A
         DBNZ Y, SPC_SineSetup_loop1
-    MOV !PUL_OUT_PAGE, #$48
-    MOV !PUL_DUTY, #$3C
+    MOV !PUL_OUT_PAGE, #$28
+    MOV !PUL_DUTY, #$20
     MOV !PUL_FLAGS, #$03
     CALL SPC_GeneratePulse_32
-    MOV !PUL_OUT_PAGE, #$40
-    MOV !PUL_DUTY, #$20
+    MOV !PUL_OUT_PAGE, #$20
+    MOV !PUL_DUTY, #$02
     CALL SPC_GeneratePulse_32
-    MOV !PUL_OUT_PAGE, #$41
-    MOV !PUL_DUTY, #$1E
+    MOV !PUL_OUT_PAGE, #$21
+    MOV !PUL_DUTY, #$04
     CALL SPC_GeneratePulse_32
-    MOV !PUL_OUT_PAGE, #$42
-    MOV !PUL_DUTY, #$1C
+    MOV !PUL_OUT_PAGE, #$22
+    MOV !PUL_DUTY, #$06
     CALL SPC_GeneratePulse_32
-    MOV !PUL_OUT_PAGE, #$43
-    MOV !PUL_DUTY, #$1A
+    MOV !PUL_OUT_PAGE, #$23
+    MOV !PUL_DUTY, #$08
     CALL SPC_GeneratePulse_32
 
-    MOV !PUL_OUT_PAGE, #$44
-    MOV !PUL_DUTY, #$18
+    MOV !PUL_OUT_PAGE, #$24
+    MOV !PUL_DUTY, #$0A
     CALL SPC_GeneratePulse_32
-    MOV !PUL_OUT_PAGE, #$45
-    MOV !PUL_DUTY, #$16
+    MOV !PUL_OUT_PAGE, #$25
+    MOV !PUL_DUTY, #$0C
     CALL SPC_GeneratePulse_32
-    MOV !PUL_OUT_PAGE, #$46
-    MOV !PUL_DUTY, #$14
+    MOV !PUL_OUT_PAGE, #$26
+    MOV !PUL_DUTY, #$0E
     CALL SPC_GeneratePulse_32
-    MOV !PUL_OUT_PAGE, #$47
-    MOV !PUL_DUTY, #$12
+    MOV !PUL_OUT_PAGE, #$27
+    MOV !PUL_DUTY, #$10
     CALL SPC_GeneratePulse_32
-    MOV !BRR_PCM_PAGE, #$40
+    MOV !BRR_PCM_PAGE, #$20
     MOV !BRR_OUT_INDEX, #$01    ;As if it matters lmao
     MOV !BRR_FLAGS, #%11000000
     CALL SPC_ConvertToBRR
-    MOV !BRR_PCM_PAGE, #$41
+    MOV !BRR_PCM_PAGE, #$21
     MOV !BRR_OUT_INDEX, #$02    ;As if it matters lmao
     CALL SPC_ConvertToBRR
-    MOV !BRR_PCM_PAGE, #$42
+    MOV !BRR_PCM_PAGE, #$22
     MOV !BRR_OUT_INDEX, #$03    ;As if it matters lmao
     CALL SPC_ConvertToBRR
-    MOV !BRR_PCM_PAGE, #$43
+    MOV !BRR_PCM_PAGE, #$23
     MOV !BRR_OUT_INDEX, #$04    ;As if it matters lmao
     CALL SPC_ConvertToBRR
-    MOV !BRR_PCM_PAGE, #$44
+    MOV !BRR_PCM_PAGE, #$24
     MOV !BRR_OUT_INDEX, #$05    ;As if it matters lmao
     CALL SPC_ConvertToBRR
-    MOV !BRR_PCM_PAGE, #$45
+    MOV !BRR_PCM_PAGE, #$25
     MOV !BRR_OUT_INDEX, #$06    ;As if it matters lmao
     CALL SPC_ConvertToBRR
-    MOV !BRR_PCM_PAGE, #$46
+    MOV !BRR_PCM_PAGE, #$26
     MOV !BRR_OUT_INDEX, #$07    ;As if it matters lmao
     CALL SPC_ConvertToBRR
-    MOV !BRR_PCM_PAGE, #$47
+    MOV !BRR_PCM_PAGE, #$27
     MOV !BRR_OUT_INDEX, #$08    ;As if it matters lmao
     CALL SPC_ConvertToBRR
-    MOV !BRR_PCM_PAGE, #$48
+    MOV !BRR_PCM_PAGE, #$28
     MOV !BRR_OUT_INDEX, #$00    ;As if it matters lmao
     CALL SPC_ConvertToBRR
 
-
-    MOV !MOD_CAR_PAGE, #$0F
-    MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$48
-    MOV !MOD_MOD_STRENGTH, #$00
-    CALL SPC_PhaseModulation_128
-    MOV !BRR_PCM_PAGE, #$48
+    MOV !PUL_FLAGS, #$03
+    MOV !PUL_OUT_PAGE, #$28
+    MOV !PUL_DUTY, #$20
+    CALL SPC_GeneratePulse_32
+    MOV !BRR_PCM_PAGE, #$28
     MOV !BRR_OUT_INDEX, #$09
     MOV !BRR_FLAGS, #%01000000
     CALL SPC_ConvertToBRR
@@ -230,8 +234,8 @@ SPC_ParseSongData:
 +:
     MOV Y, #$00
     MOV A, (!CHTEMP_SONG_POINTER_L)+Y 
-    MOV $EF, A
-    BBC7 $EF, SPC_ParseSongData_NoRetrigger
+    MOV $ED, A
+    BBC7 $ED, SPC_ParseSongData_NoRetrigger
 ;Retrigger
     AND A, #$7F
     SETC
@@ -244,7 +248,7 @@ SPC_ParseSongData:
     MOV X, A
     JMP (SPC_ParseSongData_routineTable+X)
 +:
-    MOV !CHTEMP_NOTE, $EF
+    MOV !CHTEMP_NOTE, $ED
     MOV $F2, #$5C       ;
     MOV $F3, #$00       ;   Key off the needed channel
     MOV !CHG_BIT_ADDRESS, #$F3       ;
@@ -268,7 +272,7 @@ SPC_ParseSongData:
     MOV !CHG_BIT_ADDRESS, #$F3       ;
     TCALL 13            ;__
 .NoRetrigger:
-    MOV A, $EF              ;
+    MOV A, $ED              ;
     MOV !CHTEMP_NOTE, A     ;   Apply arpeggio
     CLRC                    ;
     ADC A, !CHTEMP_ARPEGGIO ;__
@@ -363,12 +367,12 @@ SPC_ParseInstrumentData:
     MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y
     MOV $E0, A
     INCW !CHTEMP_INSTRUMENT_POINTER_L
-    BBC7 $E0, ++
-    AND A, #$70
+    BBC7 $E0, SPC_ParseInstrumentData_UpdateSamplePointer
+    AND A, #$60
     XCN A    
     BNE +
     MOV A, $E0
-    AND A, #$07
+    AND A, #$1F
     MOV !CHTEMP_INSTRUMENT_TYPE, A
     MOV $F2, #$3D                           ;   Enable noise if needed
     MOV !CHG_BIT_ADDRESS, #$F3
@@ -381,17 +385,32 @@ SPC_ParseInstrumentData:
     MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y
     MOV $E0, A
     INCW !CHTEMP_INSTRUMENT_POINTER_L
-++:
-    BBC5 $E0, +                             ;__ If no sample pointer update, skip
+.UpdateSamplePointer:
+    BBC6 $E0, SPC_ParseInstrumentData_UpdateEnvelope ;__ If no sample pointer update, skip
+    BBC3 !CHTEMP_INSTRUMENT_TYPE, +         ;__ If use sample index,
     MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;
-    MOV !CHTEMP_SAMPLE_POINTER_L, A         ;
-    INCW !CHTEMP_INSTRUMENT_POINTER_L       ;   Loading sample pointer into memory
+    INCW !CHTEMP_INSTRUMENT_POINTER_L       ;
+    MOV Y, A                                ;
+    MOV A, $E0                              ;
+    AND A, #$30                             ;
+    XCN A                                   ;
+    MOV $EF, A                              ;  Get pointer from sample index
+    MOV A, !CHTEMP_INSTRUMENT_TYPE          ;
+    AND A, #$10                             ;
+    OR A, $EF                               ;
+    TCALL 11                                ;
+    MOVW !CHTEMP_SAMPLE_POINTER_L, YA       ;
+    MOV Y, #$00                             ;
+    JMP ++                                  ;__
++   MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;
+    MOV !CHTEMP_SAMPLE_POINTER_L, A         ;   If no, just blatantly
+    INCW !CHTEMP_INSTRUMENT_POINTER_L       ;   Load sample pointer into memory
     MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;
     MOV !CHTEMP_SAMPLE_POINTER_H, A         ;
     INCW !CHTEMP_INSTRUMENT_POINTER_L       ;__
-    CALL SPC_updatePointer                  ;__ Updating the sample pointer
-+:
-    BBC2 $E0, +                             ;__ If no envelope update, skip
+++  CALL SPC_updatePointer                  ;__ Update the sample pointer
+.UpdateEnvelope:
+    BBC2 $E0, SPC_ParseInstrumentData_UpdateArpeggio;__ If no envelope update, skip
     AND !CHTEMP_REGISTER_INDEX, #$70        ;
     OR !CHTEMP_REGISTER_INDEX, #$07         ;
     MOV $F2, !CHTEMP_REGISTER_INDEX         ;   Update GAIN envelope
@@ -399,7 +418,7 @@ SPC_ParseInstrumentData:
     MOV $F3, A                              ;
     MOV $F3, A                              ;__
     INCW !CHTEMP_INSTRUMENT_POINTER_L       ;
-+:
+.UpdateArpeggio:
     BBC1 $E0, +                             ;__ If no apreggio update, skip
     MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;   
     MOV !CHTEMP_ARPEGGIO, A                 ;   Update arpeggio
@@ -553,7 +572,7 @@ SPC_set_echoFIR:
 echoFIRtable:
     db #$7f, #$00, #$00, #$00, #$00, #$00, #$00, #$00
 
-;Memory table:
+;   Memory allocation:
 ;   Inputs:
 ;       $D0 - Output page
 ;       $D1 - Duty cycle
@@ -668,7 +687,7 @@ db $80, $00, $FF, $FF
 ;Inversion values for fractional value
 db $7F, $FE, $00, $80
 
-;Memory table:
+;   Memory allocation:
 ;   Inputs:
 ;       $D0 - Output page
 ;       $D1 - Duty cycle: ppdddddd
@@ -779,7 +798,7 @@ SPC_GeneratePulse_32:
 +:
 RET
 
-;Memory table:
+;   Memory allocation:
 ;   Inputs:
 ;       $D0 - Carrier page
 ;       $D1 - Modulator page
@@ -862,12 +881,12 @@ SPC_PhaseModulation_128:
     BNE SPC_PhaseModulation_128_loop
     RET
 
-;   Memory table:
+;   Memory allocation:
 ;   Inputs:
 ;       $D0 - PCM sample page
 ;       $D1 - BRR output index
 ;       $D2 - Flags: fsi-ppbb 
-;               f - whether to use filter mode 1 (doesn't apply to the first sample block as well blocks with jumps larger than their absolute values)
+;               f - whether to use filter mode 1
 ;               s - short sample mode (32 samples instead of 128)
 ;               i - high bit of output index 
 ;               pp - PCM sample subpage number (0-3, if s is set)
@@ -877,10 +896,11 @@ SPC_PhaseModulation_128:
 ;               b - whether it is the first block
 ;               f - whether to use filter mode 1
 ;               n - negative flag
+;       $E6-$EB - 3 sample points
+;       $F8-$F9 - Temporary space for 1 sample point
 ;       $EC-$ED - Input pointer
 ;       $EE-$EF - Output pointer
 SPC_ConvertToBRR:
-;Set up the first time
     SET7 !BRR_TEMP_FLAGS
     MOV !BRR_IN0_PTR_H, !BRR_PCM_PAGE;   Set up the PCM sample page
     MOV A, !BRR_FLAGS               ;__
@@ -895,23 +915,12 @@ SPC_ConvertToBRR:
     MOV !BRR_LSMPT_H, #$00          ;__ smppoint = 0
     PUSH A
     PUSH A
-    MOV A, !BRR_OUT_INDEX       ;
-    MOV Y, #$48                 ;   Set up the OUT pointer
-    MUL YA                      ;
-    MOVW !BRR_OUT_PTR_L, YA     ;__
-    MOV A, !BRR_FLAGS           ;
-    AND A, #$03                 ;
-    MOV Y, A                    ;   Set up the BRR sample subpage
-    MOV A, SPC_ConvertToBRR_LookuptableMul18+Y
-    MOV Y, #$00                 ;
-    ADDW YA, !BRR_OUT_PTR_L     ;
-    MOVW !BRR_OUT_PTR_L, YA     ;__
-    BBC5 !BRR_FLAGS, +          ;
-    CLRC                        ;   Apply the i flag
-    ADC !BRR_OUT_PTR_H, #$48    ;__
-+:                              ;
-    CLRC                        ;   Actually make it an index
-    ADC !BRR_OUT_PTR_H, #$60    ;__
+    MOV Y, !BRR_OUT_INDEX           ;
+    MOV A, !BRR_FLAGS               ;
+    AND A, #$23                     ;   Get the sample pointer from index
+    TCALL 11                        ;
+    MOVW !BRR_OUT_PTR_L, YA         ;__
+
 .SetupCopy:
     MOV X, #$20                     ;__ Set up the destination address (it's (X+))
     MOV Y, #$00
@@ -1296,10 +1305,10 @@ SPC_SetFlagdp:  ;TCALL 13
     ASL A
     AND A, #$E0
     OR A, #$02
-    MOV SPC_sfdp_act, A
+    MOV SPC_SetFlagdp_act, A
     MOV A, $D0
-    MOV SPC_sfdp_act+1, A
-SPC_sfdp_act:
+    MOV SPC_SetFlagdp_act+1, A
+.act:
     SET1 $00
     RET
 
@@ -1310,12 +1319,50 @@ SPC_ClrFlagdp:  ;TCALL 12
     ASL A
     AND A, #$E0
     OR A, #$12
-    MOV SPC_cfdp_act, A
+    MOV SPC_ClrFlagdp_act, A
     MOV A, $D0
-    MOV SPC_cfdp_act+1, A
-SPC_cfdp_act:
+    MOV SPC_ClrFlagdp_act+1, A
+.act:
     CLR1 $00
     RET
+
+;   Memory allocation:
+;   Inputs:
+;       Y - Sample index
+;       A - hhhhhhll
+;           h - High bit of page (if at least one is set, it is considered to be set)
+;           ll - Subpage index
+;   Outputs:
+;       YA - Sample pointer
+;   Memory:
+;       $EE-$EF - Temp variable
+;   Stack usage:
+;       2 entries (+ 2 calling the subroutine)
+SPC_IndexToSamplePointer: ;TCALL 11
+    PUSH A                      ;
+    PUSH A                      ;
+    MOV A, #$48                 ;   Use main byte of index
+    MUL YA                      ;
+    MOVW $EE, YA                ;
+    POP A                       ;__
+    AND A, #$03                 ;
+    MOV Y, A                    ;   Set up the BRR sample subpage
+    MOV A, SPC_IndexToSamplePointer_LookuptableMul18+Y
+    MOV Y, #$00                 ;
+    ADDW YA, $EE                ;
+    MOVW $EE, YA                ;__
+    POP A                       ;
+    AND A, #$FC                 ;
+    BEQ +                       ;   Apply the high bit
+    CLRC                        ;
+    ADC $EF, #$48               ;__
++:                              ;
+    CLRC                        ;   Actually make it a valid pointer
+    ADC $EF, #$60               ;__
+    MOVW YA, $EE                ;   Return with pointer in YA
+RET                             ;__
+.LookuptableMul18:
+db $00, $12, $24, $36
 
 org $0200
     dw $0EC0, $6000, $0EC0, $6000
@@ -1335,5 +1382,5 @@ org $0A00
     ;instrument data pointers
     dw Instr00Data, Instr01Data, Instr02Data, Instr03Data
 org $FFC0   ;For TCALLs
-    dw SPC_transferChToTemp, SPC_transferTempToCh, SPC_SetFlagdp, SPC_ClrFlagdp
+    dw SPC_transferChToTemp, SPC_transferTempToCh, SPC_SetFlagdp, SPC_ClrFlagdp, SPC_IndexToSamplePointer
 startpos init
