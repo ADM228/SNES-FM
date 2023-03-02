@@ -20,11 +20,26 @@ incsrc "SPC_constants.asm"
 ;   $FF         $00 - $BF: Hardsync routine (here for use with PCALL to save 2 cycles)
 ;   |__ _ _ _ _ $C0 - $FF: TCALL pointers/Boot ROM
 ;   ==== Communication with SNES: ====
+;       (Port 0 is always message number; Port 1's high 4 bits is message ID)
 ;       === To SNES: ===
-;    Pt1    |    Pt2    |    Pt3    |    Pt4    |   Meaning
-;    $55    |    $DA    |    location - $1000   |   $55DAxxxx - Send ~~nudes~~ Song DatA
-;    $CE    |    $00    |  16-bit tick counter  |   $CE00xxxx - CurrEnt lOcatiOn, while song playing
-;           |           |
+;   Id  | P1 |    Pt2    |    Pt3    |   Meaning
+;   $0  |    |           |           |   Waiting for yo command
+;   $1  |    |  id | location & $FFF |   Read, jumping to transfer routine, redirect me to $5000 | location
+;   $2  |    |    location - $1000   |   Send song data to location + $1000
+;   $3  |     20-bit tick counter    |   Currently playing song, here's what tick it is
+;   $F  |    |           |           |   What? 
+;       === To SPC: ===
+;   Id  | P1 |    Pt2    |    Pt3    |   Meaning
+;   $0  |    |           |           |   Read yo message
+;   $1  |    |           |           |   Stop song
+;   $2  |    |           |  Channels |   Mute channels
+;   $3  |     20-bit tick counter    |   Seek to tick 
+;   $4  |    |           |           |   Prepare to get some song data and gimme the location
+;   $5  |    |           |           |   Prepare to get some instrument data and gimme the location
+;   $6  |    |           |           |   Play the song you have received
+;   $7  |    |           |   SFX ID  |   Play sound effect 
+;   $8  |    | instrument|  note ID  |   Play just a note  
+;   $F  |    |           |           |   What? 
 org $5000
 init:       ;init routine, totally not grabbed from tales of phantasia
     CLRP
@@ -1364,8 +1379,6 @@ RET                             ;__
 .LookuptableMul18:
 db $00, $12, $24, $36
 
-org $0200
-    dw $0EC0, $6000, $0EC0, $6000
 org $0C00
     incbin "lookuptables.bin"
 org $0E00
