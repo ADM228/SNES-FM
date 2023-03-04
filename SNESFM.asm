@@ -106,12 +106,13 @@ init:       ;init routine, totally not grabbed from tales of phantasia
     MOV $FA, #$50   ;   Set Timer 0 to 10 ms     (100 Hz)
     MOV $F1, #$07   ;__
 
+SPC_SineSetup:
+
 ; Setting up the sine table
 
     MOV X, #$02     ;__ X contains the source index,
     MOV Y, #$3E     ;__ Y contains the destination index
-
-    SPC_SineSetup_loop0:
+    .loopCopy:
         MOV A, $0F00+X
         INC X
         MOV $0F40+Y, A
@@ -119,74 +120,131 @@ init:       ;init routine, totally not grabbed from tales of phantasia
         INC X
         MOV $0F41+Y, A
         DEC Y
-        DBNZ Y, SPC_SineSetup_loop0
+        DBNZ Y, SPC_SineSetup_loopCopy
     
     MOV Y, #$3F
 
-    SPC_SineSetup_loop1:
+    .loopInvert:
         MOV A, $0F00+Y
         EOR A, #$FF
         MOV $0F80+Y, A
         MOV A, $0F40+Y
         EOR A, #$FF
         MOV $0FC0+Y, A
-        DBNZ Y, SPC_SineSetup_loop1
-    MOV !PUL_OUT_PAGE, #$28
-    MOV !PUL_DUTY, #$20
-    MOV !PUL_FLAGS, #$03
-    CALL SPC_GeneratePulse_32
-    MOV !PUL_OUT_PAGE, #$20
-    MOV !PUL_DUTY, #$02
-    CALL SPC_GeneratePulse_32
-    MOV !PUL_OUT_PAGE, #$21
-    MOV !PUL_DUTY, #$04
-    CALL SPC_GeneratePulse_32
-    MOV !PUL_OUT_PAGE, #$22
-    MOV !PUL_DUTY, #$06
-    CALL SPC_GeneratePulse_32
-    MOV !PUL_OUT_PAGE, #$23
-    MOV !PUL_DUTY, #$08
-    CALL SPC_GeneratePulse_32
+        DBNZ Y, SPC_SineSetup_loopInvert
+    MOV !LTS_IN_PAGE, #$0F
+    MOV !LTS_OUT_PAGE, #$20
+    MOV !LTS_OUT_SUBPAGE, #$40
+    CALL SPC_LongToShort
+    MOV !MOD_CAR_PAGE, #$0F
+    MOV !MOD_MOD_PAGE, #$0F
+    MOV !MOD_OUT_PAGE, #$38
+    MOV !MOD_MOD_STRENGTH, #$40
+    MOV !MOD_MOD_PHASE_SHIFT, #$00
+    CALL SPC_PhaseModulation_128
+    MOV !MOD_CAR_PAGE, #$0F
+    MOV !MOD_MOD_PAGE, #$0F
+    MOV !MOD_OUT_PAGE, #$30
+    MOV !MOD_MOD_STRENGTH, #$20
+    CALL SPC_PhaseModulation_128
+    MOV !MOD_CAR_PAGE, #$0F
+    MOV !MOD_MOD_PAGE, #$0F
+    MOV !MOD_OUT_PAGE, #$31
+    MOV !MOD_MOD_STRENGTH, #$1C
+    CALL SPC_PhaseModulation_128
+    MOV !MOD_CAR_PAGE, #$0F
+    MOV !MOD_MOD_PAGE, #$0F
+    MOV !MOD_OUT_PAGE, #$32
+    MOV !MOD_MOD_STRENGTH, #$18
+    CALL SPC_PhaseModulation_128
+    MOV !MOD_CAR_PAGE, #$0F
+    MOV !MOD_MOD_PAGE, #$0F
+    MOV !MOD_OUT_PAGE, #$33
+    MOV !MOD_MOD_STRENGTH, #$14
+    CALL SPC_PhaseModulation_128
+    MOV !MOD_CAR_PAGE, #$0F
+    MOV !MOD_MOD_PAGE, #$0F
+    MOV !MOD_OUT_PAGE, #$34
+    MOV !MOD_MOD_STRENGTH, #$10
+    CALL SPC_PhaseModulation_128
+    MOV !MOD_CAR_PAGE, #$0F
+    MOV !MOD_MOD_PAGE, #$0F
+    MOV !MOD_OUT_PAGE, #$35
+    MOV !MOD_MOD_STRENGTH, #$0C
+    CALL SPC_PhaseModulation_128
+    MOV !MOD_CAR_PAGE, #$0F
+    MOV !MOD_MOD_PAGE, #$0F
+    MOV !MOD_OUT_PAGE, #$36
+    MOV !MOD_MOD_STRENGTH, #$08
+    CALL SPC_PhaseModulation_128
+    MOV !MOD_CAR_PAGE, #$0F
+    MOV !MOD_MOD_PAGE, #$0F
+    MOV !MOD_OUT_PAGE, #$37
+    MOV !MOD_MOD_STRENGTH, #$04
+    CALL SPC_PhaseModulation_128
 
-    MOV !PUL_OUT_PAGE, #$24
-    MOV !PUL_DUTY, #$0A
-    CALL SPC_GeneratePulse_32
-    MOV !PUL_OUT_PAGE, #$25
-    MOV !PUL_DUTY, #$0C
-    CALL SPC_GeneratePulse_32
-    MOV !PUL_OUT_PAGE, #$26
-    MOV !PUL_DUTY, #$0E
-    CALL SPC_GeneratePulse_32
-    MOV !PUL_OUT_PAGE, #$27
-    MOV !PUL_DUTY, #$10
-    CALL SPC_GeneratePulse_32
+
+
+
+    MOV !LTS_IN_PAGE, #$31
+    MOV !LTS_OUT_PAGE, #$21
+    MOV !LTS_OUT_SUBPAGE, #$00
+    CALL SPC_LongToShort
+    MOV !LTS_IN_PAGE, #$32
+    MOV !LTS_OUT_PAGE, #$22
+    MOV !LTS_OUT_SUBPAGE, #$00
+    CALL SPC_LongToShort
+    MOV !LTS_IN_PAGE, #$33
+    MOV !LTS_OUT_PAGE, #$23
+    MOV !LTS_OUT_SUBPAGE, #$00
+    CALL SPC_LongToShort
+    MOV !LTS_IN_PAGE, #$34
+    MOV !LTS_OUT_PAGE, #$24
+    MOV !LTS_OUT_SUBPAGE, #$00
+    CALL SPC_LongToShort
+    MOV !LTS_IN_PAGE, #$35
+    MOV !LTS_OUT_PAGE, #$25
+    MOV !LTS_OUT_SUBPAGE, #$00
+    CALL SPC_LongToShort
+    MOV !LTS_IN_PAGE, #$36
+    MOV !LTS_OUT_PAGE, #$26
+    MOV !LTS_OUT_SUBPAGE, #$00
+    CALL SPC_LongToShort
+    MOV !LTS_IN_PAGE, #$37
+    MOV !LTS_OUT_PAGE, #$27
+    MOV !LTS_OUT_SUBPAGE, #$00
+    CALL SPC_LongToShort
+    MOV !LTS_IN_PAGE, #$38
+    MOV !LTS_OUT_PAGE, #$28
+    MOV !LTS_OUT_SUBPAGE, #$00
+    CALL SPC_LongToShort
     MOV !BRR_PCM_PAGE, #$20
-    MOV !BRR_OUT_INDEX, #$01    ;As if it matters lmao
-    MOV !BRR_FLAGS, #%11000000
+    MOV !BRR_OUT_INDEX, #$01
+    MOV !BRR_FLAGS, #%01000000
     CALL SPC_ConvertToBRR
     MOV !BRR_PCM_PAGE, #$21
-    MOV !BRR_OUT_INDEX, #$02    ;As if it matters lmao
+    MOV !BRR_OUT_INDEX, #$02
     CALL SPC_ConvertToBRR
     MOV !BRR_PCM_PAGE, #$22
-    MOV !BRR_OUT_INDEX, #$03    ;As if it matters lmao
+    MOV !BRR_OUT_INDEX, #$03
     CALL SPC_ConvertToBRR
     MOV !BRR_PCM_PAGE, #$23
-    MOV !BRR_OUT_INDEX, #$04    ;As if it matters lmao
+    MOV !BRR_OUT_INDEX, #$04
     CALL SPC_ConvertToBRR
     MOV !BRR_PCM_PAGE, #$24
-    MOV !BRR_OUT_INDEX, #$05    ;As if it matters lmao
+    MOV !BRR_OUT_INDEX, #$05
     CALL SPC_ConvertToBRR
     MOV !BRR_PCM_PAGE, #$25
-    MOV !BRR_OUT_INDEX, #$06    ;As if it matters lmao
+    MOV !BRR_OUT_INDEX, #$06
     CALL SPC_ConvertToBRR
     MOV !BRR_PCM_PAGE, #$26
-    MOV !BRR_OUT_INDEX, #$07    ;As if it matters lmao
+    MOV !BRR_OUT_INDEX, #$07
     CALL SPC_ConvertToBRR
     MOV !BRR_PCM_PAGE, #$27
-    MOV !BRR_OUT_INDEX, #$08    ;As if it matters lmao
+    MOV !BRR_OUT_INDEX, #$08
     CALL SPC_ConvertToBRR
     MOV !BRR_PCM_PAGE, #$28
-    MOV !BRR_OUT_INDEX, #$00    ;As if it matters lmao
+    MOV !BRR_OUT_INDEX, #$00
     CALL SPC_ConvertToBRR
 
     MOV !PUL_FLAGS, #$03
@@ -195,36 +253,28 @@ init:       ;init routine, totally not grabbed from tales of phantasia
     CALL SPC_GeneratePulse_32
     MOV !BRR_PCM_PAGE, #$28
     MOV !BRR_OUT_INDEX, #$09
-    MOV !BRR_FLAGS, #%01000000
+    MOV !BRR_FLAGS, #%11000000
     CALL SPC_ConvertToBRR
     ;Tryna play a BRR sample
     MOV $F2, #$00;
     MOV $F3, #$7F;vol left
     MOV $F2, #$01;
     MOV $F3, #$7F;vol right
-    MOV $F2, #$05
-    MOV $F3, #$00;use GAIN
     ;CH2
     MOV $F2, #$10;
     MOV $F3, #$7F;vol left
     MOV $F2, #$11;
     MOV $F3, #$7F;vol right
-    MOV $F2, #$15
-    MOV $F3, #$00;use GAIN
 
     MOV $F2, #$20;
     MOV $F3, #$7F;vol left
     MOV $F2, #$21;
     MOV $F3, #$7F;vol right
-    MOV $F2, #$25
-    MOV $F3, #$00;use GAIN
-    ;CH2
+    ;CH4
     MOV $F2, #$30;
     MOV $F3, #$7F;vol left
     MOV $F2, #$31;
     MOV $F3, #$7F;vol right
-    MOV $F2, #$35
-    MOV $F3, #$00;use GAIN
 
     MOV $F2, #$5C
     MOV $F3, #$00
@@ -232,13 +282,12 @@ init:       ;init routine, totally not grabbed from tales of phantasia
     MOV $F3, #$20
 
     MOV X, #$00
-    MOV !PATTERN_END_FLAGS, #$00
+    MOV !PATTERN_END_FLAGS, X
     MOV A, $0EC9
     MOV !PATTERN_POINTER_L, A
     MOV A, $0ECA
     MOV !PATTERN_POINTER_H, A
     MOV A, $FD
-    MOV X, #$00
     CALL SPC_ParsePatternData
     JMP SPC_mainLoop_00
 
@@ -284,7 +333,7 @@ SPC_ParseSongData:
     MOV $F3, #$00       ;   Key off nothing (so no overrides happen)
     MOV $F2, #$4C       ;
     MOV $F3, #$00       ;   Key on the needed channel
-    MOV !CHG_BIT_ADDRESS, #$F3       ;
+    MOV !CHG_BIT_ADDRESS, #$F3;
     TCALL 13            ;__
 .NoRetrigger:
     MOV A, $ED              ;
@@ -375,9 +424,9 @@ SPC_mainLoop:
     JMP SPC_mainLoop_01
 
 SPC_ParseInstrumentData:
-    BBC1 !CHTEMP_FLAGS, +
+    BBC1 !CHTEMP_FLAGS, SPC_ParseInstrumentData_Load
     RET
-+:
+.Load:
     MOV Y, #$00
     MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y
     MOV $E0, A
@@ -385,18 +434,58 @@ SPC_ParseInstrumentData:
     BBC7 $E0, SPC_ParseInstrumentData_UpdateSamplePointer
     AND A, #$60
     XCN A    
-    BNE +
-    MOV A, $E0
-    AND A, #$1F
-    MOV !CHTEMP_INSTRUMENT_TYPE, A
-    MOV $F2, #$3D                           ;   Enable noise if needed
-    MOV !CHG_BIT_ADDRESS, #$F3
-    BBC0 !CHTEMP_INSTRUMENT_TYPE, SPC_ParseInstrumentData_Noise0
-    TCALL 12
-    JMP +
-.Noise0:
-    TCALL 13
-+:
+    PUSH X
+    MOV X, A
+    JMP (SPC_ParseInstrumentData_CommandJumpTable+X)
+.StopInstrumentData:
+    MOV A, $E0                                  ;
+    CMP A, #$FF                                 ;
+    BNE SPC_ParseInstrumentData_LoadAgain       ;   Stop parsing instrument data if !END_DATA
+        POP X                                   ;
+        SET1 !CHTEMP_FLAGS                      ;__
+    RET
+.ChangeType:
+    POP X
+    PUSH X
+    MOV A, $E0                          ;
+    AND A, #$1F                         ;   Actually get the instrument type
+    MOV !CHTEMP_INSTRUMENT_TYPE, A      ;__
+    MOV $F2, #$3D                       ;
+    MOV !CHG_BIT_ADDRESS, #$F3          ;
+    BBC0 !CHTEMP_INSTRUMENT_TYPE, +     ;
+        TCALL 12                        ;   Update the noise enable flag
+        JMP ++                          ;
+    +:                                  ;
+        TCALL 13                        ;__
+++  AND !CHTEMP_REGISTER_INDEX, #$70    ; 
+    OR !CHTEMP_REGISTER_INDEX, #$05     ;
+    MOV $F2, !CHTEMP_REGISTER_INDEX     ;
+    MOV A, $F3                          ;
+    XCN A                               ;   If the envelope mode isn't changed, 
+    LSR A                               ;   don't clear the envelope
+    LSR A                               ;
+    EOR A, !CHTEMP_INSTRUMENT_TYPE      ;
+    AND A, #$02                         ;
+    BNE SPC_ParseInstrumentData_LoadAgain;__
+    AND !CHTEMP_REGISTER_INDEX, #$70    ; 
+    BBS1 !CHTEMP_INSTRUMENT_TYPE, +     ;
+        OR !CHTEMP_REGISTER_INDEX, #$05 ;   Write address to DSP (ADSR1)
+        MOV $F2, !CHTEMP_REGISTER_INDEX ;__
+        MOV $F3, #$80                   ;   If ADSR is used,
+        INC $F2                         ;   Clear out the ADSR envelope
+        MOV $F3, #$00                   ;__
+        JMP SPC_ParseInstrumentData_LoadAgain
+    +:                                  ;
+        OR !CHTEMP_REGISTER_INDEX, #$08 ;
+        MOV $F2, !CHTEMP_REGISTER_INDEX ;
+        MOV A, $F3                      ;   If GAIN is used,
+        DEC $F2                         ;   set the GAIN envelope to the current value
+        MOV $F3, A                      ;
+        DEC $F2                         ;
+        DEC $F2                         ;
+        MOV $F3, #$00                   ;__
+.LoadAgain:
+    POP X
     MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y
     MOV $E0, A
     INCW !CHTEMP_INSTRUMENT_POINTER_L
@@ -427,12 +516,24 @@ SPC_ParseInstrumentData:
 .UpdateEnvelope:
     BBC2 $E0, SPC_ParseInstrumentData_UpdateArpeggio;__ If no envelope update, skip
     AND !CHTEMP_REGISTER_INDEX, #$70        ;
-    OR !CHTEMP_REGISTER_INDEX, #$07         ;
-    MOV $F2, !CHTEMP_REGISTER_INDEX         ;   Update GAIN envelope
-    MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;
-    MOV $F3, A                              ;
-    MOV $F3, A                              ;__
-    INCW !CHTEMP_INSTRUMENT_POINTER_L       ;
+    BBS1 !CHTEMP_INSTRUMENT_TYPE, +         ;
+        OR !CHTEMP_REGISTER_INDEX, #$05         ;
+        MOV $F2, !CHTEMP_REGISTER_INDEX         ;
+        MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;   Update Attack, Decay
+        INCW !CHTEMP_INSTRUMENT_POINTER_L       ;
+        OR A, #$80                              ;
+        MOV $F3, A                              ;__
+        INC $F2                                 ;
+        MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;   Update Sustain, Release
+        INCW !CHTEMP_INSTRUMENT_POINTER_L       ;
+        MOV $F3, A                              ;
+        JMP SPC_ParseInstrumentData_UpdateArpeggio
+    +:
+        OR !CHTEMP_REGISTER_INDEX, #$07         ;
+        MOV $F2, !CHTEMP_REGISTER_INDEX         ;   Update GAIN envelope
+        MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;
+        MOV $F3, A                              ;
+        INCW !CHTEMP_INSTRUMENT_POINTER_L       ;__
 .UpdateArpeggio:
     BBC1 $E0, +                             ;__ If no apreggio update, skip
     MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;   
@@ -466,41 +567,41 @@ SPC_ParseInstrumentData:
     DEC A                                   ;
     MOV !CHTEMP_INSTRUMENT_COUNTER, A       ;   Update instrument counter
     INCW !CHTEMP_INSTRUMENT_POINTER_L       ;__
-    MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;
-    CMP A, #$FF                             ;   Stop instrument data if the next byte is $FF
-    BNE +                                   ;   (should really be in the beginning of the code)
-    SET1 !CHTEMP_FLAGS                      ;__
-+:
-    RET
+RET
 
+.CommandJumpTable:
+dw SPC_ParseInstrumentData_ChangeType
+dw SPC_ParseInstrumentData_LoadAgain
+dw SPC_ParseInstrumentData_LoadAgain
+dw SPC_ParseInstrumentData_StopInstrumentData
 
 SPC_ParsePatternData:
     MOV X, #$00
     MOV !PATTERN_END_FLAGS, #$00
--:
-    MOV Y, #$00
-    MOV A, (!PATTERN_POINTER_L)+Y
-    CMP A, #$FF
-    BEQ SPC_End
-    INCW !PATTERN_POINTER_L
-    ASL A
-    MOV Y, A
-    MOV A, PatternPointers+Y
-    MOV !CH1_SONG_POINTER_L+X, A
-    INC Y
-    MOV A, PatternPointers+Y
-    MOV !CH1_SONG_POINTER_H+X, A
-    MOV A, #$00
-    MOV !CH1_SONG_COUNTER+X, A
-    MOV A, !CH1_FLAGS+X
-    AND A, #$FE
-    MOV !CH1_FLAGS+X, A
-    MOV A, X
-    CLRC
-    ADC A, #$08
-    AND A, #$18
-    MOV X, A
-    BNE -
+    -:
+        MOV Y, #$00
+        MOV A, (!PATTERN_POINTER_L)+Y
+        CMP A, #$FF
+        BEQ SPC_End
+        INCW !PATTERN_POINTER_L
+        ASL A
+        MOV Y, A
+        MOV A, PatternPointers+Y
+        MOV !CH1_SONG_POINTER_L+X, A
+        INC Y
+        MOV A, PatternPointers+Y
+        MOV !CH1_SONG_POINTER_H+X, A
+        MOV A, #$00
+        MOV !CH1_SONG_COUNTER+X, A
+        MOV A, !CH1_FLAGS+X
+        AND A, #$FE
+        MOV !CH1_FLAGS+X, A
+        MOV A, X
+        CLRC
+        ADC A, #$08
+        AND A, #$18
+        MOV X, A
+        BNE -
     RET
 
 SPC_End:
@@ -573,14 +674,14 @@ SPC_set_echoFIR:
     MOV $00, #$08
     MOV $01, #$0F
     MOV Y, #$00
--:
-    MOV $F2, $01
-    MOV A, echoFIRtable+Y
-    MOV $F3, A
-    CLRC
-    ADC $01, #$10
-    INC Y
-    DBNZ $00, -
+    -:
+        MOV $F2, $01
+        MOV A, echoFIRtable+Y
+        MOV $F3, A
+        CLRC
+        ADC $01, #$10
+        INC Y
+        DBNZ $00, -
     RET
 
 
@@ -599,8 +700,8 @@ echoFIRtable:
 ;       $EE-EF - Output pointer
 SPC_GeneratePulse_128:
 ;Low byte of first part
-    MOV !PUL_OUT_INDEX_H, !PUL_OUT_PAGE
-    MOV !PUL_OUT_INDEX_L, #$00
+    MOV !PUL_OUT_PTR_H, !PUL_OUT_PAGE
+    MOV !PUL_OUT_PTR_L, #$00
     MOV A, !PUL_DUTY        ;   Get finishing low byte
     AND A, #$FE             ;__
     MOV Y, A                ;   If there are no bytes in the first part, skip the part
@@ -609,12 +710,12 @@ SPC_GeneratePulse_128:
     AND A, #$02
     MOV X, A
     MOV A, SPC_GeneratePulse_128_LookupTable+1+X
--:
-    DEC Y
-    DEC Y
-    MOV (!PUL_OUT_INDEX_L)+Y, A
-    CMP Y, #$00
-    BNE -
+    -:
+        DEC Y
+        DEC Y
+        MOV (!PUL_OUT_PTR_L)+Y, A
+        CMP Y, #$00
+        BNE -
 ;High byte of first part
     MOV A, !PUL_DUTY        ;   Get finishing high byte
     OR A, #$01              ;__
@@ -624,19 +725,19 @@ SPC_GeneratePulse_128:
     MOV X, A
     MOV A, SPC_GeneratePulse_128_LookupTable+X
     EOR A, #$80
--:
-    DEC Y
-    DEC Y
-    MOV (!PUL_OUT_INDEX_L)+Y, A
-    CMP Y, #$01
-    BNE -
+    -:
+        DEC Y
+        DEC Y
+        MOV (!PUL_OUT_PTR_L)+Y, A
+        CMP Y, #$01
+        BNE -
 +:
 ;Second part, the fractional value
     MOV A, !PUL_FLAGS           ;
     AND A, #$03                 ;
     MOV X, A                    ;   Get the inversion value into "temp variable"
     MOV A, SPC_GeneratePulse_128_LookupTable+4+X
-    MOV !PUL_OUT_INDEX_L, A     ;__
+    MOV !PUL_OUT_PTR_L, A     ;__
     MOV A, !PUL_DUTY            ;
     LSR A                       ;   Get the actual fraction,
     MOV A, !PUL_FLAGS           ;   while also getting 
@@ -644,19 +745,19 @@ SPC_GeneratePulse_128:
     AND A, #$FE                 ;__
     BCC +                       ;   If z flag is set, 
     LSR A                       ;__ halve the fraction
-+   EOR A, !PUL_OUT_INDEX_L     ;__ Invert the fraction as needed
++   EOR A, !PUL_OUT_PTR_L     ;__ Invert the fraction as needed
     MOV Y, A
     MOV A, !PUL_DUTY            ;   Get index for the fraction
     AND A, #$FE                 ;
-    MOV !PUL_OUT_INDEX_L, A     ;__
+    MOV !PUL_OUT_PTR_L, A     ;__
     MOV A, Y
     MOV Y, #$01
-    MOV (!PUL_OUT_INDEX_L)+Y, A
+    MOV (!PUL_OUT_PTR_L)+Y, A
     MOV A, #$00
     DEC Y
-    MOV (!PUL_OUT_INDEX_L)+Y, A
-    INC !PUL_OUT_INDEX_L
-    INC !PUL_OUT_INDEX_L
+    MOV (!PUL_OUT_PTR_L)+Y, A
+    INC !PUL_OUT_PTR_L
+    INC !PUL_OUT_PTR_L
 ;Third part
     MOV A, !PUL_DUTY
     EOR A, #$FE
@@ -667,12 +768,12 @@ SPC_GeneratePulse_128:
     EOR A, #$02
     MOV X, A
     MOV A, SPC_GeneratePulse_128_LookupTable+1+X
--:
-    DEC Y
-    DEC Y
-    MOV (!PUL_OUT_INDEX_L)+Y, A
-    CMP Y, #$00
-    BNE -
+    -:
+        DEC Y
+        DEC Y
+        MOV (!PUL_OUT_PTR_L)+Y, A
+        CMP Y, #$00
+        BNE -
 ;High byte of first part
     MOV A, !PUL_DUTY        ;   Get finishing high byte
     EOR A, #$FE             ;
@@ -684,12 +785,12 @@ SPC_GeneratePulse_128:
     MOV X, A
     MOV A, SPC_GeneratePulse_128_LookupTable+X
     EOR A, #$80
--:
-    DEC Y
-    DEC Y
-    MOV (!PUL_OUT_INDEX_L)+Y, A
-    CMP Y, #$01
-    BNE -
+    -:
+        DEC Y
+        DEC Y
+        MOV (!PUL_OUT_PTR_L)+Y, A
+        CMP Y, #$01
+        BNE -
 +:
 RET
 .LookupTable:   ;In order:
@@ -716,9 +817,9 @@ db $7F, $FE, $00, $80
 ;       $EE-EF - Output pointer
 SPC_GeneratePulse_32:
 ;Low byte of first part
-    MOV !PUL_OUT_INDEX_H, !PUL_OUT_PAGE
-    MOV !PUL_OUT_INDEX_L, !PUL_DUTY
-    AND !PUL_OUT_INDEX_L, #$C0
+    MOV !PUL_OUT_PTR_H, !PUL_OUT_PAGE
+    MOV !PUL_OUT_PTR_L, !PUL_DUTY
+    AND !PUL_OUT_PTR_L, #$C0
     MOV A, !PUL_DUTY        ;   Get finishing low index
     AND A, #$3E             ;__
     MOV Y, A                ;   If there are no bytes in the first part, skip the part
@@ -727,12 +828,12 @@ SPC_GeneratePulse_32:
     AND A, #$02
     MOV X, A
     MOV A, SPC_GeneratePulse_128_LookupTable+1+X
--:
-    DEC Y
-    DEC Y
-    MOV (!PUL_OUT_INDEX_L)+Y, A
-    CMP Y, #$00
-    BNE -
+    -:
+        DEC Y
+        DEC Y
+        MOV (!PUL_OUT_PTR_L)+Y, A
+        CMP Y, #$00
+        BNE -
 ;High byte of first part
     MOV A, !PUL_DUTY        ;
     AND A, #$3E             ;   Get finishing high index
@@ -743,19 +844,19 @@ SPC_GeneratePulse_32:
     MOV X, A
     MOV A, SPC_GeneratePulse_128_LookupTable+X
     EOR A, #$80
--:
-    DEC Y
-    DEC Y
-    MOV (!PUL_OUT_INDEX_L)+Y, A
-    CMP Y, #$01
-    BNE -
+    -:
+        DEC Y
+        DEC Y
+        MOV (!PUL_OUT_PTR_L)+Y, A
+        CMP Y, #$01
+        BNE -
 +:
 ;Second part, the fractional value
     MOV A, !PUL_FLAGS           ;
     AND A, #$03                 ;
     MOV X, A                    ;   Get the inversion value into "temp variable"
     MOV A, SPC_GeneratePulse_128_LookupTable+4+X
-    MOV !PUL_OUT_INDEX_L, A     ;__
+    MOV !PUL_OUT_PTR_L, A     ;__
     MOV A, !PUL_DUTY            ;
     LSR A                       ;   Get the actual fraction,
     MOV A, !PUL_FLAGS           ;   while also getting 
@@ -763,19 +864,19 @@ SPC_GeneratePulse_32:
     AND A, #$FE                 ;__
     BCC +                       ;   If z flag is set, 
     LSR A                       ;__ halve the fraction
-+   EOR A, !PUL_OUT_INDEX_L     ;__ Invert the fraction as needed
++   EOR A, !PUL_OUT_PTR_L     ;__ Invert the fraction as needed
     MOV Y, A
     MOV A, !PUL_DUTY            ;   Get index for the fraction
     AND A, #$FE                 ;
-    MOV !PUL_OUT_INDEX_L, A     ;__
+    MOV !PUL_OUT_PTR_L, A     ;__
     MOV A, Y
     MOV Y, #$01
-    MOV (!PUL_OUT_INDEX_L)+Y, A
+    MOV (!PUL_OUT_PTR_L)+Y, A
     MOV A, #$00
     DEC Y
-    MOV (!PUL_OUT_INDEX_L)+Y, A
-    INC !PUL_OUT_INDEX_L
-    INC !PUL_OUT_INDEX_L
+    MOV (!PUL_OUT_PTR_L)+Y, A
+    INC !PUL_OUT_PTR_L
+    INC !PUL_OUT_PTR_L
 ;Third part
     MOV A, !PUL_DUTY
     EOR A, #$FE
@@ -786,12 +887,12 @@ SPC_GeneratePulse_32:
     EOR A, #$02
     MOV X, A
     MOV A, SPC_GeneratePulse_128_LookupTable+1+X
--:
-    DEC Y
-    DEC Y
-    MOV (!PUL_OUT_INDEX_L)+Y, A
-    CMP Y, #$00
-    BNE -
+    -:
+        DEC Y
+        DEC Y
+        MOV (!PUL_OUT_PTR_L)+Y, A
+        CMP Y, #$00
+        BNE -
 ;High byte of first part
     MOV A, !PUL_DUTY        ;   Get finishing high byte
     EOR A, #$3E             ;
@@ -804,21 +905,55 @@ SPC_GeneratePulse_32:
     MOV X, A
     MOV A, SPC_GeneratePulse_128_LookupTable+X
     EOR A, #$80
--:
-    DEC Y
-    DEC Y
-    MOV (!PUL_OUT_INDEX_L)+Y, A
-    CMP Y, #$01
-    BNE -
+    -:
+        DEC Y
+        DEC Y
+        MOV (!PUL_OUT_PTR_L)+Y, A
+        CMP Y, #$01
+        BNE -
 +:
 RET
 
+;   Memory allocation:
+;   Inputs:
+;       $D0 - Input page
+;       $D1 - Output page
+;       $D2 - Subpage number: ll------
+;           ll - subpage number
+;   Temp variables:
+;       $EC-ED - Input pointer
+;       $EE-EF - Output pointer
+SPC_LongToShort:
+    MOV X, #$00
+    MOV Y, #$20
+    MOV !LTS_IN_PTR_H, !LTS_IN_PAGE
+    MOV !LTS_OUT_PTR_H, !LTS_OUT_PAGE
+    MOV !LTS_IN_PTR_L, #$F9
+    MOV A, !LTS_OUT_SUBPAGE
+    CLRC
+    ADC A, #$3F
+    MOV !LTS_OUT_PTR_L, A
+    -:
+        MOV A, (!LTS_IN_PTR_L+X)    ;   Copy high byte
+        MOV (!LTS_OUT_PTR_L+X), A   ;__
+        DEC !LTS_IN_PTR_L
+        DEC !LTS_OUT_PTR_L
+        MOV A, (!LTS_IN_PTR_L+X)    ;   Copy low byte
+        MOV (!LTS_OUT_PTR_L+X), A   ;__
+        DEC !LTS_OUT_PTR_L
+        MOV A, !LTS_IN_PTR_L
+        SETC
+        SBC A, #$07
+        MOV !LTS_IN_PTR_L, A
+        DBNZ Y, -
+    RET
 ;   Memory allocation:
 ;   Inputs:
 ;       $D0 - Carrier page
 ;       $D1 - Modulator page
 ;       $D2 - Output page
 ;       $D3 - Modulation strength
+;       $D4 - Modulator phase shift (for "detune")
 ;   Temp variables:
 ;       $EA-EB - Output pointer
 ;       $EC-ED - Modulator pointer
@@ -828,7 +963,8 @@ SPC_PhaseModulation_128:
     MOV !MOD_OUT_INDEX_H, !MOD_OUT_PAGE
     MOV !MOD_MOD_INDEX_H, !MOD_MOD_PAGE
     MOV !MOD_OUT_INDEX_L, X
-    MOV !MOD_MOD_INDEX_L, X
+    MOV !MOD_MOD_INDEX_L, !MOD_MOD_PHASE_SHIFT
+    ASL !MOD_MOD_INDEX_L
 .loop:
     INC !MOD_MOD_INDEX_L
     MOV A, (!MOD_MOD_INDEX_L+X)
@@ -895,6 +1031,100 @@ SPC_PhaseModulation_128:
     MOV A, !MOD_OUT_INDEX_L
     BNE SPC_PhaseModulation_128_loop
     RET
+;   Memory allocation:
+;   Inputs:
+;       $D0 - Carrier page
+;       $D1 - Modulator page
+;       $D2 - Output page
+;       $D3 - Modulation strength
+;       $D4 - Modulation phase shift (for "detune")
+;       $D5 - Subpages: ccmmoo--
+;           cc - Carrier subpage
+;           mm - Modulator subpage
+;           oo - Output subpage
+;   Temp variables:
+;       $EA-EB - Output pointer
+;       $EC-ED - Modulator pointer
+;       $EE-EF - Main temp variable
+SPC_PhaseModulation_32:
+    MOV X, #$00
+    MOV !MOD_OUT_INDEX_H, !MOD_OUT_PAGE
+    MOV !MOD_MOD_INDEX_H, !MOD_MOD_PAGE
+    MOV A, !MOD_MOD_PHASE_SHIFT ;
+    ASL A                       ;
+    AND A, #$3F                 ;
+    MOV !MOD_MOD_INDEX_L, A     ;
+    MOV A, !MOD_SUBPAGE         ;   Get low byte of modulator pointer
+    ASL A                       ;
+    ASL A                       ;
+    AND A, #$C0                 ;
+    OR A, !MOD_MOD_INDEX_L      ;
+    MOV !MOD_MOD_INDEX_L, A     ;__
+    MOV A, !MOD_SUBPAGE         ;
+    XCN A                       ;   Get low byte of output pointer
+    AND A, #$C0                 ;
+    MOV !MOD_OUT_INDEX_L        ;__
+    MOV A, !MOD_SUBPAGE         ;
+    AND A, #$C0                 ;   Get low byte of carrier pointer to add later
+    MOV !MOD_CAR_INDEX_L        ;__
+.loop:
+    INC !MOD_MOD_INDEX_L
+    MOV A, (!MOD_MOD_INDEX_L+X)
+    MOV !MOD_MAIN_TEMP_H, A
+    BMI SPC_PhaseModulation_128_loop_negative 
+    MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
+    MUL YA
+    MOVW !MOD_MAIN_TEMP_L, YA
+
+    DEC !MOD_MOD_INDEX_L
+    MOV A, (!MOD_MOD_INDEX_L+X)
+    MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
+    MUL YA
+    MOV A, Y
+    CLRC
+    ADC A, !MOD_MAIN_TEMP_L
+    ADC !MOD_MAIN_TEMP_H, #$00
+    JMP SPC_PhaseModulation_128_loop_afterMul
+.loop_negative:
+    EOR A, #$FF
+    MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
+    MUL YA
+    MOVW !MOD_MAIN_TEMP_L, YA
+
+    DEC !MOD_MOD_INDEX_L
+    MOV A, (!MOD_MOD_INDEX_L+X)
+    EOR A, #$FF
+    MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
+    MUL YA
+    MOV A, Y
+    CLRC
+    ADC A, !MOD_MAIN_TEMP_L
+    ADC !MOD_MAIN_TEMP_H, #$00
+    EOR A, #$FF
+    EOR !MOD_MAIN_TEMP_H, #$FF
+.loop_afterMul:
+
+    MOV A, !MOD_MAIN_TEMP_H
+    ASL A
+    CLRC
+    ADC A, !MOD_OUT_INDEX_L 
+
+    MOV !MOD_MAIN_TEMP_H, !MOD_CAR_PAGE
+    MOV !MOD_MAIN_TEMP_L, A
+    MOV Y, #$00
+    MOV A, (!MOD_MAIN_TEMP_L)+Y
+    MOV (!MOD_OUT_INDEX_L)+Y, A
+    INC Y
+    MOV A, (!MOD_MAIN_TEMP_L)+Y
+    MOV (!MOD_OUT_INDEX_L)+Y, A
+    INC !MOD_OUT_INDEX_L
+    INC !MOD_OUT_INDEX_L
+    INC !MOD_MOD_INDEX_L
+    INC !MOD_MOD_INDEX_L
+    MOV A, !MOD_OUT_INDEX_L
+    BNE SPC_PhaseModulation_128_loop
+    RET
+
 
 ;   Memory allocation:
 ;   Inputs:
@@ -1094,22 +1324,22 @@ SPC_ConvertToBRR:
     MOV Y, #12
     MOV A, !BRR_MAXM0_H
     BEQ +
--
-    ASL A
-    BCS SPC_ConvertToBRR_BRREncoding_CheckIf8
-    DEC Y
-    CMP Y, #$04
-    BNE -
+    -:
+        ASL A
+        BCS SPC_ConvertToBRR_BRREncoding_CheckIf8
+        DEC Y
+        CMP Y, #$04
+        BNE -
 +
     MOV Y, #$04
 ..ShiftValuePart2:
     MOV A, !BRR_MAXM0_L
     CLRC
--
-    ASL A
-    BCS SPC_ConvertToBRR_BRREncoding_CheckIf8
-    DEC Y
-    BNE -
+    -:
+        ASL A
+        BCS SPC_ConvertToBRR_BRREncoding_CheckIf8
+        DEC Y
+        BNE -
     JMP SPC_ConvertToBRR_FormHeader
 ..CheckIf8:
     CMP Y, #$05
@@ -1170,22 +1400,22 @@ SPC_ConvertToBRR:
     MOV Y, !BRR_MAXM0_L
     CMP Y, #$05
     BMI +
--:
-    CLRC
-    LSR A
-    ROR !BRR_CSMPT_L
-    DEC Y
-    CMP Y, #$04
-    BNE -
+    -:
+        CLRC
+        LSR A
+        ROR !BRR_CSMPT_L
+        DEC Y
+        CMP Y, #$04
+        BNE -
 +:
     MOV A, !BRR_CSMPT_L
     CMP Y, #$00
     BEQ +
--:
-    CLRC
-    LSR A
-    DEC Y
-    BNE -
+    -:
+        CLRC
+        LSR A
+        DEC Y
+        BNE -
 +:
     AND A, #$07
     ADC A, #$00
@@ -1234,12 +1464,7 @@ SPC_ConvertToBRR:
     PUSH A                          ;__
     JMP SPC_ConvertToBRR_SetupCopy
 .End:
-    
-ret
-
-.LookuptableMul18:
-db $00, $12, $24, $36
-
+RET
 
 SPC_transferChToTemp:
 PUSH A
