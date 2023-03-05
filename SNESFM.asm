@@ -4,9 +4,9 @@ incsrc "SPC_constants.asm"
 ;   $00         $00 - $BF: Flags & pointers for the note stuff:
 ;   |           Song data pointer, Instrument data pointer, Effect data pointer, Sample pointer, note index, pitch, pitchbend
 ;   |__ _ _ _ _ $C0 - $EF: Operating space of subroutines (how exactly described before every subroutine)
-;   $01         $00 - $7F: Effect q
-;   |__ _ _ _ _ $80 - $FF: Stack
-;   $02(-$03?)_ Sample Directory
+;   $01 _ _ _ _ Stack
+;   $02 _ _ _ _ Sample Directory
+;   $04-$07 _ _ Effect q
 ;   $0A-$0B _ _ 256 instrument data pointers
 ;   $0C _ _ _ _ 7/8 multiplication lookup table
 ;   $0D _ _ _ _ 15/16 multiplication lookup table
@@ -134,117 +134,135 @@ SPC_SineSetup:
         DBNZ Y, SPC_SineSetup_loopInvert
     MOV !LTS_IN_PAGE, #$0F
     MOV !LTS_OUT_PAGE, #$20
-    MOV !LTS_OUT_SUBPAGE, #$40
+    MOV !LTS_OUT_SUBPAGE, #$00
     CALL SPC_LongToShort
-    MOV !MOD_CAR_PAGE, #$0F
-    MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$38
-    MOV !MOD_MOD_STRENGTH, #$40
-    MOV !MOD_MOD_PHASE_SHIFT, #$00
-    CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0F
-    MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$30
+    MOV !MOD_CAR_PAGE, #$20
+    MOV !MOD_MOD_PAGE, #$20
+    MOV !MOD_OUT_PAGE, #$20
     MOV !MOD_MOD_STRENGTH, #$20
-    CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0F
-    MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$31
+    MOV !MOD_MOD_PHASE_SHIFT, #$00
+    MOV !MOD_SUBPAGE, #$04
+    CALL SPC_PhaseModulation_32
+    MOV !MOD_MOD_STRENGTH, #$1E
+    MOV !MOD_MOD_PHASE_SHIFT, #$02
+    MOV !MOD_SUBPAGE, #$08
+    CALL SPC_PhaseModulation_32
     MOV !MOD_MOD_STRENGTH, #$1C
-    CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0F
-    MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$32
+    MOV !MOD_MOD_PHASE_SHIFT, #$04
+    MOV !MOD_SUBPAGE, #$0C
+    CALL SPC_PhaseModulation_32
+
+    MOV !MOD_OUT_PAGE, #$21
+
+    MOV !MOD_MOD_STRENGTH, #$1A
+    MOV !MOD_MOD_PHASE_SHIFT, #$06
+    MOV !MOD_SUBPAGE, #$00
+    CALL SPC_PhaseModulation_32
     MOV !MOD_MOD_STRENGTH, #$18
-    CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0F
-    MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$33
+    MOV !MOD_MOD_PHASE_SHIFT, #$08
+    MOV !MOD_SUBPAGE, #$04
+    CALL SPC_PhaseModulation_32
+    MOV !MOD_MOD_STRENGTH, #$16
+    MOV !MOD_MOD_PHASE_SHIFT, #$0A
+    MOV !MOD_SUBPAGE, #$08
+    CALL SPC_PhaseModulation_32
     MOV !MOD_MOD_STRENGTH, #$14
-    CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0F
-    MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$34
+    MOV !MOD_MOD_PHASE_SHIFT, #$0C
+    MOV !MOD_SUBPAGE, #$0C
+    CALL SPC_PhaseModulation_32
+
+    MOV !MOD_OUT_PAGE, #$22
+
+    MOV !MOD_MOD_STRENGTH, #$12
+    MOV !MOD_MOD_PHASE_SHIFT, #$0E
+    MOV !MOD_SUBPAGE, #$00
+    CALL SPC_PhaseModulation_32
     MOV !MOD_MOD_STRENGTH, #$10
-    CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0F
-    MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$35
+    MOV !MOD_MOD_PHASE_SHIFT, #$10
+    MOV !MOD_SUBPAGE, #$04
+    CALL SPC_PhaseModulation_32
+    MOV !MOD_MOD_STRENGTH, #$0E
+    MOV !MOD_MOD_PHASE_SHIFT, #$12
+    MOV !MOD_SUBPAGE, #$08
+    CALL SPC_PhaseModulation_32
     MOV !MOD_MOD_STRENGTH, #$0C
-    CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0F
-    MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$36
+    MOV !MOD_MOD_PHASE_SHIFT, #$14
+    MOV !MOD_SUBPAGE, #$0C
+    CALL SPC_PhaseModulation_32
+
+    MOV !MOD_OUT_PAGE, #$23
+
+    MOV !MOD_MOD_STRENGTH, #$0A
+    MOV !MOD_MOD_PHASE_SHIFT, #$16
+    MOV !MOD_SUBPAGE, #$00
+    CALL SPC_PhaseModulation_32
     MOV !MOD_MOD_STRENGTH, #$08
-    CALL SPC_PhaseModulation_128
-    MOV !MOD_CAR_PAGE, #$0F
-    MOV !MOD_MOD_PAGE, #$0F
-    MOV !MOD_OUT_PAGE, #$37
+    MOV !MOD_MOD_PHASE_SHIFT, #$18
+    MOV !MOD_SUBPAGE, #$04
+    CALL SPC_PhaseModulation_32
+    MOV !MOD_MOD_STRENGTH, #$06
+    MOV !MOD_MOD_PHASE_SHIFT, #$1A
+    MOV !MOD_SUBPAGE, #$08
+    CALL SPC_PhaseModulation_32
     MOV !MOD_MOD_STRENGTH, #$04
-    CALL SPC_PhaseModulation_128
+    MOV !MOD_MOD_PHASE_SHIFT, #$1C
+    MOV !MOD_SUBPAGE, #$0C
+    CALL SPC_PhaseModulation_32
 
-
-
-
-    MOV !LTS_IN_PAGE, #$31
-    MOV !LTS_OUT_PAGE, #$21
-    MOV !LTS_OUT_SUBPAGE, #$00
-    CALL SPC_LongToShort
-    MOV !LTS_IN_PAGE, #$32
-    MOV !LTS_OUT_PAGE, #$22
-    MOV !LTS_OUT_SUBPAGE, #$00
-    CALL SPC_LongToShort
-    MOV !LTS_IN_PAGE, #$33
-    MOV !LTS_OUT_PAGE, #$23
-    MOV !LTS_OUT_SUBPAGE, #$00
-    CALL SPC_LongToShort
-    MOV !LTS_IN_PAGE, #$34
-    MOV !LTS_OUT_PAGE, #$24
-    MOV !LTS_OUT_SUBPAGE, #$00
-    CALL SPC_LongToShort
-    MOV !LTS_IN_PAGE, #$35
-    MOV !LTS_OUT_PAGE, #$25
-    MOV !LTS_OUT_SUBPAGE, #$00
-    CALL SPC_LongToShort
-    MOV !LTS_IN_PAGE, #$36
-    MOV !LTS_OUT_PAGE, #$26
-    MOV !LTS_OUT_SUBPAGE, #$00
-    CALL SPC_LongToShort
-    MOV !LTS_IN_PAGE, #$37
-    MOV !LTS_OUT_PAGE, #$27
-    MOV !LTS_OUT_SUBPAGE, #$00
-    CALL SPC_LongToShort
-    MOV !LTS_IN_PAGE, #$38
-    MOV !LTS_OUT_PAGE, #$28
-    MOV !LTS_OUT_SUBPAGE, #$00
-    CALL SPC_LongToShort
     MOV !BRR_PCM_PAGE, #$20
-    MOV !BRR_OUT_INDEX, #$01
-    MOV !BRR_FLAGS, #%01000000
-    CALL SPC_ConvertToBRR
-    MOV !BRR_PCM_PAGE, #$21
-    MOV !BRR_OUT_INDEX, #$02
-    CALL SPC_ConvertToBRR
-    MOV !BRR_PCM_PAGE, #$22
-    MOV !BRR_OUT_INDEX, #$03
-    CALL SPC_ConvertToBRR
-    MOV !BRR_PCM_PAGE, #$23
-    MOV !BRR_OUT_INDEX, #$04
-    CALL SPC_ConvertToBRR
-    MOV !BRR_PCM_PAGE, #$24
-    MOV !BRR_OUT_INDEX, #$05
-    CALL SPC_ConvertToBRR
-    MOV !BRR_PCM_PAGE, #$25
-    MOV !BRR_OUT_INDEX, #$06
-    CALL SPC_ConvertToBRR
-    MOV !BRR_PCM_PAGE, #$26
-    MOV !BRR_OUT_INDEX, #$07
-    CALL SPC_ConvertToBRR
-    MOV !BRR_PCM_PAGE, #$27
-    MOV !BRR_OUT_INDEX, #$08
-    CALL SPC_ConvertToBRR
-    MOV !BRR_PCM_PAGE, #$28
     MOV !BRR_OUT_INDEX, #$00
+    MOV !BRR_FLAGS, #%11000100
+    CALL SPC_ConvertToBRR
+    MOV !BRR_OUT_INDEX, #$01
+    MOV !BRR_FLAGS, #%11001000
+    CALL SPC_ConvertToBRR
+    MOV !BRR_OUT_INDEX, #$02
+    MOV !BRR_FLAGS, #%11001100
+    CALL SPC_ConvertToBRR
+
+    MOV !BRR_PCM_PAGE, #$21
+
+    MOV !BRR_OUT_INDEX, #$03
+    MOV !BRR_FLAGS, #%11000000
+    CALL SPC_ConvertToBRR
+    MOV !BRR_OUT_INDEX, #$04
+    MOV !BRR_FLAGS, #%11000100
+    CALL SPC_ConvertToBRR
+    MOV !BRR_OUT_INDEX, #$05
+    MOV !BRR_FLAGS, #%11001000
+    CALL SPC_ConvertToBRR
+    MOV !BRR_OUT_INDEX, #$06
+    MOV !BRR_FLAGS, #%11001100
+    CALL SPC_ConvertToBRR
+
+    MOV !BRR_PCM_PAGE, #$22
+    
+    MOV !BRR_OUT_INDEX, #$07
+    MOV !BRR_FLAGS, #%11000000
+    CALL SPC_ConvertToBRR
+    MOV !BRR_OUT_INDEX, #$08
+    MOV !BRR_FLAGS, #%11000100
+    CALL SPC_ConvertToBRR
+    MOV !BRR_OUT_INDEX, #$09
+    MOV !BRR_FLAGS, #%11001000
+    CALL SPC_ConvertToBRR
+    MOV !BRR_OUT_INDEX, #$0A
+    MOV !BRR_FLAGS, #%11001100
+    CALL SPC_ConvertToBRR
+
+    MOV !BRR_PCM_PAGE, #$23
+    
+    MOV !BRR_OUT_INDEX, #$0B
+    MOV !BRR_FLAGS, #%11000000
+    CALL SPC_ConvertToBRR
+    MOV !BRR_OUT_INDEX, #$0C
+    MOV !BRR_FLAGS, #%11000100
+    CALL SPC_ConvertToBRR
+    MOV !BRR_OUT_INDEX, #$0D
+    MOV !BRR_FLAGS, #%11001000
+    CALL SPC_ConvertToBRR
+    MOV !BRR_OUT_INDEX, #$0E
+    MOV !BRR_FLAGS, #%11001100
     CALL SPC_ConvertToBRR
 
     MOV !PUL_FLAGS, #$03
@@ -252,7 +270,7 @@ SPC_SineSetup:
     MOV !PUL_DUTY, #$20
     CALL SPC_GeneratePulse_32
     MOV !BRR_PCM_PAGE, #$28
-    MOV !BRR_OUT_INDEX, #$09
+    MOV !BRR_OUT_INDEX, #$FF
     MOV !BRR_FLAGS, #%11000000
     CALL SPC_ConvertToBRR
     ;Tryna play a BRR sample
@@ -389,8 +407,8 @@ SPC_ParseSongData:
     INCW !CHTEMP_SONG_POINTER_L
     JMP -
 .routineTable:
-    dw SPC_ParseSongData_NoPitch
     dw SPC_ParseSongData_Keyoff
+    dw SPC_ParseSongData_NoPitch
     dw SPC_ParseSongData_End
 SPC_mainLoop:
 .00:
@@ -399,6 +417,11 @@ SPC_mainLoop:
     BEQ SPC_mainLoop_00
 .01:
     TCALL 15
+    SETC
+    SBC !CHTEMP_EFFECT_COUNTER, $E2
+    BPL +
+    CALL SPC_ParseEffectData
++:
     SETC
     SBC !CHTEMP_SONG_COUNTER, $E2
     BPL +
@@ -413,12 +436,12 @@ SPC_mainLoop:
     MOV A, X
     CLRC
     ADC A, #$08
-    AND A, #$18
+    AND A, #$38
     MOV !CHTEMP_REGISTER_INDEX, A
     ASL !CHTEMP_REGISTER_INDEX
     MOV X, A
     BNE SPC_mainLoop_01
-    CMP !PATTERN_END_FLAGS, #$0F
+    CMP !PATTERN_END_FLAGS, #$FF
     BNE SPC_mainLoop_00
     CALL SPC_ParsePatternData
     JMP SPC_mainLoop_01
@@ -444,6 +467,19 @@ SPC_ParseInstrumentData:
         POP X                                   ;
         SET1 !CHTEMP_FLAGS                      ;__
     RET
+.LoopInstrumentData:
+    MOV A, $E0
+    AND A, #$1F
+    CLRC
+    ADC A, #$10
+    PUSH A
+    MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y
+    POP Y
+    MOVW !CHTEMP_INSTRUMENT_POINTER_L, YA
+    POP X
+    JMP SPC_ParseInstrumentData_Load
+
+
 .ChangeType:
     POP X
     PUSH X
@@ -571,9 +607,74 @@ RET
 
 .CommandJumpTable:
 dw SPC_ParseInstrumentData_ChangeType
-dw SPC_ParseInstrumentData_LoadAgain
+dw SPC_ParseInstrumentData_LoopInstrumentData
 dw SPC_ParseInstrumentData_LoadAgain
 dw SPC_ParseInstrumentData_StopInstrumentData
+
+SPC_ParseEffectData:
+    BBC2 !CHTEMP_FLAGS, SPC_ParseEffectData_Load
+    RET
+.Load:
+    PUSH X
+    MOV Y, #$00
+    MOV A, (!CHTEMP_EFFECT_POINTER_L)+Y
+    BMI +
+    INCW !CHTEMP_EFFECT_POINTER_L
+    ASL A
+    MOV X, A
+    JMP (SPC_ParseEffectData_EffectJumpTable+X)
++:
+    INCW !CHTEMP_EFFECT_POINTER_L
+    SETC
+    SBC A, #$FE
+    ASL A
+    MOV X, A
+    JMP (SPC_ParseEffectData_EndingJumpTable+X)
+.Wait:
+    POP X
+    MOV A, (!CHTEMP_EFFECT_POINTER_L)+Y
+    INCW !CHTEMP_EFFECT_POINTER_L
+    DEC A
+    MOV !CHTEMP_EFFECT_COUNTER, A
+    RET
+.EndEffectData:
+    POP X
+    SET2 !CHTEMP_FLAGS
+    RET
+.SetVolumeMainL:
+    POP X
+    MOV A, (!CHTEMP_EFFECT_POINTER_L)+Y
+    INCW !CHTEMP_EFFECT_POINTER_L 
+    AND !CHTEMP_REGISTER_INDEX, #$70
+    MOV $F2, !CHTEMP_REGISTER_INDEX
+    MOV $F3, A
+    JMP SPC_ParseEffectData_Load
+.SetVolumeMainR:
+    POP X
+    MOV A, (!CHTEMP_EFFECT_POINTER_L)+Y
+    INCW !CHTEMP_EFFECT_POINTER_L 
+    AND !CHTEMP_REGISTER_INDEX, #$70
+    MOV $F2, !CHTEMP_REGISTER_INDEX
+    INC $F2
+    MOV $F3, A
+    JMP SPC_ParseEffectData_Load
+.SetVolumeMainLR:
+    POP X
+    MOV A, (!CHTEMP_EFFECT_POINTER_L)+Y
+    INCW !CHTEMP_EFFECT_POINTER_L 
+    AND !CHTEMP_REGISTER_INDEX, #$70
+    MOV $F2, !CHTEMP_REGISTER_INDEX
+    MOV $F3, A
+    INC $F2
+    MOV $F3, A
+    JMP SPC_ParseEffectData_Load
+.EndingJumpTable:
+dw SPC_ParseEffectData_Wait
+dw SPC_ParseEffectData_EndEffectData
+.EffectJumpTable:
+dw SPC_ParseEffectData_SetVolumeMainLR
+dw SPC_ParseEffectData_SetVolumeMainL
+dw SPC_ParseEffectData_SetVolumeMainR
 
 SPC_ParsePatternData:
     MOV X, #$00
@@ -587,24 +688,37 @@ SPC_ParsePatternData:
         ASL A
         MOV Y, A
         MOV A, PatternPointers+Y
-        MOV !CH1_SONG_POINTER_L+X, A
+        MOV !CHTEMP_SONG_POINTER_L, A
         INC Y
         MOV A, PatternPointers+Y
-        MOV !CH1_SONG_POINTER_H+X, A
+        MOV !CHTEMP_SONG_POINTER_H, A
         MOV A, #$00
         MOV !CH1_SONG_COUNTER+X, A
+        MOV !CH1_EFFECT_COUNTER+X, A
         MOV A, !CH1_FLAGS+X
-        AND A, #$FE
+        AND A, #$FA
         MOV !CH1_FLAGS+X, A
+        MOV Y, #$00
+        MOV A, (!CHTEMP_SONG_POINTER_L)+Y 
+        INCW !CHTEMP_SONG_POINTER_L
+        MOV !CH1_EFFECT_POINTER_L+X, A
+        MOV A, (!CHTEMP_SONG_POINTER_L)+Y 
+        INCW !CHTEMP_SONG_POINTER_L
+        MOV !CH1_EFFECT_POINTER_H+X, A
+        MOVW YA, !CHTEMP_SONG_POINTER_L
+        MOV !CH1_SONG_POINTER_L+X, A
+        MOV !CH1_SONG_POINTER_H+X, Y
         MOV A, X
         CLRC
         ADC A, #$08
-        AND A, #$18
+        AND A, #$38
         MOV X, A
         BNE -
     RET
 
 SPC_End:
+    MOV $F2, #$6C   ;   Mute!
+    MOV $F3, #$60   ;__
     MOV $6C, #$C0
     MOV $F4, #$89
     MOV $F5, #$AB
@@ -966,13 +1080,13 @@ SPC_PhaseModulation_128:
     MOV !MOD_MOD_INDEX_L, !MOD_MOD_PHASE_SHIFT
     ASL !MOD_MOD_INDEX_L
 .loop:
-    INC !MOD_MOD_INDEX_L
-    MOV A, (!MOD_MOD_INDEX_L+X)
-    MOV !MOD_MAIN_TEMP_H, A
+    INC !MOD_MOD_INDEX_L            ;
+    MOV A, (!MOD_MOD_INDEX_L+X)     ;   Get high byte
+    MOV !MOD_MAIN_TEMP_H, A         ;
     BMI SPC_PhaseModulation_128_loop_negative 
-    MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
-    MUL YA
-    MOVW !MOD_MAIN_TEMP_L, YA
+    MOV Y, !MOD_MOD_STRENGTH        ;
+    MUL YA                          ;   Multiply high byte by modulation strength
+    MOVW !MOD_MAIN_TEMP_L, YA       ;__
 
     DEC !MOD_MOD_INDEX_L
     MOV A, (!MOD_MOD_INDEX_L+X)
@@ -1058,20 +1172,24 @@ SPC_PhaseModulation_32:
     ASL A                       ;
     ASL A                       ;
     AND A, #$C0                 ;
+    PUSH A                      ;
     OR A, !MOD_MOD_INDEX_L      ;
     MOV !MOD_MOD_INDEX_L, A     ;__
     MOV A, !MOD_SUBPAGE         ;
     XCN A                       ;   Get low byte of output pointer
     AND A, #$C0                 ;
-    MOV !MOD_OUT_INDEX_L        ;__
+    MOV !MOD_OUT_INDEX_L, A     ;__
+    CLRC                        ;
+    ADC A, #$40                 ;   Get low ending byte of output pointer
+    MOV !MOD_END_INDEX_L, A     ;__
     MOV A, !MOD_SUBPAGE         ;
     AND A, #$C0                 ;   Get low byte of carrier pointer to add later
-    MOV !MOD_CAR_INDEX_L        ;__
+    MOV !MOD_CAR_INDEX_L, A     ;__
 .loop:
     INC !MOD_MOD_INDEX_L
     MOV A, (!MOD_MOD_INDEX_L+X)
     MOV !MOD_MAIN_TEMP_H, A
-    BMI SPC_PhaseModulation_128_loop_negative 
+    BMI SPC_PhaseModulation_32_loop_negative 
     MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
     MUL YA
     MOVW !MOD_MAIN_TEMP_L, YA
@@ -1084,7 +1202,7 @@ SPC_PhaseModulation_32:
     CLRC
     ADC A, !MOD_MAIN_TEMP_L
     ADC !MOD_MAIN_TEMP_H, #$00
-    JMP SPC_PhaseModulation_128_loop_afterMul
+    JMP SPC_PhaseModulation_32_loop_afterMul
 .loop_negative:
     EOR A, #$FF
     MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
@@ -1108,6 +1226,9 @@ SPC_PhaseModulation_32:
     ASL A
     CLRC
     ADC A, !MOD_OUT_INDEX_L 
+    AND A, #$3E
+    CLRC
+    ADC A, !MOD_CAR_INDEX_L
 
     MOV !MOD_MAIN_TEMP_H, !MOD_CAR_PAGE
     MOV !MOD_MAIN_TEMP_L, A
@@ -1121,8 +1242,16 @@ SPC_PhaseModulation_32:
     INC !MOD_OUT_INDEX_L
     INC !MOD_MOD_INDEX_L
     INC !MOD_MOD_INDEX_L
+    AND !MOD_MOD_INDEX_L, #$3E
+    POP A
+    PUSH A
+    CLRC 
+    ADC A, !MOD_MOD_INDEX_L
+    MOV !MOD_MOD_INDEX_L, A
     MOV A, !MOD_OUT_INDEX_L
-    BNE SPC_PhaseModulation_128_loop
+    CMP A, !MOD_END_INDEX_L
+    BNE SPC_PhaseModulation_32_loop
+    POP A
     RET
 
 

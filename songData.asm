@@ -1,27 +1,28 @@
 ;Song format description (in developement):
 ;1. Instrument data
 ;   t {f ([s s]/[s]) ([v v]/[v]) [a] [p p] t}
-;   t - Instrument type
-;       ---hiret
+;   t - Instrument type change command
+;       100hiret
 ;       h - Sample index "page" number
 ;       i - Choose sample by index, not absolute position
-;       r - Relative pitchbends
+;       r - Relative pitchbends (not done yet)
 ;       e - Envelope type (if 0 - ADSR, if 1 - GAIN) (basically reverse x5.7)
 ;       t - Instrument type (0 - Noise, 1 - sample)
 ;   f - Flags
-;       -sllrvap
+;       0sllrvap
 ;       s - Update sample
 ;       ll - Subpage of sample index
-;       r - Update sample position relative to current position (works independently of i)
+;       r - Update sample position relative to current position (works independently of i) (not done yet)
 ;       v - Update envelope 
 ;       a - Arpeggio (always relative)
-;       p - Pitchbend
+;       p - Pitchbend (not done yet)
 ;       OR
-;       1cccdddd
-;       ccc - Special command
-;       dddd - Argument
+;       1ccddddd [l]
+;       cc - Special command
+;       ddddd - Argument
 ;       Command list:
 ;           00 - Change instrument type to ddddd
+;           01 - Loop forever to 000ddddd [ l ] + $1000
 ;           11 - End of instrument data
 ;       Afterwards, another f byte is there
 ;   [s s] - Raw sample position/offset in memory (if i is clear and s is set) / 
@@ -54,12 +55,13 @@
 PatternData:
 db $01, $00, $00, $00, $00, $00, $00, $00
 db $01, $02, $00, $00, $00, $00, $00, $00
+db $03, $00, $00, $00, $00, $00, $00, $00
 db !END_DATA
 PatternPointers:
 dw NoteDataNone
 dw NoteDataBass1
 dw NoteDataDrums1
-dw NoteDataNone
+dw NoteDataLong
 dw NoteDataNone
 dw NoteDataNone
 
@@ -69,30 +71,39 @@ db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_ADSR|!INST
 
 db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO|!SAMPLE_SUBPAGE_0
 db $00, $5E, $90, $00, $02
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $01, $01
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $02, $01
 
 db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-db $01, $03
+db $03, $01
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $04, $01
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $05, $01
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $06, $01
 
-; db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-; db $02, $03
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $07, $01
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $08, $01
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $09, $01
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $0A, $01
 
-; db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-; db $03, $03
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $0B, $01
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $0C, $01
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $0D, $01
+db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+db $0E, $01
 
-; db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-; db $04, $03
-
-; db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-; db $05, $03
-
-; db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-; db $06, $03
-
-; db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-; db $07, $03
-
-; db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-; db $08, $03
+db !COMMAND_LOOP|(Instr00Data&$FF00-$1000), Instr00Data&$FF
 
 db !END_DATA
 
@@ -135,17 +146,17 @@ db $1C, $03
 db !END_DATA
 
 Instr03Data:
-db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
+db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
 
 db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
-dw $6288
-db $7F, $00, $02
+db $FF, $7F, $00, $02
 
 db !UPD_ENVELOPE
 db $8A, $03
 db !END_DATA
 
 NoteDataBass1:
+dw EffectDataBass
 db $B0, $00, $10
 db $B0, $00, $10
 db $B0, $00, $10
@@ -161,6 +172,7 @@ db $B9, $00, $10
 db !END_DATA
 
 NoteDataDrums1:
+dw EffectDataNone
 db $BC, $01, $10
 db !KEY_OFF, $40
 db $BC, $01, $10
@@ -170,30 +182,12 @@ db !KEY_OFF, $20
 
 db !END_DATA
 
-NoteDataCh3:
-db $FE, $80
-db $FE, $80
-db $FE, $80
-db $FE, $80
-
-db $FE, $80
-db $FE, $80
-db $FE, $80
-db $FE, $80
-
-db $FE, $80
-db $FE, $80
-db $FE, $80
-db $FE, $80
-
-db $FE, $18
-db $CF, $00, $18
-db $FE, $0C
-db $CF, $00, $18
-db $FE, $0C
-db $D0, $00, $18
-db $FE, $0C
-db $FE, $01
+NoteDataLong:
+dw EffectDataNone
+db !WAIT, $80
+db !WAIT, $80
+db !WAIT, $80
+db !WAIT, $80
 
 
 db !END_DATA
@@ -318,9 +312,12 @@ db $D4, $00, $18
 db $FE, $18
 
 NoteDataNone:
+dw EffectDataNone
+EffectDataNone:
 db !END_DATA
 
 NoteDataNoise:
+dw EffectDataNone
 db $81, $03, $7F
 db $80, $03, $7F
 db $81, $03, $7F
@@ -329,4 +326,18 @@ db $81, $03, $7F
 db $80, $03, $7F
 db $81, $03, $7F
 db $80, $03, $7F
+db !END_DATA
+
+EffectDataBass:
+db !SET_VOLUME_LR, $7F, !WAIT, $10
+db !SET_VOLUME_L, $40, !SET_VOLUME_R, $E0, !WAIT, $10
+db !SET_VOLUME_L, $F0, !SET_VOLUME_R, $20, !WAIT, $10
+db !SET_VOLUME_LR, $7F, !WAIT, $10
+db !SET_VOLUME_L, $10, !SET_VOLUME_R, $F8, !WAIT, $10
+db !SET_VOLUME_LR, $7F, !WAIT, $10
+db !SET_VOLUME_L, $E0, !SET_VOLUME_R, $40, !WAIT, $10
+db !SET_VOLUME_L, $20, !SET_VOLUME_R, $F0, !WAIT, $10
+db !SET_VOLUME_LR, $7F, !WAIT, $10
+db !SET_VOLUME_L, $E0, !SET_VOLUME_R, $40, !WAIT, $10
+db !SET_VOLUME_L, $20, !SET_VOLUME_R, $F0, !WAIT, $10
 db !END_DATA
