@@ -9,7 +9,7 @@
 ;       e - Envelope type (if 0 - ADSR, if 1 - GAIN) (basically reverse x5.7)
 ;       t - Instrument type (0 - Noise, 1 - sample)
 ;   f - Flags
-;       0sllrvap
+;       0slLR_SAMEvap
 ;       s - Update sample
 ;       ll - Subpage of sample index
 ;       r - Update sample position relative to current position (works independently of i) (not done yet)
@@ -329,15 +329,15 @@ db $80, $03, $7F
 db !END_DATA
 
 EffectDataBass:
-db !SET_VOLUME_LR, $7F, !WAIT, $10
-db !SET_VOLUME_L, $40, !SET_VOLUME_R, $E0, !WAIT, $10
-db !SET_VOLUME_L, $F0, !SET_VOLUME_R, $20, !WAIT, $10
-db !SET_VOLUME_LR, $7F, !WAIT, $10
-db !SET_VOLUME_L, $10, !SET_VOLUME_R, $F8, !WAIT, $10
-db !SET_VOLUME_LR, $7F, !WAIT, $10
-db !SET_VOLUME_L, $E0, !SET_VOLUME_R, $40, !WAIT, $10
-db !SET_VOLUME_L, $20, !SET_VOLUME_R, $F0, !WAIT, $10
-db !SET_VOLUME_LR, $7F, !WAIT, $10
-db !SET_VOLUME_L, $E0, !SET_VOLUME_R, $40, !WAIT, $10
-db !SET_VOLUME_L, $20, !SET_VOLUME_R, $F0, !WAIT, $10
+db !SET_VOLUME_LR_SAME, $7F, !WAIT, $10
+db !SET_VOLUME_LR_DIFF, $40, $00, !WAIT, $10
+db !SET_VOLUME_LR_DIFF, $00, $20, !WAIT, $10
+db !SET_VOLUME_LR_SAME, $7F, !WAIT, $10
+db !SET_VOLUME_LR_DIFF, $10, $08, !WAIT, $10
+db !SET_VOLUME_LR_SAME, $7F, !WAIT, $10
+db !SET_VOLUME_LR_DIFF, $00, $40, !WAIT, $10
+db !SET_VOLUME_LR_DIFF, $20, $00, !WAIT, $10
+db !SET_VOLUME_LR_SAME, $7F, !WAIT, $10
+db !SET_VOLUME_LR_DIFF, $00, $40, !WAIT, $10
+db !SET_VOLUME_LR_DIFF, $20, $00, !WAIT, $10
 db !END_DATA

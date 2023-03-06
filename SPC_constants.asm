@@ -33,9 +33,10 @@
 ;Song data
 !KEY_OFF = $FD
 ;Effect data
-!SET_VOLUME_LR = $00
-!SET_VOLUME_L = $01
-!SET_VOLUME_R = $02
+!SET_VOLUME_LR_SAME = $00
+!SET_VOLUME_LR_DIFF = $01
+!SET_VOLUME_L = $02
+!SET_VOLUME_R = $03
 ;Common shit
 !WAIT = $FE
 !END_DATA = $FF

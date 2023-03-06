@@ -6,6 +6,7 @@ incsrc "SPC_constants.asm"
 ;   |__ _ _ _ _ $C0 - $EF: Operating space of subroutines (how exactly described before every subroutine)
 ;   $01 _ _ _ _ Stack
 ;   $02 _ _ _ _ Sample Directory
+;   $03 _ _ _ _ Effect q index
 ;   $04-$07 _ _ Effect q
 ;   $0A-$0B _ _ 256 instrument data pointers
 ;   $0C _ _ _ _ 7/8 multiplication lookup table
@@ -620,7 +621,9 @@ SPC_ParseEffectData:
     MOV A, (!CHTEMP_EFFECT_POINTER_L)+Y
     BMI +
     INCW !CHTEMP_EFFECT_POINTER_L
-    ASL A
+    MOV $E0, A
+    AND $E0, #$01
+    AND A, #$FE
     MOV X, A
     JMP (SPC_ParseEffectData_EffectJumpTable+X)
 +:
@@ -641,40 +644,36 @@ SPC_ParseEffectData:
     POP X
     SET2 !CHTEMP_FLAGS
     RET
-.SetVolumeMainL:
+.SetVolumeL_or_R:
     POP X
     MOV A, (!CHTEMP_EFFECT_POINTER_L)+Y
     INCW !CHTEMP_EFFECT_POINTER_L 
     AND !CHTEMP_REGISTER_INDEX, #$70
     MOV $F2, !CHTEMP_REGISTER_INDEX
-    MOV $F3, A
+    BBC0 $E0, +         ;   Store to right volume register if bit 0 set
+    INC $F2             ;__
++   MOV $F3, A
     JMP SPC_ParseEffectData_Load
-.SetVolumeMainR:
-    POP X
-    MOV A, (!CHTEMP_EFFECT_POINTER_L)+Y
-    INCW !CHTEMP_EFFECT_POINTER_L 
-    AND !CHTEMP_REGISTER_INDEX, #$70
-    MOV $F2, !CHTEMP_REGISTER_INDEX
-    INC $F2
-    MOV $F3, A
-    JMP SPC_ParseEffectData_Load
-.SetVolumeMainLR:
+
+.SetVolumeLR:
     POP X
     MOV A, (!CHTEMP_EFFECT_POINTER_L)+Y
     INCW !CHTEMP_EFFECT_POINTER_L 
     AND !CHTEMP_REGISTER_INDEX, #$70
     MOV $F2, !CHTEMP_REGISTER_INDEX
     MOV $F3, A
-    INC $F2
+    BBC0 $E0, +                         ;
+    MOV A, (!CHTEMP_EFFECT_POINTER_L)+Y ;   Load different value if bit 0 set
+    INCW !CHTEMP_EFFECT_POINTER_L       ;__
++   INC $F2                             
     MOV $F3, A
     JMP SPC_ParseEffectData_Load
 .EndingJumpTable:
 dw SPC_ParseEffectData_Wait
 dw SPC_ParseEffectData_EndEffectData
 .EffectJumpTable:
-dw SPC_ParseEffectData_SetVolumeMainLR
-dw SPC_ParseEffectData_SetVolumeMainL
-dw SPC_ParseEffectData_SetVolumeMainR
+dw SPC_ParseEffectData_SetVolumeLR
+dw SPC_ParseEffectData_SetVolumeL_or_R
 
 SPC_ParsePatternData:
     MOV X, #$00
