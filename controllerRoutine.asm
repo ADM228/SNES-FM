@@ -1,3 +1,7 @@
+    PHA
+    PHP
+    REP #%00100000 ;set xy to 8bit
+    SEP #%00010000 ;set a to 16bit
 CPU_ControllerRead_WaitLoop:
     LSR $4212
     BCS CPU_ControllerRead_WaitLoop

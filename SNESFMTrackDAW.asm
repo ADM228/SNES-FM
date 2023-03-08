@@ -12,13 +12,20 @@
 ;$0010-001F:    RAM for subroutines, extremely volatile
 ;$0020:         Program mode:
 ;                   $00 - Tracker/DAW
-;                   $01 - Modular synth
-;                   $02 - Envelope macro editor
-;                   $03 - Arpeggio editor
+;                   $01 - Instrument editor
+;                   $02 - Modular synth
+;                   $03 - Envelope macro editor
+;                   $04 - Arpeggio editor
 ;                   bit 6 - Tracker (0, instrument list on top side) or DAW (1, instrument list on right side)
 ;                   bit 7 - resolution (0 = 512x478; 1 = 256x239)
+;$0060:         Last message number from first thread
+;$0061:         Last message number from second thread
+;$0062-0063:    Last word tranferred through the second thread
+;$006
 ;$00F0-00FE:    Columns list, 00 or length terminated
-;$00FF:         Row tile number
+;$00FF:         [Row tile number, will be obsolete] Base vertical offset in tiles
+;$8B00-8BFF:    Instruments' palettes
+;$8C00-97FF:    Instruments' names
 ;$9800-FFFF:    Song data buffer (6 bytes per cell/6*8+4 bytes per row, up to 512 rows can fit before compressing to SRAM)
 incsrc "header.asm"
 incsrc "initSNES.asm"
@@ -135,7 +142,7 @@ dmaToCGRAM:
     STA $2121		;Write it to tell Snes that
     LDA #$22		;CGRAM Write register
     STA $01			;DMA 0 B Address
-    LDA #$06		;Bank of palette
+    LDA #$86		;Bank of palette
     STA $04			;DMA 0 A Bank
     LDX #$8000		;Address of palette
     STX $02			;DMA 0 A Offset
@@ -158,7 +165,7 @@ dmaToVRAM2:
     STX $2116		;Write it to tell Snes that
     LDA #$18		;VRAM Write register
     STA $21			;DMA 2 B Address
-    LDA #$07		;Bank of tilemap
+    LDA #$87		;Bank of tilemap
     STA $24			;DMA 2 A Bank
     LDX #$A000		;Address of tilemap
     STX $22			;DMA 2 A Offset
@@ -173,7 +180,7 @@ EmptyPlotData:
     STX $2116		;Write it to tell Snes that
     LDA #$18		;VRAM Write register
     STA $11			;DMA 1 B Address
-    LDA #$06		;Bank of tileset
+    LDA #$86		;Bank of tileset
     STA $14			;DMA 1 A Bank
     LDX #$A0C0		;Address of tiles
     STX $12			;DMA 1 A Offset
@@ -185,103 +192,78 @@ EmptyPlotData:
     STA $420B		;Init
 
 TurnOnScreen:
-    lda #$80            ;   F-Blank 
-    sta $2100           ;__
-    REP #%00010000      ;   Set XY to 16 bit
-    SEP #%00100000      ;__ Set A to 8 bit
-    PEA $2100           ;   Set Direct Page to 2100
-    PLD				    ;__ For PPU registers
-    lda #%00000001      ;   Enable Auto Joypad Read
-    sta $4200           ;__
-    LDA #%00000101	    ;   8x16 tile size on both BGs, Mode 5
-    STA $05             ;__
-    LDA #%00000011      ;
-    STA $2C             ;   Enable both BGs on both screens
-    STA $2D             ;__
-    LDA #%01110010      ;   32x64 tilemap size, 
-    STA $07             ;__ at word address $7000 for BG1
-    LDA #%01111010      ;   32x64 tilemap size, 
-    STA $08             ;__ at word address $7800 for BG2
-    LDA #$03|$04        ;   Enable Interlace and Overscan
-    STA $33             ;__
-    LDA #$40            ;   BG1's tileset is at word address $0000,
-    STA $0B             ;__ BG2's tileset is at word address $4000
-    STZ $0D             ;
-    STZ $0D             ;
-    STZ $0E             ;
-    STZ $0E             ;   Reset scroll positions
-    STZ $0F             ;
-    STZ $0F             ;
-    STZ $10             ;
-    STZ $10             ;__
-    PEA $0000           ;   Set Direct Page to 0000 for RAM
-    PLD				    ;__
-    LDA #$04            ;
-    STA $F0             ;
-    LDA #$06            ;
-    STA $F1             ;
-    LDA #$18            ;   Draw some example columns
-    STA $F2             ;
-    LDA #$19            ;
-    STA $F3             ;__
-    LDA #$03            ;   Put the row at 3
-    STA $FF             ;
-    STA $00             ;__
-    LDA #$00
-    JSR UpdateRow
-    JSR DrawColumn
-    JSL tableROMtoWRAM
-    JSL clearPaletteData
-    JSL RoutineSelect
-    JSL PlotGraph
-    SEP #%00100000 ;A 8-bit
-    lda #$0F            ;   Turn on screen, full brightness
-    sta $2100           ;__
-    lda #%10000001      ;   Enable NMI and Auto Joypad Read
-    sta $4200           ;__
-    STZ $2115           ;__ Make the PPU bus normal
+    JSR InitiateTrackerMode
 forever:
-        jmp forever
-org $808400
-nmi:
-    JML $808404         ;Takes 8400-8403; Take advantage of FastROM
-
-    
+    WAI
+    REP #%00010000 ;set XY to 16bit
+    SEP #%00100000 ;set A to 8bit
+    LDA $0060
+    CMP #$0C
+    BEQ +
+    LDA $2140
+    CMP #$89
+    BNE +
+    LDA $2141
+    CMP #$AB
+    BNE +
+    LDA $2142
+    CMP #$CD
+    BNE +
+    LDA $2143
+    CMP #$EF
+    BNE +
+    LDA #$0C
+    STA $60
++:
+    LDA #$00
+    PEA $0000
+    PLD				;set dp to 00
+    lda #$08            ; = 00000111
+    sta $2100           ; Turn on screen, half brightness
+    JSL clearPaletteData
+    JSL PhaseModulation
+    SEP #%00100000 ;A 8-bit
+    lda $60            ; = 00001111
+    sta $2100           ; Turn on screen, full or quarter brightness
+    JMP forever
+NMI_Routine:
+    JML $800000|NMI_Routine_InFastROM         ;Take advantage of FastROM
+.InFastROM:
+    LDA #$F7
+    STA $00
+    JSR HexToTiles
     lda #$8F            ; = 10001111
     sta $2100           ; F-BLANK
     lda #$0F             ; = 00001111
     sta $2100           ; Turn on screen, full brightness
 
 
-    ;Update the mod strength number
-    LDX #$72CC
-    STX $2116
+    ; ;Update the mod strength number
+    ; LDX #$72CC
+    ; STX $2116
 
-    LDA $10
-    AND #$F0
-    LSR
-    LSR
-    LSR
-    LSR
-    ORA #$10
-    STA $2118
+    ; LDA $10
+    ; AND #$F0
+    ; LSR
+    ; LSR
+    ; LSR
+    ; LSR
+    ; ORA #$10
+    ; STA $2118
 
-    LDA $10
-    AND #$0F
-    ORA #$10
-    STA $2118
+    ; LDA $10
+    ; AND #$0F
+    ; ORA #$10
+    ; STA $2118
 
-    LDX #$72EC
-    STX $2116
+    ; LDX #$72EC
+    ; STX $2116
 
-    LDA $11
-    STA $2118
-    LDA $12
-    STA $2118
-    PHA
-    PHP
-    REP #%00100000 ;set xy to 8bit
-    SEP #%00010000 ;set a to 16bit
+    ; LDA $11
+    ; STA $2118
+    ; LDA $12
+    ; STA $2118
+
 
 incsrc "controllerRoutine.asm"
 
@@ -310,41 +292,76 @@ SEP #%00100000 ;set A to 8bit
 lda #$0F            ; = 00001111
 sta $2100           ; Turn on screen, full brightness
 
-lda #%00000001
-sta $4200
-LDA #$00
-PEA $0000
-PLD				;set dp to 00
-lda #$08            ; = 00000111
-sta $2100           ; Turn on screen, half brightness
-JSL clearPaletteData
-JSL RoutineSelect
-SEP #%00100000 ;A 8-bit
-lda $60            ; = 00001111
-sta $2100           ; Turn on screen, full or quarter brightness
-lda #%10000001
-sta $4200
 
-LDA $2140
-CMP #$89
-BNE NMIEnd
-LDA $2141
-CMP #$AB
-BNE NMIEnd
-LDA $2142
-CMP #$CD
-BNE NMIEnd
-LDA $2143
-CMP #$EF
-BNE NMIEnd
-LDA #$0C
-STA $60
 
-NMIEnd:
+
 
 PLP
 PLA
 RTI 
+
+InitiateTrackerMode:
+    lda #$80            ;   F-Blank 
+    sta $2100           ;__
+    REP #%00010000      ;   Set XY to 16 bit
+    SEP #%00100000      ;__ Set A to 8 bit
+    PEA $2100           ;   Set Direct Page to 2100
+    PLD				    ;__ For PPU registers
+    lda #%00000001      ;   Enable Auto Joypad Read
+    sta $4200           ;__
+    LDA #%10000000
+    BIT $00FF
+    LDA #%00000101	    ;   8x16 tile size on both BGs, Mode 5
+    STA $05             ;__
+    LDA #%00000011      ;
+    STA $2C             ;   Enable both BGs on both screens
+    STA $2D             ;__
+    LDA #%01110010      ;   32x64 tilemap size, 
+    STA $07             ;__ at word address $7000 for BG1
+    ORA #%00001000      ;   32x64 tilemap size, 
+    STA $08             ;__ at word address $7800 for BG2
+    LDA #$03|$04        ;   Enable Interlace and Overscan
+    STA $33             ;__
+    LDA #$40            ;   BG1's tileset is at word address $0000,
+    STA $0B             ;__ BG2's tileset is at word address $4000
+    STZ $0D             ;
+    STZ $0D             ;
+    STZ $0E             ;
+    STZ $0E             ;   Reset scroll positions
+    STZ $0F             ;
+    STZ $0F             ;
+    STZ $10             ;
+    STZ $10             ;__
+    PEA $0000           ;   Set Direct Page to 0000 for RAM
+    PLD				    ;__
+    LDA #$04            ;
+    STA $F0             ;
+    LDA #$06            ;
+    STA $F1             ;
+    LDA #$18            ;   Draw some example columns
+    STA $F2             ;
+    LDA #$19            ;
+    STA $F3             ;__
+    LDA #$03            ;   Put the row at 3
+    STA $FF             ;
+    STA $00             ;__
+    LDA #$1B
+    LDA #$00
+    JSR ClearInstrumentBuffer
+    JSR UpdateRow
+    JSR DrawColumn
+    JSL tableROMtoWRAM
+    JSL clearPaletteData
+    JSL PhaseModulation
+    JSL PlotGraph
+    SEP #%00100000 ;A 8-bit
+    lda #$0F            ;   Turn on screen, full brightness
+    sta $2100           ;__
+    lda #%10000001      ;   Enable NMI and Auto Joypad Read
+    sta $4200           ;__
+    STZ $2115           ;__ Make the PPU bus normal
+
+    RTS
 
 DrawColumn:
     PHB             ;
@@ -403,6 +420,76 @@ DrawColumn:
     PLD
     PLB
 RTS
+
+; DrawHeaderTrackerMode:
+;     PHB             ;
+;     PHD             ;   Back up some registers
+;     PHP             ;__
+;     REP #%00100000  ;   Set XY to 8 bit
+;     SEP #%00010000  ;__ Set A to 16 bit
+;     LDY #$20        ;   Empty tile
+;     STY $10         ;__
+;     PEA $4300       ;
+;     PLD				;set dp to 43
+
+;     STA $0013
+;     STZ $0012
+;     LDX $0012		;Address to write to in VRAM
+;     STX $2116		;Write it to tell Snes that
+;     LDA #$18		;VRAM Write register
+;     STA $11			;DMA 1 B Address
+;     LDX #$7E01		;Address of tileset
+;     STX $13			;DMA 1 A Bank
+;     STZ $12
+;     LDX #$1000		;Amount of data
+;     STX $15			;DMA 1 Number of bytes
+;     LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
+;     STA $10
+;     LDA #%00000010	;bit 1 corresponds to channel 1
+;     STA $420B		;Init
+HexToTiles:
+    ;Memory allocation:
+        ;Inputs:
+        ;$0000 - The hex number to convert to tiles
+        ;Outputs:
+        ;$0010-0011 - The 2 bytes of tile data to shove into VRAM (4bpp, high byte)
+        ;$0012-0013 - The 2 bytes of tile data to shove into VRAM (2bpp, low byte)
+    PHB             ;
+    PHD             ;   Back up some registers
+    PHP             ;__
+    SEP #%00110000  ;   Set XY and A to 8 bit
+    PEA $0000       ;
+    PLD				;set dp to 00
+    LDA $00
+    AND #$0F
+    CMP #$0A
+    BMI +
+        CLC
+        ADC #$07
+    +   CLC
+    ADC #$30
+    ASL A
+    STA $10
+    LDA $00
+
+    AND #$F0
+    LSR
+    LSR
+    LSR
+    CMP #$14
+    BMI +
+        CLC
+        ADC #$0E
+    +   CLC
+    ADC #$60
+    ASL A
+    STA $12
+    STZ $11
+    STZ $13
+    PLP
+    PLD
+    PLB
+    RTS
 
 UpdateColumn:
     PHB             ;
@@ -464,7 +551,7 @@ UpdateColumn:
     PLP
     PLD
     PLB
-RTS
+    RTS
 
 UpdateRow:
     PHB             ;
@@ -534,258 +621,249 @@ UpdateRow:
     PLP
     PLD
     PLB
-RTS
-;Mem table:
-;$00 - Unicode block to use
-;$01 - VRAM block to write to - 0..3
+    RTS
 DecompressUnicodeBlock:
-    PHB             ;
-    PHD             ;   Back up some registers
-    PHP             ;__
-    PEA $0000       ;   Set Direct Page to 0
-    PLD             ;__
-    PEA $8282       ;
-    PLB             ;   Set Data Bank to 82
-    PLB             ;__
-    REP #%00110000  ;__ Set XY, A to 16 bit
-    LDA $00         ;
-    ASL A           ;
-    ASL A           ;
-    ASL A           ;   Set up the source pointer
-    AND #$00FF      ;
-    ORA #$0080      ;
-    XBA             ;
-    STA $10         ;__
-    LDY #$0000
-    LDX #$0000
--:
-    LDA ($10), Y    ;
-    STA $0110, X    ;   Line 1/8 of tile
-    INY             ;
-    INY             ;__
-    LDA ($10), Y    ;
-    STA $0112, X    ;   Line 2/8 of tile
-    INY             ;
-    INY             ;__
-    LDA ($10), Y    ;
-    STA $0114, X    ;   Line 3/8 of tile
-    INY             ;
-    INY             ;__
-    LDA ($10), Y    ;
-    STA $0116, X    ;   Line 4/8 of tile
-    INY             ;
-    INY             ;__
-    LDA ($10), Y    ;
-    STA $0118, X    ;   Line 5/8 of tile
-    INY             ;
-    INY             ;__
-    LDA ($10), Y    ;
-    STA $011A, X    ;   Line 6/8 of tile
-    INY             ;
-    INY             ;__
-    LDA ($10), Y    ;
-    STA $011C, X    ;   Line 7/8 of tile
-    INY             ;
-    INY             ;__
-    LDA ($10), Y    ;
-    STA $011E, X    ;   Line 8/8 of tile
-    INY             ;
-    INY             ;__
-    TXA             ;
-    CLC             ;
-    ADC #$0020      ;   Update tile pointer
-    TAX             ;
-    CMP #$1000      ;__
-    BNE -
-;DMA TRANSFER 0: 2BPP
-    PEA $4300       ;
-    PLD				;set dp to 43
-    SEP #%00100000 	;set a to 8bit
-    LDA $0001
-    ASL A
-    ASL A    
-    ASL A
-    AND #$18
-    ORA #$40
-    STA $0013
-    STZ $0012
-    LDX $0012		;Address to write to in VRAM
-    STX $2116		;Write it to tell Snes that
-    LDA #$18		;VRAM Write register
-    STA $11			;DMA 1 B Address
-    LDX #$7E01		;Address of tileset
-    STX $13			;DMA 1 A Bank
-    STZ $12
-    LDX #$1000		;Amount of data
-    STX $15			;DMA 1 Number of bytes
-    LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
-    STA $10
-    LDA #%00000010	;bit 1 corresponds to channel 1
-    STA $420B		;Init
-    PEA $0000       ;   Set Direct Page to 0
-    PLD             ;__
-; 4bpp
-.4bpp:
-    STZ $001F
-    REP #%00110000  ;__ Set XY, A to 16 bit
-    LDX #$0000
--:
-    STZ $0100, X
-    INX
-    CPX #$1000
-    BNE -
-    LDA $00         ;
-    ASL A           ;
-    ASL A           ;
-    ASL A           ;   Set up the source pointer
-    AND #$00FF      ;
-    ORA #$0080      ;
-    XBA             ;
-    STA $10         ;__
-    LDY #$0000
-    LDX #$0000
--:
-    LDA ($10), Y    ;
-    STA $0100, X    ;   Line 1/8 of tile
-    INY             ;
-    INY             ;__
-    LDA ($10), Y    ;
-    STA $0102, X    ;   Line 2/8 of tile
-    INY             ;
-    INY             ;__
-    LDA ($10), Y    ;
-    STA $0104, X    ;   Line 3/8 of tile
-    INY             ;
-    INY             ;__
-    LDA ($10), Y    ;
-    STA $0106, X    ;   Line 4/8 of tile
-    INY             ;
-    INY             ;__
-    LDA ($10), Y    ;
-    STA $0108, X    ;   Line 5/8 of tile
-    INY             ;
-    INY             ;__
-    LDA ($10), Y    ;
-    STA $010A, X    ;   Line 6/8 of tile
-    INY             ;
-    INY             ;__
-    LDA ($10), Y    ;
-    STA $010C, X    ;   Line 7/8 of tile
-    INY             ;
-    INY             ;__
-    LDA ($10), Y    ;
-    STA $010E, X    ;   Line 8/8 of tile
-    INY             ;
-    INY             ;__
-    TXA             ;
-    CLC             ;
-    ADC #$0040      ;   Update tile pointer
-    TAX             ;
-    CMP #$1000      ;__
-    BNE -
-    PHY
-;DMA TRANSFER 1/2: 4BPP
-    PEA $4300       ;
-    PLD				;set dp to 43
-    SEP #%00100000 	;set a to 8bit
-    LDA $0001
-    ASL A
-    ORA $001F
-    ASL A    
-    ASL A
-    ASL A
-    AND #$38
-    STA $0013
-    STZ $0012
-    LDX $0012		;Address to write to in VRAM
-    STX $2116		;Write it to tell Snes that
-    LDA #$18		;VRAM Write register
-    STA $11			;DMA 1 B Address
-    LDX #$7E01		;Address of tileset
-    STX $13			;DMA 1 A Bank
-    STZ $12
-    LDX #$1000		;Amount of data
-    STX $15			;DMA 1 Number of bytes
-    LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
-    STA $10
-    LDA #%00000010	;bit 1 corresponds to channel 1
-    STA $420B		;Init
+    ;Memory allocation:
+        ;$00 - Unicode block to use
+        ;$01 - VRAM block to write to - 0..3
+    .2BPP:
+        PHB             ;
+        PHD             ;   Back up some registers
+        PHP             ;__
+        PEA $0000       ;   Set Direct Page to 0
+        PLD             ;__
+        PEA $8282       ;
+        PLB             ;   Set Data Bank to 82
+        PLB             ;__
+        REP #%00110000  ;__ Set XY, A to 16 bit
+        LDA $00         ;
+        ASL A           ;
+        ASL A           ;
+        ASL A           ;   Set up the source pointer
+        AND #$00FF      ;
+        ORA #$0080      ;
+        XBA             ;
+        STA $10         ;__
+        LDY #$0000
+        LDX #$0000
+    -:
+        LDA ($10), Y    ;
+        STA $0110, X    ;   Line 1/8 of tile
+        INY             ;
+        INY             ;__
+        LDA ($10), Y    ;
+        STA $0112, X    ;   Line 2/8 of tile
+        INY             ;
+        INY             ;__
+        LDA ($10), Y    ;
+        STA $0114, X    ;   Line 3/8 of tile
+        INY             ;
+        INY             ;__
+        LDA ($10), Y    ;
+        STA $0116, X    ;   Line 4/8 of tile
+        INY             ;
+        INY             ;__
+        LDA ($10), Y    ;
+        STA $0118, X    ;   Line 5/8 of tile
+        INY             ;
+        INY             ;__
+        LDA ($10), Y    ;
+        STA $011A, X    ;   Line 6/8 of tile
+        INY             ;
+        INY             ;__
+        LDA ($10), Y    ;
+        STA $011C, X    ;   Line 7/8 of tile
+        INY             ;
+        INY             ;__
+        LDA ($10), Y    ;
+        STA $011E, X    ;   Line 8/8 of tile
+        INY             ;
+        INY             ;__
+        TXA             ;
+        CLC             ;
+        ADC #$0020      ;   Update tile pointer
+        TAX             ;
+        CMP #$1000      ;__
+        BNE -
+    ;DMA TRANSFER 0: 2BPP
+        PEA $4300       ;
+        PLD				;set dp to 43
+        SEP #%00100000 	;set a to 8bit
+        LDA $0001
+        ASL A
+        ASL A    
+        ASL A
+        AND #$18
+        ORA #$40
+        STA $0013
+        STZ $0012
+        LDX $0012		;Address to write to in VRAM
+        STX $2116		;Write it to tell Snes that
+        LDA #$18		;VRAM Write register
+        STA $11			;DMA 1 B Address
+        LDX #$7E01		;Address of tileset
+        STX $13			;DMA 1 A Bank
+        STZ $12
+        LDX #$1000		;Amount of data
+        STX $15			;DMA 1 Number of bytes
+        LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
+        STA $10
+        LDA #%00000010	;bit 1 corresponds to channel 1
+        STA $420B		;Init
+        PEA $0000       ;   Set Direct Page to 0
+        PLD             ;__
+    .4bpp:
+        STZ $001F
+        REP #%00110000  ;__ Set XY, A to 16 bit
+        LDX #$0000
+        -:
+            STZ $0100, X    ;
+            INX             ;   Clear graphics buffer
+            CPX #$1000      ;
+            BNE -           ;
+        LDA $00         ;
+        ASL A           ;
+        ASL A           ;
+        ASL A           ;   Set up the source pointer
+        AND #$00FF      ;
+        ORA #$0080      ;
+        XBA             ;
+        STA $10         ;__
+        LDY #$0000
+        LDX #$0000
+    -:
+        LDA ($10), Y    ;
+        STA $0100, X    ;   Line 1/8 of tile
+        INY             ;
+        INY             ;__
+        LDA ($10), Y    ;
+        STA $0102, X    ;   Line 2/8 of tile
+        INY             ;
+        INY             ;__
+        LDA ($10), Y    ;
+        STA $0104, X    ;   Line 3/8 of tile
+        INY             ;
+        INY             ;__
+        LDA ($10), Y    ;
+        STA $0106, X    ;   Line 4/8 of tile
+        INY             ;
+        INY             ;__
+        LDA ($10), Y    ;
+        STA $0108, X    ;   Line 5/8 of tile
+        INY             ;
+        INY             ;__
+        LDA ($10), Y    ;
+        STA $010A, X    ;   Line 6/8 of tile
+        INY             ;
+        INY             ;__
+        LDA ($10), Y    ;
+        STA $010C, X    ;   Line 7/8 of tile
+        INY             ;
+        INY             ;__
+        LDA ($10), Y    ;
+        STA $010E, X    ;   Line 8/8 of tile
+        INY             ;
+        INY             ;__
+        TXA             ;
+        CLC             ;
+        ADC #$0040      ;   Update tile pointer
+        TAX             ;
+        CMP #$1000      ;__
+        BNE -
+        PHY
+    ;4BPP DMA TRANSFERS
+        PEA $4300       ;
+        PLD				;set dp to 43
+        SEP #%00100000 	;set a to 8bit
+        LDA $0001
+        ASL A
+        ORA $001F
+        ASL A    
+        ASL A
+        ASL A
+        AND #$38
+        STA $0013
+        STZ $0012
+        LDX $0012		;Address to write to in VRAM
+        STX $2116		;Write it to tell Snes that
+        LDA #$18		;VRAM Write register
+        STA $11			;DMA 1 B Address
+        LDX #$7E01		;Address of tileset
+        STX $13			;DMA 1 A Bank
+        STZ $12
+        LDX #$1000		;Amount of data
+        STX $15			;DMA 1 Number of bytes
+        LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
+        STA $10
+        LDA #%00000010	;bit 1 corresponds to channel 1
+        STA $420B		;Init
 
-    INC $001F
-    LDA $001F
-    BIT #$01
-    BEQ +
-    PEA $0000       ;   Set Direct Page to 0
-    PLD             ;__
-    REP #%00110000  ;__ Set XY, A to 16 bit
-    PLY
-    LDX #$0000
-    JMP -
-+:
-    PEA $0000       ;   Set Direct Page to 0
-    PLD             ;__
-    REP #%00110000  ;__ Set XY, A to 16 bit
-    LDX #$0000      ;
-    --:             ;
-    STZ $0100, X    ;   Clear the graphics buffer
-    INX             ;
-    CPX #$1000      ;
-    BNE --          ;__
+        INC $001F
+        LDA $001F
+        BIT #$01
+        BEQ +
+            PEA $0000       ;   Set Direct Page to 0
+            PLD             ;__
+            REP #%00110000  ;__ Set XY, A to 16 bit
+            PLY
+            LDX #$0000
+            JMP -
+        +:
+        PEA $0000       ;   Set Direct Page to 0
+        PLD             ;__
+        REP #%00110000  ;__ Set XY, A to 16 bit
+        LDX #$0000      ;
+        --:             ;
+            STZ $0100, X    ;   Clear the graphics buffer
+            INX             ;
+            CPX #$1000      ;
+            BNE --          ;__
     PLY
     PLP
     PLD
     PLB
-RTS
+    RTS
 
-DecompressUnicodeBlock4bpp:
-    PHD
-    PHP
-    PEA $4300
+ClearInstrumentBuffer:
+    PHB             ;
+    PHD             ;   Back up some registers
+    PHP             ;__
+    REP #%00100000  ;   Set A to 16 bit
+    SEP #%00010000  ;__ Set XY to 8 bit
+    PEA $4300       ;
     PLD				;set dp to 43
-    
-    REP #%00010000	;set xy to 16bit
-    SEP #%00100000 	;set a to 8bit
-    LDA $0001
-    ASL A
-    ASL A    
-    ASL A
-    ASL A
-    STA $0002
-    STZ $0001
-    LDY $0001		;Address to write to in VRAM
-    LDA #%10001111
-    STA $2115
-    LDA #$18		;VRAM Write register
-    STA $11			;DMA 1 B Address
-    LDA #$02		;Bank of tileset
-    STA $14			;DMA 1 A Bank
-    LDA $0000
-    ASL A
-    ASL A
-    ASL A
-    ORA #$80
-    STA $13			;DMA 1 A Offset
+    LDX #$80		;WRAM Write register
+    STX $11			;DMA 1 B Address
     STZ $12
-    LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
-    STA $10
--:
-    LDX #$0020		;Amount of data
-    STX $15			;DMA 1 Number of bytes
-    LDA #%00000010	;bit 2 corresponds to channel 0
-    STA $420B		;Init
-    INY
-    INY
-    INY
-    INY
-    TYA
-    CMP #$80
-    BNE -
+    LDA #$8280		;Address of tileset
+    STA $13			;DMA 1 A Bank
+    LDA #$0100		;Amount of data
+    STA $15			;DMA 1 Number of bytes
+    LDX #%00001000	;Settings d--uummm (Direction (0 = A to B) Update (01 = do nothing) Mode (000 = 1 byte, write once)
+    STX $10
+    STZ $2181
+    STZ $2183
+    LDX #$8B
+    STX $2182
+    LDX #%00000010	;bit 1 corresponds to channel 1
+    STX $420B		;Init
 
-    LDA #%10000000
-    STA $2115
+    LDX.b #(ClearInstrumentBuffer_EmptyTile&$0000FF)
+    STX $12
+    LDA.w #(ClearInstrumentBuffer_EmptyTile&$FFFF00)>>8		;Address of tile
+    STA $13			;DMA 1 A Bank
+    LDA #$0C00		;Amount of data
+    STA $15			;DMA 1 Number of bytes
+    LDX #%00001000	;Settings d--uummm (Direction (0 = A to B) Update (01 = do nothing) Mode (000 = 1 byte, write once)
+    STX $10
+    LDX #%00000010	;bit 1 corresponds to channel 1
+    STX $420B		;Init
     PLP
     PLD
-RTS
+    PLB
+    RTS
+.EmptyTile:
+db $20
 org $818000 ;The plotting engine for now
 ;1bpp to 2bpp converter
 
@@ -849,385 +927,386 @@ clearPaletteData:
     STA $420B		;Init
     RTL
 PlotGraph:
-.Decompress
-    REP #%00010000 ;set xy to 16bit
-    SEP #%00100000 ;set a to 8bit
-    PEA $0000
-    PLD				;set db to 7f
-    LDA #$7F
-    PHA
-    PLB
-    LDX #$00FF
-    LDY #$003F
-..Loop:
-    LDA $0000, X
-    EOR #$80
-    STA $FDC0, Y
-    STX $00
-    LDA $00
-    SEC
-    SBC #$04
-    STA $00
-    LDA $01
-    SBC #$00
-    STA $01
-    LDX $00
-    DEY
-    BPL PlotGraph_Decompress_Loop
-.InWRAM:
-    REP #%00110000 ;set xy and a to 16bit
-    LDA #$01C0
-    LDY #$0000
-..Loop:
-    TAX
-    SEP #%00100000 ;set a to 8bit
-	LDA #$FF
-    STA $FE01,X
-    STA $FE03,X
-    STA $FE05,X
-    STA $FE07,X
-    STA $FE09,X
-    STA $FE0B,X
-    STA $FE0D,X
-    STA $FE0F,X
-    STA $FE11,X
-    STA $FE13,X
-    STA $FE15,X
-    STA $FE17,X
-    STA $FE19,X
-    STA $FE1B,X
-    STA $FE1D,X
-    STA $FE1F,X
-    STA $FE21,X
-    STA $FE23,X
-    STA $FE25,X
-    STA $FE27,X
-    STA $FE29,X
-    STA $FE2B,X
-    STA $FE2D,X
-    STA $FE2F,X
-    STA $FE31,X
-    STA $FE33,X
-    STA $FE35,X
-    STA $FE37,X
-    STA $FE39,X
-    STA $FE3B,X
-    STA $FE3D,X
-    STA $FE3F,X
-    REP #%00110000 ;set xy and a to 16bit
-    TXA         ;\
-    LSR A       ; |
-    LSR A       ; | Get the index of the 
-    LSR A       ; | entry in the input table
-    ADC #$0007  ; |
-    TAY         ;/
-; bit 7
-    LDA $FDC0, Y
-    LSR A
-    LSR A
-    AND #%0000000000111110
-    EOR #%0000000000111110
-    STX $0000
-    ORA $0000
-    PHY
-    TAY
+    .Decompress
+        REP #%00010000 ;set xy to 16bit
+        SEP #%00100000 ;set a to 8bit
+        PEA $0000
+        PLD				;set db to 7f
+        LDA #$7F
+        PHA
+        PLB
+        LDX #$00FF
+        LDY #$003F
+        ..Loop:
+            LDA $0000, X
+            EOR #$80
+            STA $FDC0, Y
+            STX $00
+            LDA $00
+            SEC
+            SBC #$04
+            STA $00
+            LDA $01
+            SBC #$00
+            STA $01
+            LDX $00
+            DEY
+            BPL PlotGraph_Decompress_Loop
+    .InWRAM:
+        REP #%00110000 ;set xy and a to 16bit
+        LDA #$01C0
+        LDY #$0000
+        ..Loop:
+            TAX
+            SEP #%00100000 ;set a to 8bit
+            LDA #$FF
+            STA $FE01,X
+            STA $FE03,X
+            STA $FE05,X
+            STA $FE07,X
+            STA $FE09,X
+            STA $FE0B,X
+            STA $FE0D,X
+            STA $FE0F,X
+            STA $FE11,X
+            STA $FE13,X
+            STA $FE15,X
+            STA $FE17,X
+            STA $FE19,X
+            STA $FE1B,X
+            STA $FE1D,X
+            STA $FE1F,X
+            STA $FE21,X
+            STA $FE23,X
+            STA $FE25,X
+            STA $FE27,X
+            STA $FE29,X
+            STA $FE2B,X
+            STA $FE2D,X
+            STA $FE2F,X
+            STA $FE31,X
+            STA $FE33,X
+            STA $FE35,X
+            STA $FE37,X
+            STA $FE39,X
+            STA $FE3B,X
+            STA $FE3D,X
+            STA $FE3F,X
+            REP #%00110000 ;set xy and a to 16bit
+            TXA         ;\
+            LSR A       ; |
+            LSR A       ; | Get the index of the 
+            LSR A       ; | entry in the input table
+            ADC #$0007  ; |
+            TAY         ;/
+            ; bit 7
+                LDA $FDC0, Y
+                LSR A
+                LSR A
+                AND #%0000000000111110
+                EOR #%0000000000111110
+                STX $0000
+                ORA $0000
+                PHY
+                TAY
 
-    LDA #$FF01
-    ORA $FE00, Y
-    STA $FE00, Y
-; bit 6
-    PLY
-    DEY
-    LDA $FDC0, Y
-    LSR A
-    LSR A
-    AND #%0000000000111110
-    EOR #%0000000000111110
-    STX $0000
-    ORA $0000
-    PHY
-    TAY
+                LDA #$FF01
+                ORA $FE00, Y
+                STA $FE00, Y
+            ; bit 6
+                PLY
+                DEY
+                LDA $FDC0, Y
+                LSR A
+                LSR A
+                AND #%0000000000111110
+                EOR #%0000000000111110
+                STX $0000
+                ORA $0000
+                PHY
+                TAY
 
-    LDA #$FF02
-    ORA $FE00, Y
-    STA $FE00, Y
-; bit 5
-    PLY
-    DEY
-    LDA $FDC0, Y
-    LSR A
-    LSR A
-    AND #%0000000000111110
-    EOR #%0000000000111110
-    STX $0000
-    ORA $0000
-    PHY
-    TAY
+                LDA #$FF02
+                ORA $FE00, Y
+                STA $FE00, Y
+            ; bit 5
+                PLY
+                DEY
+                LDA $FDC0, Y
+                LSR A
+                LSR A
+                AND #%0000000000111110
+                EOR #%0000000000111110
+                STX $0000
+                ORA $0000
+                PHY
+                TAY
 
-    LDA #$FF04
-    ORA $FE00, Y
-    STA $FE00, Y
-; bit 4
-    PLY
-    DEY
-    LDA $FDC0, Y
-    LSR A
-    LSR A
-    AND #%0000000000111110
-    EOR #%0000000000111110
-    STX $0000
-    ORA $0000
-    PHY
-    TAY
+                LDA #$FF04
+                ORA $FE00, Y
+                STA $FE00, Y
+            ; bit 4
+                PLY
+                DEY
+                LDA $FDC0, Y
+                LSR A
+                LSR A
+                AND #%0000000000111110
+                EOR #%0000000000111110
+                STX $0000
+                ORA $0000
+                PHY
+                TAY
 
-    LDA #$FF08
-    ORA $FE00, Y
-    STA $FE00, Y
-; bit 3
-    PLY
-    DEY
-    LDA $FDC0, Y
-    LSR A
-    LSR A
-    AND #%0000000000111110
-    EOR #%0000000000111110
-    STX $0000
-    ORA $0000
-    PHY
-    TAY
+                LDA #$FF08
+                ORA $FE00, Y
+                STA $FE00, Y
+            ; bit 3
+                PLY
+                DEY
+                LDA $FDC0, Y
+                LSR A
+                LSR A
+                AND #%0000000000111110
+                EOR #%0000000000111110
+                STX $0000
+                ORA $0000
+                PHY
+                TAY
 
-    LDA #$FF10
-    ORA $FE00, Y
-    STA $FE00, Y
-; bit 2
-    PLY
-    DEY
-    LDA $FDC0, Y
-    LSR A
-    LSR A
-    AND #%0000000000111110
-    EOR #%0000000000111110
-    STX $0000
-    ORA $0000
-    PHY
-    TAY
+                LDA #$FF10
+                ORA $FE00, Y
+                STA $FE00, Y
+            ; bit 2
+                PLY
+                DEY
+                LDA $FDC0, Y
+                LSR A
+                LSR A
+                AND #%0000000000111110
+                EOR #%0000000000111110
+                STX $0000
+                ORA $0000
+                PHY
+                TAY
 
-    LDA #$FF20
-    ORA $FE00, Y
-    STA $FE00, Y
-; bit 1
-    PLY
-    DEY
-    LDA $FDC0, Y
-    LSR A
-    LSR A
-    AND #%0000000000111110
-    EOR #%0000000000111110
-    STX $0000
-    ORA $0000
-    PHY
-    TAY
+                LDA #$FF20
+                ORA $FE00, Y
+                STA $FE00, Y
+            ; bit 1
+                PLY
+                DEY
+                LDA $FDC0, Y
+                LSR A
+                LSR A
+                AND #%0000000000111110
+                EOR #%0000000000111110
+                STX $0000
+                ORA $0000
+                PHY
+                TAY
 
-    LDA #$FF40
-    ORA $FE00, Y
-    STA $FE00, Y
-; bit 0
-    PLY
-    DEY
-    LDA $FDC0, Y
-    LSR A
-    LSR A
-    AND #%0000000000111110
-    EOR #%0000000000111110
-    STX $0000
-    ORA $0000
-    TAY
+                LDA #$FF40
+                ORA $FE00, Y
+                STA $FE00, Y
+            ; bit 0
+                PLY
+                DEY
+                LDA $FDC0, Y
+                LSR A
+                LSR A
+                AND #%0000000000111110
+                EOR #%0000000000111110
+                STX $0000
+                ORA $0000
+                TAY
 
-    LDA #$FF80
-    ORA $FE00, Y
-    STA $FE00, Y
-;final
-    TXA
-    SEC
-    SBC #$0040
-    BMI PlotGraph_DMA
-    JMP PlotGraph_InWRAM_Loop
-.DMA:
-    REP #%00010000 ;set xy to 16bit
-    SEP #%00100000 ;set a to 8bit
-    PEA $4300
-    PLD	;set dp to 43
-    LDA #$00
-    PHA
-	PLB
-	lda #$80            ; = 10000000
-    sta $2100           ; F-Blank
-    LDX #$1000		;Address to write to in VRAM
-    STX $2116		;Write it to tell Snes that
-    LDA #$18		;VRAM Write register
-    STA $01			;DMA 1 B Address
-    LDA #$7F		;Bank of tileset
-    STA $04			;DMA 1 A Bank
-    LDX #$FE00		;Address of tiles
-    STX $02			;DMA 1 A Offset
-    LDX #$0200		;Amount of data
-    STX $05			;DMA 1 Number of bytes
-    LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = Increment) Mode (001 = 2 bytes, write once)
-    STA $00
-    LDA #%00000001  ;bit 2 corresponds to channel 0
-    STA $420B		;Init
-    PEA $0000
-    PLD				;set dp to 00
-RTL
+                LDA #$FF80
+                ORA $FE00, Y
+                STA $FE00, Y
+            ;final
+                TXA
+                SEC
+                SBC #$0040
+                BMI PlotGraph_DMA
+                JMP PlotGraph_InWRAM_Loop
+    .DMA:
+        REP #%00010000 ;set xy to 16bit
+        SEP #%00100000 ;set a to 8bit
+        PEA $4300
+        PLD	;set dp to 43
+        LDA #$00
+        PHA
+        PLB
+        lda #$80            ; = 10000000
+        sta $2100           ; F-Blank
+        LDX #$1000		;Address to write to in VRAM
+        STX $2116		;Write it to tell Snes that
+        LDA #$18		;VRAM Write register
+        STA $01			;DMA 1 B Address
+        LDA #$7F		;Bank of tileset
+        STA $04			;DMA 1 A Bank
+        LDX #$FE00		;Address of tiles
+        STX $02			;DMA 1 A Offset
+        LDX #$0200		;Amount of data
+        STX $05			;DMA 1 Number of bytes
+        LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = Increment) Mode (001 = 2 bytes, write once)
+        STA $00
+        LDA #%00000001  ;bit 2 corresponds to channel 0
+        STA $420B		;Init
+        PEA $0000
+        PLD				;set dp to 00
+    RTL
 
-RoutineSelect:
+PhaseModulation:
     ;Input: Carrier wavetable at $7F0800, $0400 bytes long
     ;Input: Modulator wavetable at $7F0C00, $0400 bytes long
     ;Output: Modulated Wavetable at $7F0000, $0400 bytes long
-    SEP #%00100000 ;set a to 8bit
-    LDA $0020
-    STA $7FFFFD
-    PEA $2100
-    PLD				;set db to 7f
-    LDA #$7F
-    PHA
-    PLB
-    LDY #$00FE
-    LDA $FFFD
-    SEC
-    SBC #$80
-    BPL PhaseModulation10
-PhaseModulation20:
-    LDA #$3C
-    STA $000011
-    LDA #$3A
-    STA $000012
-    REP #%00110000 ;set a to 16bit
-PhaseModulation20Loop:
-    ;SLOW AS CRAP, needs fixing
-    TYA             ;2
-    ASL             ;2
-    ASL             ;2
-    TAX             ;2
-    SEP #$20        ;3
-    LDA $0C00, X    ;5
-    STA $1B         ;3
-    LDA $0C01, X    ;5 _ 16
-    STA $1B         ;3
-    LDA $FFFD       ;4, Mod strength
-    STA $1C         ;3
-    REP #$20        ;3
-    LDA $35         ;3
-    LSR             ;2
-    LSR             ;2
-    LSR             ;2 _ 23
+    .RoutineSelect:
+        SEP #%00100000 ;set a to 8bit
+        LDA $0020
+        STA $7FFFFD
+        PEA $2100
+        PLD				;set db to 7f
+        LDA #$7F
+        PHA
+        PLB
+        LDY #$00FE
+        LDA $FFFD
+        SEC
+        SBC #$80
+        BPL PhaseModulation_Divider10
+    .Divider20:
+        LDA #$3C
+        STA $000011
+        LDA #$3A
+        STA $000012
+        REP #%00110000 ;set a to 16bit
+        ..Loop:
+            ;SLOW AS CRAP, needs fixing
+            TYA             ;2
+            ASL             ;2
+            ASL             ;2
+            TAX             ;2
+            SEP #$20        ;3
+            LDA $0C00, X    ;5
+            STA $1B         ;3
+            LDA $0C01, X    ;5 _ 16
+            STA $1B         ;3
+            LDA $FFFD       ;4, Mod strength
+            STA $1C         ;3
+            REP #$20        ;3
+            LDA $35         ;3
+            LSR             ;2
+            LSR             ;2
+            LSR             ;2 _ 23
 
-    STX $FFFE       ;5
-    ADC $FFFE       ;5
-    AND #$03FE      ;3
-    TAX             ;2 _ 15
-    ADC #$0C00
-    STA $0100, Y
-    LDA $0800, X    ;6
-    STA $0000, Y    ;5
-    DEY             ;2
-    DEY             ;2 _ 15
-    CPY #$0000
-    BPL PhaseModulation20Loop ;2
-    JMP PhaseModulationFinish
+            STX $FFFE       ;5
+            ADC $FFFE       ;5
+            AND #$03FE      ;3
+            TAX             ;2 _ 15
+            ADC #$0C00
+            STA $0100, Y
+            LDA $0800, X    ;6
+            STA $0000, Y    ;5
+            DEY             ;2
+            DEY             ;2 _ 15
+            CPY #$0000
+            BPL PhaseModulation_Divider20_Loop ;2
+        JMP PhaseModulation_End
 
-PhaseModulation10:
-    SEC
-    SBC #$40
-    BPL PhaseModulation08
-    LDA $FFFD
-    SEC
-    SBC #$40
-    STA $FFFD
-    LDA #$3B
-    STA $000011
-    LDA #$3A
-    STA $000012
-    REP #%00110000 ;set a to 16bit
-PhaseModulation10Loop:
-    ;SLOW AS CRAP, needs fixing
-    TYA             ;2
-    ASL             ;2
-    ASL             ;2
-    TAX             ;2
-    SEP #$20        ;3
-    LDA $0C00, X    ;5
-    STA $1B         ;3
-    LDA $0C01, X    ;5 _ 16
-    STA $1B         ;3
-    LDA $FFFD       ;4, Mod strength
-    STA $1C         ;3
-    REP #$20        ;3
-    LDA $35         ;3
-    LSR             ;2
-    LSR             ;2 _ 21
+    .Divider10:
+        SEC
+        SBC #$40
+        BPL PhaseModulation_Divider08
+        LDA $FFFD
+        SEC
+        SBC #$40
+        STA $FFFD
+        LDA #$3B
+        STA $000011
+        LDA #$3A
+        STA $000012
+        REP #%00110000 ;set a to 16bit
+        ..Loop:
+            ;SLOW AS CRAP, needs fixing
+            TYA             ;2
+            ASL             ;2
+            ASL             ;2
+            TAX             ;2
+            SEP #$20        ;3
+            LDA $0C00, X    ;5
+            STA $1B         ;3
+            LDA $0C01, X    ;5 _ 16
+            STA $1B         ;3
+            LDA $FFFD       ;4, Mod strength
+            STA $1C         ;3
+            REP #$20        ;3
+            LDA $35         ;3
+            LSR             ;2
+            LSR             ;2 _ 21
 
-    STX $FFFE       ;5
-    ADC $FFFE       ;5
-    AND #$03FE      ;3
-    TAX             ;2 _ 15
-    LDA $0800, X    ;6
-    STA $0000, Y    ;5
-    DEY             ;2
-    DEY             ;2 _ 15
-    CPY #$0000
-    BPL PhaseModulation10Loop ;2
-    JMP PhaseModulationFinish
+            STX $FFFE       ;5
+            ADC $FFFE       ;5
+            AND #$03FE      ;3
+            TAX             ;2 _ 15
+            LDA $0800, X    ;6
+            STA $0000, Y    ;5
+            DEY             ;2
+            DEY             ;2 _ 15
+            CPY #$0000
+            BPL PhaseModulation_Divider10_Loop ;2
+        JMP PhaseModulation_End
 
-PhaseModulation08:
-    LDA $FFFD
-    SEC
-    SBC #$80
-    STA $FFFD
-    LDA #$3A
-    STA $000011
-    LDA #$3E
-    STA $000012
-    REP #%00110000 ;set a to 16bit
-PhaseModulation08Loop:
-    ;SLOW AS CRAP, needs fixing
-    TYA             ;2
-    ASL             ;2
-    ASL             ;2
-    TAX             ;2
-    SEP #$20        ;3
-    LDA $0C00, X    ;5
-    STA $1B         ;3
-    LDA $0C01, X    ;5 _ 16
-    STA $1B         ;3
-    LDA $FFFD       ;4, Mod strength
-    STA $1C         ;3
-    REP #$20        ;3
-    LDA $35         ;3
-    LSR             ;2 _ 23
+    .Divider08:
+        LDA $FFFD
+        SEC
+        SBC #$80
+        STA $FFFD
+        LDA #$3A
+        STA $000011
+        LDA #$3E
+        STA $000012
+        REP #%00110000 ;set a to 16bit
+        ..Loop:
+            ;SLOW AS CRAP, needs fixing
+            TYA             ;2
+            ASL             ;2
+            ASL             ;2
+            TAX             ;2
+            SEP #$20        ;3
+            LDA $0C00, X    ;5
+            STA $1B         ;3
+            LDA $0C01, X    ;5 _ 16
+            STA $1B         ;3
+            LDA $FFFD       ;4, Mod strength
+            STA $1C         ;3
+            REP #$20        ;3
+            LDA $35         ;3
+            LSR             ;2 _ 23
 
-    STX $FFFE       ;5
-    ADC $FFFE       ;5
-    AND #$03FE      ;3
-    TAX             ;2 _ 15
-    LDA $0800, X    ;6
-    STA $0000, Y    ;5
-    DEY             ;2
-    DEY             ;2 _ 15
-    CPY #$0000
-    BPL PhaseModulation08Loop ;2
+            STX $FFFE       ;5
+            ADC $FFFE       ;5
+            AND #$03FE      ;3
+            TAX             ;2 _ 15
+            LDA $0800, X    ;6
+            STA $0000, Y    ;5
+            DEY             ;2
+            DEY             ;2 _ 15
+            CPY #$0000
+            BPL PhaseModulation_Divider08_Loop ;2
 
-PhaseModulationFinish:
-    SEP #%00100000 ;set a to 8bit
-    LDA $FFFD
-    STA $000010
-    STZ $FFFD
-    PEA $0000
-    PLD				;set db to 00
-    LDA #$00
-    PHA
-    PLB
-    RTL
+    .End:
+        SEP #%00100000 ;set a to 8bit
+        LDA $FFFD
+        STA $000010
+        STZ $FFFD
+        PEA $0000
+        PLD				;set db to 00
+        LDA #$00
+        PHA
+        PLB
+        RTL
 
 org $81E000
 arch spc700-inline

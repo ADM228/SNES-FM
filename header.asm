@@ -13,7 +13,7 @@
 !NAT_COP = $813E    ; Software interrupt. Triggered by the COP instruction. Similar to BRK. 
 !NAT_BRK = $813E    ; Software interrupt. Triggered by the BRK instruction. Similar to COP. 
 !NAT_ABORT = $813E  ; Not used in the SNES. 
-!NAT_NMI = $8400    ; Non-maskable interrupt. Called when vertical refresh (vblank) begins. 
+!NAT_NMI = NMI_Routine&$FFFF; Non-maskable interrupt. Called when vertical refresh (vblank) begins. 
 !NAT_IRQ = $813E    ; Interrupt request. Can be set to be called at a certain spot in the horizontal refresh cycle. 
 
 !EMU_COP = $813E    ; Software interrupt. Triggered by the COP instruction. 
