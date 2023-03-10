@@ -27,6 +27,9 @@
 ;$8B00-8BFF:    Instruments' palettes
 ;$8C00-97FF:    Instruments' names
 ;$9800-FFFF:    Song data buffer (6 bytes per cell/6*8+4 bytes per row, up to 512 rows can fit before compressing to SRAM)
+;SRAM Map:
+;$0000 - Locale
+;$0100+:        Instrument data
 incsrc "header.asm"
 incsrc "initSNES.asm"
 
@@ -36,8 +39,8 @@ org $028000
 incbin "tilesetUnicode.chr"
 org $06FC00
 incbin "sinetable.bin"
-org $07A000
-incbin "bg3map.map"
+org $838000
+incsrc "locale.asm"
 org $07FFFF ;set size of the file, irrelevant lmao
 db $00
 
@@ -152,29 +155,6 @@ dmaToCGRAM:
     STA $00
     LDA #%00000001	;bit 2 corresponds to channel 0
     STA $420B		;Init
-dmaToVRAM1:
-    STZ $0000
-    STZ $0001
-    JSR DecompressUnicodeBlock
-    LDA #$01
-    STA $0000
-    STA $0001
-    JSR DecompressUnicodeBlock
-dmaToVRAM2:
-    LDX #$7000		;Address to write to in VRAM
-    STX $2116		;Write it to tell Snes that
-    LDA #$18		;VRAM Write register
-    STA $21			;DMA 2 B Address
-    LDA #$87		;Bank of tilemap
-    STA $24			;DMA 2 A Bank
-    LDX #$A000		;Address of tilemap
-    STX $22			;DMA 2 A Offset
-    LDX #$0800		;Amount of data
-    STX $25			;DMA 2 Number of bytes
-    LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
-    STA $20
-    LDA #%00000100	;bit 2 corresponds to channel 2
-    STA $420B		;Init
 EmptyPlotData:
     LDX #$1000		;Address to write to in VRAM
     STX $2116		;Write it to tell Snes that
@@ -188,8 +168,37 @@ EmptyPlotData:
     STX $15			;DMA 1 Number of bytes
     LDA #%00001001	;Settings d--uummm (Direction (0 = A to B) Update (01 = don't) Mode (001 = 2 bytes, write once)
     STA $10
-    LDA #%00001010  ;bit 1 corresponds to channel 1
+    LDA #%00000010  ;bit 1 corresponds to channel 1
     STA $420B		;Init
+ReadLocale:
+    PEA $0000
+    PLD				;set dp to 00
+    REP #%00100000  ;   Set A to 16 bit
+    SEP #%00010000  ;__ Set XY to 8 bit
+    LDA #$BA55
+    STA $F00001
+    LDA $F00000     ;   Load locale
+    AND #$007F      ;__
+    CMP #$0004      ;
+    BMI +           ;   Default to English if locale number is invalid
+        LDA #$0000  ;__
+    +:
+    ASL
+    ASL
+    ORA #$8380
+    STA $15
+UnicodeToVRAM:
+    SEP #%00100000  ;__ Set A to 8 bit
+    STZ $14
+    LDY #$00
+    -:
+        LDA [$14], Y
+        STA $00
+        STY $01
+        JSR DecompressUnicodeBlock
+        INY
+        CPY #$04
+        BNE -
 
 TurnOnScreen:
     JSR InitiateTrackerMode
@@ -309,7 +318,7 @@ InitiateTrackerMode:
     STA $F2             ;
     LDA #$19            ;
     STA $F3             ;__
-    LDA #$30            ;
+    LDA #$38            ;
     STA $FF             ;   Base location: 00
     STA $00             ;__
     LDA #$1B
@@ -336,8 +345,8 @@ DrawColumn:
         PHP             ;__
         PEA $2100       ;   Set Direct Page to $2100 
         PLD             ;__ because PPU registers
-        REP #%00100000  ;   Set XY to 8 bit
-        SEP #%00010000  ;__ Set A to 16 bit
+        REP #%00100000  ;   Set A to 16 bit
+        SEP #%00010000  ;__ Set XY to 8 bit
         LDX #%10000001  ;   Increment by 32
         STX $15         ;__
         LDX #$00
@@ -780,11 +789,11 @@ DrawHeaderTrackerMode:
         PLB             ;__
         LDA $FF		    ;
         AND #$003F      ;
-        ASL             ;
-        ASL             ;
-        ASL             ;   Address to write to in VRAM
-        ASL             ;
-        ASL             ;
+        STA $12         ;
+        XBA             ;
+        LSR             ;   Address to write to in VRAM
+        LSR             ;
+        LSR             ;
         ORA #$7000      ;
         PHA             ;
         STA $2116		;__
@@ -796,10 +805,51 @@ DrawHeaderTrackerMode:
         STX $14			;DMA 2 A Bank
         LDA #$0100		;Address of tilemap
         STA $12			;DMA 2 A Offset
-        LDA #$0200		;Amount of data
-        STA $15			;DMA 2 Number of bytes
         LDX #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
         STX $10
+        LDY $00FF
+        CPY #$39
+        BMI +
+        ;Split DMAs
+        LDA #$0040      ;
+        SEC             ;
+        SBC $0012       ;
+        XBA             ;   Amount of data before hitting end of tilemap
+        LSR             ;
+        LSR             ;
+        STA $15         ;__
+        LDX #%00000010  ;   Init
+        STX $420B       ;__
+        PHA             ;
+        LDA #$7000      ;   Address in VRAM (beginning of BG1's tilemap)
+        STA $2116       ;__
+        LDA $0012       ;
+        SEC             ;
+        SBC #$0038      ;
+        XBA             ;
+        LSR             ;   Amount of data after hit end of tilemap
+        LSR             ;
+        STA $15         ;
+        STA $0014       ;__
+        LDX #%00000010	;   Init DMA on channel 1
+        STX $420B		;__
+        PLA             ;   Amount of data before hitting end of tilemap
+        STA $15         ;__
+        PLA             ;
+        ORA #$0800      ;   Address in VRAM
+        STA $2116		;__
+        LDX #%00000010	;   Init DMA on channel 1
+        STX $420B		;__
+        LDA #$7800      ;   Address in VRAM (beginning of BG2's tilemap)
+        STA $2116	    ;__
+        LDA $0014       ;   Amount of data after hit end of tilemap
+        STA $15         ;__
+        LDX #%00000010	;   Init DMA on channel 1
+        STX $420B		;__
+        JMP DrawHeaderTrackerMode_DrawRow
+
+        +   LDA #$0200		;Amount of data
+        STA $15			;DMA 2 Number of bytes
         LDX #%00000010	;bit 1 corresponds to channel 1
         STX $420B		;Init
         PLA             ;
@@ -820,6 +870,7 @@ DrawHeaderTrackerMode:
         ASL A           ;
         ASL A           ;
         ADC #$0100      ;
+        AND #$07FF      ;
         STA $0010       ;
         ORA #$7000      ;__
         STA $16         ;
@@ -1046,7 +1097,11 @@ DecompressUnicodeBlock:
     ;Memory allocation:
         ;$00 - Unicode block to use
         ;$01 - VRAM block to write to - 0..3
+        ;$10-$11 - Temp pointer
     .2BPP:
+        PHA             ;
+        PHX             ;
+        PHY             ;
         PHB             ;
         PHD             ;   Back up some registers
         PHP             ;__
@@ -1242,6 +1297,9 @@ DecompressUnicodeBlock:
     PLP
     PLD
     PLB
+    PLY
+    PLX
+    PLA
     RTS
 
 ClearInstrumentBuffer:

@@ -3,7 +3,7 @@
 !MAPMODE = $30
 !ROMTYPE = $02
 !ROMSIZE = $09      ; = 512 Kibibytes
-!SRAMSIZE = $09     ; = 512 Kibibytes (impossible apparently)
+!SRAMSIZE = $07     ; = 128 Kibibytes
 !COUNTRY = $00      ;   International
 !DEVNAME = $00
 !VERSION = $00
