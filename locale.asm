@@ -24,5 +24,5 @@ LocaleRUS:  ;Russian
 org $838C00
 LocaleJPN:  ;Japanese
     .Banks:
-        db $00, $01, $04, $05
+        db $00, $01, $05, $06
     ;I also don't speak Japanese

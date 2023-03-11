@@ -182,6 +182,7 @@ ReadLocale:
     CMP #$0004      ;
     BMI +           ;   Default to English if locale number is invalid
         LDA #$0000  ;__
+        STA $F00000
     +:
     ASL
     ASL
@@ -199,6 +200,9 @@ UnicodeToVRAM:
         INY
         CPY #$04
         BNE -
+    LDA #$00
+    STA $00
+    JSR DecompressLocaleBlock
 
 TurnOnScreen:
     JSR InitiateTrackerMode
@@ -418,6 +422,173 @@ DrawColumn:
         PLD
         PLB
         RTS
+
+ScrollHeaderTrackerMode:
+    .Setup:
+        PHB             ;
+        PHD             ;   Back up some registers
+        PHP             ;__
+        REP #%00100000  ;   Set A to 16 bit
+        SEP #%00010000  ;__ Set XY to 8 bit
+        PEA $0000       ;   set DP to 00
+        PLD				;__
+        LDA $FF		    ;
+        AND #$003F      ;
+        STA $12         ;
+        XBA             ;
+        LSR             ;   Address to read from in VRAM
+        LSR             ;
+        LSR             ;
+        ORA #$7000      ;
+        PHA             ;
+        STA $2116		;__
+        LDA $2139       ;__ Dummy read because VRAM is wacky
+    .DMAForward:
+        PEA $4300       ;   Set DP to 43 because DMA
+        PLD				;__
+        LDX #$39		;VRAM Write register
+        STX $11			;DMA 1 B Address
+        LDX #$7E		;Bank of tilemap buffer
+        STX $14			;DMA 1 A Bank
+        LDA #$0100		;Address of tilemap buffer
+        STA $12			;DMA 1 A Offset
+        LDX #%10000001	;Settings d--uummm (Direction (1 = B to A) Update (00 = increment) Mode (001 = 2 bytes, write once)
+        STX $10
+        LDY $00FF
+        CPY #$38
+        BMI ScrollHeaderTrackerMode_DMAForward_Normal
+        ..Split:
+            LDA #$0040      ;
+            SEC             ;
+            SBC $0012       ;
+            XBA             ;   Amount of data before hitting end of tilemap
+            LSR             ;
+            LSR             ;
+            STA $15         ;__
+            LDX #%00000010  ;   Init
+            STX $420B       ;__
+            PHA             ;
+            LDA #$7000      ;   Address in VRAM (beginning of BG1's tilemap)
+            STA $2116       ;__
+            LDA $2139       ;__ Dummy read because VRAM is wacky
+            LDA $0012       ;
+            SEC             ;
+            SBC #$0037      ;
+            XBA             ;
+            LSR             ;   Amount of data after hit end of tilemap
+            LSR             ;
+            STA $15         ;
+            STA $0014       ;__
+            LDX #%00000010	;   Init DMA on channel 1
+            STX $420B		;__
+            PLA             ;   Amount of data before hitting end of tilemap
+            STA $15         ;__
+            PLA             ;
+            ORA #$0800      ;   Address in VRAM
+            STA $2116		;__
+            LDA $2139       ;__ Dummy read because VRAM is wacky
+            LDX #%00000010	;   Init DMA on channel 1
+            STX $420B		;__
+            LDA #$7800      ;   Address in VRAM (beginning of BG2's tilemap)
+            STA $2116	    ;__
+            LDA $2139       ;__ Dummy read because VRAM is wacky
+            LDA $0014       ;   Amount of data after hit end of tilemap
+            STA $15         ;__
+            LDX #%00000010	;   Init DMA on channel 1
+            STX $420B		;__
+            JMP ScrollHeaderTrackerMode_DMABack
+        ..Normal:
+            LDA #$0240		;Amount of data
+            STA $15			;DMA 2 Number of bytes
+            LDX #%00000010	;bit 1 corresponds to channel 1
+            STX $420B		;Init
+            STA $15			;DMA 2 Number of bytes
+            PLA             ;
+            ORA #$0800      ;   Address in VRAM
+            STA $2116		;__
+            LDA $2139       ;__ Dummy read because VRAM is wacky
+            LDX #%00000010	;bit 1 corresponds to channel 1
+            STX $420B		;Init
+    .DMABack:
+        LDX $0000       ;
+        STX $00FF       ; 
+        LDA $0000		;
+        AND #$003F      ;
+        STA $0000       ;
+        XBA             ;
+        LSR             ;   Address to write to in VRAM
+        LSR             ;
+        LSR             ;
+        ORA #$7000      ;
+        PHA             ;
+        STA $2116		;__
+        PEA $4300       ;   Set DP to 43 because DMA
+        PLD				;__
+        LDX #$18		;VRAM Write register
+        STX $11			;DMA 2 B Address
+        LDX #$7E		;Bank of tilemap
+        STX $14			;DMA 2 A Bank
+        LDA #$0100		;Address of tilemap
+        STA $12			;DMA 2 A Offset
+        LDX #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
+        STX $10
+        LDY $00FF
+        CPY #$38
+        BMI +
+        ;Split DMAs
+        LDA #$0040      ;
+        SEC             ;
+        SBC $0000       ;
+        XBA             ;   Amount of data before hitting end of tilemap
+        LSR             ;
+        LSR             ;
+        STA $15         ;__
+        LDX #%00000010  ;   Init
+        STX $420B       ;__
+        PHA             ;
+        LDA #$7000      ;   Address in VRAM (beginning of BG1's tilemap)
+        STA $2116       ;__
+        LDA $0000       ;
+        SEC             ;
+        SBC #$0037      ;
+        XBA             ;
+        LSR             ;   Amount of data after hit end of tilemap
+        LSR             ;
+        STA $15         ;
+        STA $0014       ;__
+        LDX #%00000010	;   Init DMA on channel 1
+        STX $420B		;__
+        PLA             ;   Amount of data before hitting end of tilemap
+        STA $15         ;__
+        PLA             ;
+        ORA #$0800      ;   Address in VRAM
+        STA $2116		;__
+        LDX #%00000010	;   Init DMA on channel 1
+        STX $420B		;__
+        LDA #$7800      ;   Address in VRAM (beginning of BG2's tilemap)
+        STA $2116	    ;__
+        LDA $0014       ;   Amount of data after hit end of tilemap
+        STA $15         ;__
+        LDX #%00000010	;   Init DMA on channel 1
+        STX $420B		;__
+        JMP ScrollHeaderTrackerMode_End
+
+        +   LDA #$0240		;Amount of data
+        STA $15			;DMA 2 Number of bytes
+        LDX #%00000010	;bit 1 corresponds to channel 1
+        STX $420B		;Init
+        PLA             ;
+        ORA #$0800      ;   Address in VRAM
+        STA $2116		;__
+        LDA #$0240		;Amount of data
+        STA $15			;DMA 2 Number of bytes
+        LDX #%00000010	;bit 1 corresponds to channel 1
+        STX $420B		;Init
+    .End:
+        PLP
+        PLD
+        PLB
+        RTS
 DrawHeaderTrackerMode:
     .InstrumentListSetup:
         PHB             ;
@@ -427,8 +598,7 @@ DrawHeaderTrackerMode:
         SEP #%00010000  ;__ Set XY to 8 bit
         PEA $0000       ;   set DP to 00
         PLD				;__
-        LDX #$80        ;
-        PHX             ;   Set DB to 80 (With CPU registers)
+        PEA $7E80       ;   Set DB to 80 (With CPU registers)
         PLB             ;__
         LDX $64         ;
         STX $4202       ;   Set up multiplication for pointer
@@ -436,9 +606,7 @@ DrawHeaderTrackerMode:
         STX $4203       ;__
         NOP             ;   The multiplication takes 8 cycles - 2 cycles (because the page is guaranteed to be #$3F maximum) = 6 cycles
         LDA $004216     ;__ NOP takes 2 cycles, and the LDA takes 4 cycles to read the opcode & parameters = 6 cycles
-        LDX #$7E        ;
-        PHX             ;   Set DB to 7E (RAM bank 0)
-        PLB             ;__
+        PLB             ;__ Set DB to 7E (RAM bank 0)
         ASL             ;
         ADC #$8C00      ;   Make it an actual pointer
         STA $12         ;__
@@ -450,6 +618,7 @@ DrawHeaderTrackerMode:
         STA $14         ;__
         LDY #$00        ;
         STZ $15
+        
     .BigLoop:
         ;TODO: Palette from palette buffer
         LDX $14
@@ -873,53 +1042,67 @@ DrawHeaderTrackerMode:
         AND #$07FF      ;
         STA $0010       ;
         ORA #$7000      ;__
+        LDX #$00        ;
+        STX $2115       ;
         STA $16         ;
-        LDX #$00        ;
-        LDA #$0008      ;
+        LDX #$08        ;
+        LDY #$00        ;
         -:                  ;   Draw the new row on BG1
-            STA $18         ;
-            INX             ;
-            CPX #$20        ;
+            STX $18         ;
+            INY             ;
+            CPY #$20        ;
             BNE -           ;__
-        LDA #$0040
-        -:                  ;   Draw the new rows on BG1
-            STA $18         ;
-            INX             ;
-            CPX #$60        ;
-            BNE -           ;__
-        LDA #$0008
-        -:                  ;   Draw the new row on BG1
-            STA $18         ;
-            INX             ;
-            CPX #$80        ;
-            BNE -           ;__
-        LDX #$00        ;
+
         LDA $0010       ;
         ORA #$7800      ;
         STA $16         ;
-        LDA #$0008      ;
-        -:                  ;   Draw the new row on BG2
-            STA $18         ;
-            INX             ;
-            CPX #$20        ;
+        -:                  ;   Draw the new row on BG1
+            STX $18         ;
+            INY             ;
+            CPY #$40        ;
             BNE -           ;__
-        LDA #$0040
-        -:                  ;   Draw the new rows on BG2
-            STA $18         ;
-            INX             ;
-            CPX #$60        ;
-            BNE -           ;__
-        LDA #$0008
-        -:                  ;   Draw the new row on BG2
-            STA $18         ;
-            INX             ;
-            CPX #$80        ;
-            BNE -           ;__
-    JSR DrawColumn
-    PLP
-    PLD
-    PLB
-    RTS
+        LDX $0020
+        BNE DrawHeaderTrackerMode_End
+        ; LDA $0010
+        ; CLC
+        ; ADC #$0100
+        ; AND #$07FF
+        ; STA $0010
+        ;             LDA #$0040
+        ; -:                  ;   Draw the new rows on BG1
+        ;     STA $18         ;
+        ;     INX             ;
+        ;     CPX #$60        ;
+        ;     BNE -           ;__
+        ; LDA #$0008
+        ; -:                  ;   Draw the new row on BG1
+        ;     STA $18         ;
+        ;     INX             ;
+        ;     CPX #$80        ;
+        ;     BNE -           ;__
+        ; LDA #$0040
+        ; -:                  ;   Draw the new rows on BG2
+        ;     STA $18         ;
+        ;     INX             ;
+        ;     CPX #$60        ;
+        ;     BNE -           ;__
+        ; LDA #$0008
+        ; -:                  ;   Draw the new row on BG2
+        ;     STA $18         ;
+        ;     INX             ;
+        ;     CPX #$80        ;
+        ;     BNE -           ;__
+    ;JSR DrawColumn
+    
+
+
+    .End:
+        LDX #$80        ;
+        STX $2115       ;
+        PLP
+        PLD
+        PLB
+        RTS
 
 HexToTiles:
     ;Memory allocation:
@@ -957,6 +1140,88 @@ HexToTiles:
     +   CLC
     ADC #$60
     STA $10
+    PLP
+    PLD
+    PLB
+    RTS
+
+DecompressLocaleBlock:
+    ;Memory allocation:
+        ;Inputs:
+        ;$0000 - The block of text to convert to tiles
+        ;Outputs:
+        ;$0010-$001F - Tiles to shove into VRAM (little endian)
+    PHB             ;
+    PHD             ;   Back up some registers
+    PHP             ;__
+    REP #%00100000  ;   Set A to 16 bit
+    SEP #%00010000  ;__ Set XY to 8 bit
+    PEA $0000       ;
+    PLD				;set dp to 00
+    PEA $0083       ;   Push bank *twice*
+    PLB             ;   
+    LDA $F00000
+    AND #$007F      ;__
+    ASL
+    ASL
+    ORA #$8380
+    STZ $10
+    STZ $12
+    STZ $14
+    STZ $16
+    STZ $18
+    STZ $1A
+    STZ $1C
+    STA $1E
+    LDX #$09
+    STX $4202
+    LDX $00
+    STX $4203
+    CLC             ;   9 = %00001001; only 4 low bits are used -> 4 cycles wait; CLC takes 2 cycles, 
+    LDA $4216       ;__ LDA $4216 takes 3 to read the opcode - waited 5 cycles and did something useful
+    ADC $1D
+    CLC
+    ADC #$0004
+    STA $1D
+    LDY #$00
+    LDX #$00
+    SEP #%00110000  ;__ Set A&XY to 8 bit
+    LDA [$1D]       ;   The high byte for the tiles
+    STA $11         ;__
+    INY
+    -:
+        LDA [$1D], Y
+        STA $10, X
+        INY
+        LDA [$1D], Y
+        STA $18, X
+        INY
+        INX
+        INX
+        CPX #$08
+        BNE -
+    STZ $1D
+    STZ $1F
+    LDX #$06
+    -:
+        LSR $11
+        ROL $19, X
+        ASL $18, X
+        ROL $19, X
+        LSR $11
+        ROL $11, X
+        ASL $10, X
+        ROL $11, X
+        DEX
+        DEX
+        BNE -
+    LSR $11
+    ROL $19
+    ASL $18
+    ROL $19
+    ASL $10
+    ROL $11
+    PLB
     PLP
     PLD
     PLB
