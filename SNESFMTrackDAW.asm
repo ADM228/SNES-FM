@@ -1,35 +1,107 @@
-;!!!!NOTES!!!!
-
-
-;ROM NOTES
-;#030000 [#068000] - Palette information
-;#032000 [#06A000] - Tile information
-;#038000 [#078000] - Tilemap information
+;ROM Memory allocation:
+;Bank 0 - most code
+;Bank 1 - some code + SPC700 everything
+;Bank 2 - Unicode tileset
+;Bank 3 - Locales
+;Bank 4 - 
+;Bank 5 -
+;Bank 6 - Palette, 65816 sine table
 ;VAR NOTES
 ;$7FFFFD - Modulation Strength
 ;RAM Map:
 ;$0000-000F:    Arguments passed to subroutines
 ;$0010-001F:    RAM for subroutines, extremely volatile
 ;$0020:         Program mode:
-;                   $00 - Tracker/DAW
+;                   $00 - Tracker/DAW ($10 - compact mode)
 ;                   $01 - Instrument editor
 ;                   $02 - Modular synth
 ;                   $03 - Envelope macro editor
 ;                   $04 - Arpeggio editor
+;                   bits 4-5 - unique to mode flags
 ;                   bit 6 - Tracker (0, instrument list on top side) or DAW (1, instrument list on right side)
 ;                   bit 7 - resolution (0 = 512x478; 1 = 256x239)
 ;$0060:         Last message number from first thread
 ;$0061:         Last message number from second thread
 ;$0062-0063:    Last word tranferred through the second thread
 ;$0064:         Instrument page start (*4 in 256x239 mode, *8 in 512x478 mode)
-;$00F0-00FE:    Columns list, 00 or length terminated
-;$00FF:         [Row tile number, will be obsolete] Base vertical offset in tiles
-;$8B00-8BFF:    Instruments' palettes
-;$8C00-97FF:    Instruments' names
-;$9800-FFFF:    Song data buffer (6 bytes per cell/6*8+4 bytes per row, up to 512 rows can fit before compressing to SRAM)
+;$00E0-00EF:    States of write-only registers:
+;                   $00E0 - $4200   (Interrupts enable)
+;                   $00E1 - $420C   (HDMA enable)
+;$00F0:         Tracker horizontal scroll position (in blocks, not pixels/tiles)
+;$00F1-00F2:    Pattern row (9-bit)
+;$00F4-00FD:    HDMA table of horizontal scroll position:
+;                   $00F5-00F6: Horizontal scroll position for header
+;                   $00F8-00F9: Horizontal scroll position for 1 tile where octave is
+;                   $00FB-00FC: Horizontal scroll position for everything else
+;$00FE:         Base horizontal offset in tiles
+;$00FF:         Base vertical offset in tiles
+;$9800-FFFF:    Song data buffer: (6 bytes per cell/6*8+4 bytes per row, up to 512 rows can fit before compressing to SRAM)
+;                   $9800-99FF: Global speed
+;                   $9A00-9BFF: Effect amount
+;                   $9C00-9DFF: Effect pointer (low byte)
+;                   $9E00-9FFF: Effect pointer (high byte)
+;                   $A000-A1FF: Note number (channel 1)
+;                   $A200-A3FF: Note number (channel 2)
+;                   $A400-A5FF: Note number (channel 3)
+;                   $A600-A7FF: Note number (channel 4)
+;                   $A800-A9FF: Note number (channel 5)
+;                   $AA00-ABFF: Note number (channel 6)
+;                   $AC00-ADFF: Note number (channel 7)
+;                   $AE00-AFFF: Note number (channel 8)
+;                   $B000-BFFF: Instrument number (channels 1-8 in the same fashion)
+;                   $C000-CFFF: Effect amount (channels 1-8)
+;                   $D000-DFFF: Effect shown (channels 1-8)
+;                   $E000-EFFF: Effect pointer (low byte) (channels 1-8)
+;                   $F000-FFFF: Effect pointer (high byte) (channels 1-8)
 ;SRAM Map:
-;$0000 - Locale
-;$0100+:        Instrument data
+;$0000-0003:    Verification code "SNES" ($53 $4E $45 $53)
+;$0004:         Major SRAM format revision
+;$0005:         Minor SRAM format revision
+;$0006:         Last mode used
+;$0007:         Locale
+;$00FE-00FF:    Second verification code BASS ($BA $55)
+;$0200-027F:    Instruments' palettes
+;$0280-03FF:    Instruments' names (high bits)
+;$0400-0FFF:    Instruments' names
+
+;Tracker interface (512x478):
+;channel:     --   |    0    |    1    |    2    |    3    |    4    | 5|
+;layout: RRR|SS EEE|nn ii eee|nn ii eee|nn ii eee|nn ii eee|nn ii eee|nn 
+;block:      00  01 02 03  04 05 06  07 08 09  0A 0B 0C  0D 0E 0F  10 11
+;block%3:     0  1   2  0  1   2  0  1   2  0   1  2  0   1  2  0  1   2
+;center of screen:                      --
+;block%3:     2  0  1   2  0  1   2  0   1  2  0   1  2  0   1  2  0   1
+;block:      08 09  0A 0B 0C  0D 0E 0F  10 11 12  13 14 15  16 17 18  19
+;layout: RRR|nn ii eee|nn ii eee|nn ii eee|nn ii eee|nn ii eee|nn ii eee|
+;channel: --|    2    |    3    |    4    |    5    |    6    |    7    |
+
+;Tracker interface (256x239): (tis gon be trouble)
+;channel:     --   |    0    |    1    |2
+;layout: RRR|SS EEE|nn ii eee|nn ii eee|n
+;block:      00  01 02 03  04 05 06  07 8
+;block%3:     0  1   2  0  1   2  0  1  2
+;center of screen:    --
+;block%3:      0  1   2  0  1   2  0   1
+;block:       12  13 14 15  16 17 18  19
+;layout: RRR| ii eee|nn ii eee|nn ii eee|
+;channel:   |  5    |    6    |    7    |
+
+;Tracker interface (compact mode, 512x478):
+;channel:|     --     |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |
+;layout: |||RRR|SS EEE|nn ii|nn ii|nn ii|nn ii|nn ii|nn ii|nn ii|nn ii|||
+;block:         00 01  02 03 05 06 08 09 0B 0C 0E 0F 11 12 14 15 17 18
+;center of screen:                      --
+
+;Tracker interface (compact mode, 256x239):
+;channel:|  --- | 0| 1| 2| 3| 4| 5| 6| 7|
+;layout: |RRR|SS|nn|nn|nn|nn|nn|nn|nn|nn|
+;block:       00 02 05 08 0B 0E 11 14 17
+;center of screen:    --
+
+!SRAM_VERSION_MAJOR = #$00
+!SRAM_VERSION_MINOR = #$00
+
+math pri on
 incsrc "header.asm"
 incsrc "initSNES.asm"
 
@@ -170,20 +242,53 @@ EmptyPlotData:
     STA $10
     LDA #%00000010  ;bit 1 corresponds to channel 1
     STA $420B		;Init
+InitSRAM:
+    .CheckSRAM:
+        PEA $0000       ;   Set DP to $00
+        PLD				;__ 
+        REP #%00100000  ;   Set A to 16 bit
+        SEP #%00010000  ;__ Set XY to 8 bit
+        PEA $00F0       ;   Set DB to $F0 (SRAM first bank)
+        PLB             ;__
+        ..VerificationCodes:
+            LDA $00FE       ;
+            CMP #$55BA      ;   Second verification code BASS
+            BNE InitSRAM_ClearSRAM;__
+            LDA $0000       ;
+            CMP #$4E53      ;   First half of first verification code "SN"
+            BNE InitSRAM_ClearSRAM;__
+            LDA $0002       ;
+            CMP #$5345      ;   Second half of first verification code "ES"
+            BNE InitSRAM_ClearSRAM;__
+        ..VersionNumber:
+            LDX $0004         
+            CPX !SRAM_VERSION_MAJOR+1
+            BCS InitSRAM_ClearSRAM
+            JMP ReadLocale
+
+
+
+    .ClearSRAM:
+        JSR ClearTrackerPattern
+        JSR ClearInstrumentBuffer
+        LDA #$55BA          ;
+        STA $00FE           ;__ Second verification code BASS
+        LDA #$4E53          ;
+        STA $0000           ;__ First half of first verification code "SN"
+        LDA #$5345          ;
+        STA $0002           ;__ Second half of first verification code "ES"
+        LDX !SRAM_VERSION_MAJOR
+        STX $0004
+
 ReadLocale:
-    PEA $0000
-    PLD				;set dp to 00
-    REP #%00100000  ;   Set A to 16 bit
-    SEP #%00010000  ;__ Set XY to 8 bit
-    LDA #$BA55
-    STA $F00001
-    LDA $F00000     ;   Load locale
+    LDA $0007     ;   Load locale
     AND #$007F      ;__
     CMP #$0004      ;
     BMI +           ;   Default to English if locale number is invalid
         LDA #$0000  ;__
-        STA $F00000
+        STA $0007
     +:
+    PLB             ;__ Set DB to $00
     ASL
     ASL
     ORA #$8380
@@ -200,10 +305,9 @@ UnicodeToVRAM:
         INY
         CPY #$04
         BNE -
-    LDA #$00
+    LDA #$FF
     STA $00
-    JSR DecompressLocaleBlock
-
+    STZ $01
 TurnOnScreen:
     JSR InitiateTrackerMode
 forever:
@@ -288,7 +392,8 @@ InitiateTrackerMode:
     PEA $2100           ;   Set Direct Page to 2100
     PLD				    ;__ For PPU registers
     lda #%00000001      ;   Enable Auto Joypad Read
-    sta $4200           ;__
+    sta $4200           ;
+    STA $00E0           ;__
     LDA #%10000000
     BIT $00FF
     LDA #%00000101	    ;   8x16 tile size on both BGs, Mode 5
@@ -314,20 +419,226 @@ InitiateTrackerMode:
     STZ $10             ;__
     PEA $0000           ;   Set Direct Page to 0000 for RAM
     PLD				    ;__
-    LDA #$04            ;
-    STA $F0             ;
-    LDA #$06            ;
-    STA $F1             ;
-    LDA #$18            ;   Draw some example columns
-    STA $F2             ;
-    LDA #$19            ;
-    STA $F3             ;__
+    .FEByte:
+    STZ $FE             ;__
     LDA #$38            ;
     STA $FF             ;   Base location: 00
     STA $00             ;__
     LDA #$1B
     LDA #$00
-    JSR ClearInstrumentBuffer
+            ; ;Division test
+            ;     SEP #%00110000      ;__ Set A, XY to 8 bit
+            ;     PHD
+            ;     PEA $4200           ;   Set Direct Page to 4200 for CPU regs
+            ;     PLD				    ;__
+            ;     LDA #$03
+            ;     STA $04
+            ;     LDA #$FF
+            ;     STA $05
+            ;     LDA #$0B
+            ;     STA $06
+            ; ;Part 1:
+            ;     LDA $14     ;
+            ;     LDX $14     ;   Get low byte on cycles 2, 5, 8
+            ;     LDY $14     ;__
+            ;     STA $0000
+            ;     JSR HexToTiles
+            ;     LDA $0010
+            ;     LSR
+            ;     STA $7E8C02+2*12
+            ;     LDA $0011
+            ;     LSR
+            ;     STA $7E8C03+2*12
+
+            ;     STX $0000
+            ;     JSR HexToTiles
+            ;     LDA $0010
+            ;     LSR
+            ;     STA $7E8C02+5*12
+            ;     LDA $0011
+            ;     LSR
+            ;     STA $7E8C03+5*12
+
+            ;     STY $0000
+            ;     JSR HexToTiles
+            ;     LDA $0010
+            ;     LSR
+            ;     STA $7E8C02+8*12
+            ;     LDA $0011
+            ;     LSR
+            ;     STA $7E8C03+8*12
+
+            ;     LDA #$0B
+            ;     STA $06
+            ; ;Part 2:
+            ;     LDA $4214   ;
+            ;     LDX $14     ;   Get low byte on cycles 3, 6, 9
+            ;     LDY $14     ;__
+            ;     STA $0000
+            ;     JSR HexToTiles
+            ;     LDA $0010
+            ;     LSR
+            ;     STA $7E8C02+3*12
+            ;     LDA $0011
+            ;     LSR
+            ;     STA $7E8C03+3*12
+
+            ;     STX $0000
+            ;     JSR HexToTiles
+            ;     LDA $0010
+            ;     LSR
+            ;     STA $7E8C02+6*12
+            ;     LDA $0011
+            ;     LSR
+            ;     STA $7E8C03+6*12
+
+            ;     STY $0000
+            ;     JSR HexToTiles
+            ;     LDA $0010
+            ;     LSR
+            ;     STA $7E8C02+9*12
+            ;     LDA $0011
+            ;     LSR
+            ;     STA $7E8C03+9*12
+
+            ;     LDA #$0B
+            ;     STA $06
+            ; ;Part 3:
+            ;     LDA $004214   ;
+            ;     LDX $14     ;   Get low byte on cycles 4, 7, 10
+            ;     LDY $14     ;__
+            ;     STA $0000
+            ;     JSR HexToTiles
+            ;     LDA $0010
+            ;     LSR
+            ;     STA $7E8C02+4*12
+            ;     LDA $0011
+            ;     LSR
+            ;     STA $7E8C03+4*12
+
+            ;     STX $0000
+            ;     JSR HexToTiles
+            ;     LDA $0010
+            ;     LSR
+            ;     STA $7E8C02+7*12
+            ;     LDA $0011
+            ;     LSR
+            ;     STA $7E8C03+7*12
+
+            ;     STY $0000
+            ;     JSR HexToTiles
+            ;     LDA $0010
+            ;     LSR
+            ;     STA $7E8C02+10*12
+            ;     LDA $0011
+            ;     LSR
+            ;     STA $7E8C03+10*12
+
+
+            ;     LDA #$0B
+            ;     STA $06
+            ; ;Part 1:
+            ;     LDA $15     ;
+            ;     LDX $15     ;   Get low byte on cycles 2, 5, 8
+            ;     LDY $15     ;__
+            ;     STA $0000
+            ;     JSR HexToTiles
+            ;     LDA $0010
+            ;     LSR
+            ;     STA $7E8C00+2*12
+            ;     LDA $0011
+            ;     LSR
+            ;     STA $7E8C01+2*12
+
+            ;     STX $0000
+            ;     JSR HexToTiles
+            ;     LDA $0010
+            ;     LSR
+            ;     STA $7E8C00+5*12
+            ;     LDA $0011
+            ;     LSR
+            ;     STA $7E8C01+5*12
+
+            ;     STY $0000
+            ;     JSR HexToTiles
+            ;     LDA $0010
+            ;     LSR
+            ;     STA $7E8C00+8*12
+            ;     LDA $0011
+            ;     LSR
+            ;     STA $7E8C01+8*12
+
+            ;     LDA #$0B
+            ;     STA $06
+            ; ;Part 2:
+            ;     LDA $4215   ;
+            ;     LDX $15     ;   Get low byte on cycles 3, 6, 9
+            ;     LDY $15     ;__
+            ;     STA $0000
+            ;     JSR HexToTiles
+            ;     LDA $0010
+            ;     LSR
+            ;     STA $7E8C00+3*12
+            ;     LDA $0011
+            ;     LSR
+            ;     STA $7E8C01+3*12
+
+            ;     STX $0000
+            ;     JSR HexToTiles
+            ;     LDA $0010
+            ;     LSR
+            ;     STA $7E8C00+6*12
+            ;     LDA $0011
+            ;     LSR
+            ;     STA $7E8C01+6*12
+
+            ;     STY $0000
+            ;     JSR HexToTiles
+            ;     LDA $0010
+            ;     LSR
+            ;     STA $7E8C00+9*12
+            ;     LDA $0011
+            ;     LSR
+            ;     STA $7E8C01+9*12
+
+            ;     LDA #$0B
+            ;     STA $06
+            ; ;Part 3:
+            ;     LDA $004215   ;
+            ;     LDX $15     ;   Get low byte on cycles 4, 7, 10
+            ;     LDY $15     ;__
+            ;     STA $0000
+            ;     JSR HexToTiles
+            ;     LDA $0010
+            ;     LSR
+            ;     STA $7E8C00+4*12
+            ;     LDA $0011
+            ;     LSR
+            ;     STA $7E8C01+4*12
+
+            ;     STX $0000
+            ;     JSR HexToTiles
+            ;     LDA $0010
+            ;     LSR
+            ;     STA $7E8C00+7*12
+            ;     LDA $0011
+            ;     LSR
+            ;     STA $7E8C01+7*12
+
+            ;     STY $0000
+            ;     JSR HexToTiles
+            ;     LDA $0010
+            ;     LSR
+            ;     STA $7E8C00+10*12
+            ;     LDA $0011
+            ;     LSR
+            ;     STA $7E8C01+10*12
+
+
+
+            ;     PEA $0000           ;   Set Direct Page to 4200 for CPU regs
+            ;     PLD				    ;__
+            ;     REP #%00010000      ;   Set XY to 16 bit
     JSR DrawHeaderTrackerMode
     JSL tableROMtoWRAM
     JSL clearPaletteData
@@ -336,26 +647,96 @@ InitiateTrackerMode:
     SEP #%00100000 ;A 8-bit
     lda #$0F            ;   Turn on screen, full brightness
     sta $2100           ;__
-    lda #%10000001      ;   Enable NMI and Auto Joypad Read
-    sta $4200           ;__
-    STZ $2115           ;__ Make the PPU bus normal
+    lda #%10000001      ;
+    sta $4200           ;   Enable NMI and Auto Joypad Read
+    STA $E0             ;__
+    LDA #$80            ;
+    STA $2115           ;__ Make the PPU bus normal
 
     RTS
+
+; DrawTrackerRow:
+;     ;Memory allocation:
+;         ;$0000-0001 - Row to draw
+;     .Setup:
+;         PHB             ;
+;         PHD             ;   Back up some registers
+;         PHP             ;__
+;         REP #%00100000  ;   Set A to 16 bit
+;         SEP #%00010000  ;__ Set XY to 8 bit
+;         PEA $0000       ;   Set DP to 00
+;         PLD				;__
+;         LDX #$83        ;
+;         PHX             ;   Set DB to 83, locales in FastROM
+;         PLB             ;__   
+;     ; FUCK IT IM MAKING NON NATIVE SCHEISSE
 
 DrawColumn:
     .Setup:
         PHB             ;
         PHD             ;   Back up some registers
         PHP             ;__
+        PEA $0000       ;   Set Direct Page to 00 
+        PLD             ;__ because RAM
+        SEP #%00110000  ;__ Set A, XY to 8 bit
+    .GetColumns:
+        LDA $FE         ;
+        CLC             ;   First column right after
+        ADC #$03        ;   row number
+        AND #$3F        ;
+        STA $10         ;__
+        LDA $F0         ;
+        STA $4204       ;
+        STZ $4205       ;   Get remainder of block number / 3
+        LDA #$03        ;
+        STA $4206       ;__
+        LDA $F0         ;   3 cycles
+        CMP #$09        ;   2 cycles    (If scrolled to the far left, skip this shit)
+        BCC DrawColumn_GetColumns_FarLeft ;__ 2 cycles if not taken (doesn't matter otherwise as value is overwritten)
+        CMP #$10        ;   2 cycles    (If scrolled to the far right, skip this shit)
+        BCS DrawColumn_GetColumns_FarRight ;__ 2 cycles if not taken (doesn't matter otherwise as value is overwritten)
+        NOP             ;   2 cycles
+        LDX $4216       ;__ 3 cycles to read the opcode - total wait time 16 cycles
+        JMP +
+        ..FarLeft:
+            LDX #$00
+            JMP +
+        ..FarRight:
+            CLC
+            LDX #$02
+        +:
+            LDA $10
+            ADC DrawColumn_ColumnOffsetTable_Normal_512, X
+            AND #$3F
+            STA $11
+            LDA DrawColumn_ColumnOffsetTable_Normal_512, X
+            CLC
+            ADC #$03
+            TAY
+            LDX #$00
+            -:
+                LDA $11, X
+                CLC
+                ADC #$0A
+                AND #$3F
+                STA $12, X
+                INX
+                TYA
+                CLC
+                ADC #$0A
+                TAY
+                CPY #$40
+                BCC -
+            STZ $12, X
+
         PEA $2100       ;   Set Direct Page to $2100 
         PLD             ;__ because PPU registers
         REP #%00100000  ;   Set A to 16 bit
-        SEP #%00010000  ;__ Set XY to 8 bit
         LDX #%10000001  ;   Increment by 32
         STX $15         ;__
         LDX #$00
     .Loop:
-        LDA $00F0, X    ;   Get column value, 
+        LDA $0010, X    ;   Get column value, 
         AND #$00FF      ;   end if 0
         BNE +           ;__
             JMP DrawColumn_End
@@ -422,6 +803,68 @@ DrawColumn:
         PLD
         PLB
         RTS
+    .ColumnOffsetTable:
+        ..Normal_512:
+            db $07, $04, $0A
+InitiateHScrollHDMA:
+
+
+    .HDMATable:
+        db $41  ;Transfer 1 unit, wait $40 scanlines
+        dw InitiateHScrollHDMA_HDMATable_00
+        db $01  ;Transfer 1 unit, wait 1 scanline
+        dw $00FC;RAM Where the location is stored
+        ..00:
+        db $00  ;End/low byte of 00
+        db $00
+ClearTrackerPattern:
+    PHB             ;
+    PHD             ;   Back up some registers
+    PHP             ;__
+    REP #%00100000  ;   Set A to 16 bit
+    SEP #%00010000  ;__ Set XY to 8 bit
+    .00Byte:
+    PEA $4300       ;   set DP to 4300 because DMA
+    PLD				;__
+    PHK             ;   Set DB to 80 (Hardware registers)
+    PLB	            ;__
+    STZ $2181       ;   Clear lower 8 bits
+    LDA #$0098		;   Address of tick speed .. global effects pointers
+    STA $2182		;__
+    LDX #$80		;   WRAM Write register, Bank of 00
+    STX $11			;__ DMA 1 B Address
+    STX $14			;__ DMA 1 A Bank
+    LDA #(ClearTrackerPattern_00Byte+1);   Address of 00
+    STA $12			;__ DMA 1 A Offset
+    LDA #$0800		;   Amount of data
+    STA $15			;__ DMA 1 Number of bytes
+    LDX #%00001000	;   Settings d--uummm: (Direction (0 = A to B),
+    STX $10         ;   Update (01 = Do nothing), Mode (000 = 1 byte, write once)
+    LDX #%00000010  ;   Bit 1 corresponds to channel 1
+    STX $420B		;__ Clear global speed and effects
+
+    STZ $2181       ;   Clear lower 8 bits
+    LDA #$00B0		;   Address of instruments .. per-channel effects pointers
+    STA $2182		;__
+    LDA #$5000		;   Amount of data
+    STA $15			;__ DMA 1 Number of bytes
+    LDX #%00000010  ;   Bit 1 corresponds to channel 1
+    STX $420B		;__ Clear instruments and per-channel effects
+
+    LDA #(InitiateTrackerMode_FEByte+1);   Address of FE
+    STA $12			;__ DMA 1 A Offset
+    STZ $2181       ;   Clear lower 8 bits
+    LDA #$00A0		;   Address of notes
+    STA $2182		;__
+    LDA #$1000		;   Amount of data
+    STA $15			;__ DMA 1 Number of bytes
+    LDX #%00000010  ;   Bit 1 corresponds to channel 1
+    STX $420B		;__ Clear notes
+    PLP
+    PLD
+    PLB
+    RTS
+
 
 ScrollHeaderTrackerMode:
     .Setup:
@@ -446,7 +889,7 @@ ScrollHeaderTrackerMode:
     .DMAForward:
         PEA $4300       ;   Set DP to 43 because DMA
         PLD				;__
-        LDX #$39		;VRAM Write register
+        LDX #$39		;VRAM Read register
         STX $11			;DMA 1 B Address
         LDX #$7E		;Bank of tilemap buffer
         STX $14			;DMA 1 A Bank
@@ -598,17 +1041,16 @@ DrawHeaderTrackerMode:
         SEP #%00010000  ;__ Set XY to 8 bit
         PEA $0000       ;   set DP to 00
         PLD				;__
-        PEA $7E80       ;   Set DB to 80 (With CPU registers)
+        PEA $F080       ;   Set DB to 80 (With CPU registers)
         PLB             ;__
         LDX $64         ;
         STX $4202       ;   Set up multiplication for pointer
         LDX #$30        ;
         STX $4203       ;__
-        NOP             ;   The multiplication takes 8 cycles - 2 cycles (because the page is guaranteed to be #$3F maximum) = 6 cycles
-        LDA $004216     ;__ NOP takes 2 cycles, and the LDA takes 4 cycles to read the opcode & parameters = 6 cycles
-        PLB             ;__ Set DB to 7E (RAM bank 0)
+        PLB             ;   Set DB to F0 (SRAM bank 0)
+        LDA $004216     ;__ The multiplication takes 6 cycles but ill wait 8 anyway because the PLB is useful
         ASL             ;
-        ADC #$8C00      ;   Make it an actual pointer
+        ADC #$0400      ;   Make it an actual pointer
         STA $12         ;__
         LDA $64         ;
         ASL             ;
@@ -616,37 +1058,55 @@ DrawHeaderTrackerMode:
         ASL             ;
         AND #$00F8      ;
         STA $14         ;__
-        LDY #$00        ;
-        STZ $15
+        LSR             ;
+        STA $16         ;__
+        LDY #$04        ;
+        STY $15
+        LDY #$00
         
     .BigLoop:
         ;TODO: Palette from palette buffer
         LDX $14
         STX $00
         JSR HexToTiles
+        LDX $16
+        INC $16
+        LDA $0200, X
+        AND #$0077
+        STA $17
+        LSR
+        LSR
+        LSR
+        TAX
+        LDA $14
         LDA $10
         AND #$00FF
-        STA $0100, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+        STA $1000, Y
         LDA $10
         XBA
         AND #$00FF
-        STA $0300, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+        STA $1200, Y
         INY
         INY
         LDA #$0074
-        STA $0100, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+        STA $1000, Y
         -:
             LDA ($12)
             AND #$00FF
             ASL 
-            STA $0300, Y
+            ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+            STA $1200, Y
             INC $12
             INY
             INY
             LDA ($12)
             AND #$00FF
             ASL 
-            STA $0100, Y
+            ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+            STA $1000, Y
             LDA $12
             INC A
             STA $12
@@ -655,7 +1115,8 @@ DrawHeaderTrackerMode:
             CMP #$000E
             BNE -
         LDA #$0040
-        STA $0300, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+        STA $1200, Y
         TYA
         SEC
         SBC #$000E
@@ -665,29 +1126,38 @@ DrawHeaderTrackerMode:
         LDX $14
         STX $00
         JSR HexToTiles
+        LDA $17
+        AND #$0007
+        ASL
+        TAX
         LDA $10
         AND #$00FF
-        STA $0140, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+        STA $1040, Y
         LDA $10
         XBA
         AND #$00FF
-        STA $0340, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+        STA $1240, Y
         INY
         INY
         LDA #$0074
-        STA $0140, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+        STA $1040, Y
         -:
             LDA ($12)
             AND #$00FF
             ASL 
-            STA $0340, Y
+            ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+            STA $1240, Y
             INC $12
             INY
             INY
             LDA ($12)
             AND #$00FF
             ASL 
-            STA $0140, Y
+            ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+            STA $1040, Y
             LDA $12
             INC A
             STA $12
@@ -696,7 +1166,8 @@ DrawHeaderTrackerMode:
             CMP #$000E
             BNE -
         LDA #$0040
-        STA $0340, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+        STA $1240, Y
         TYA
         SEC
         SBC #$000E
@@ -706,29 +1177,43 @@ DrawHeaderTrackerMode:
         LDX $14
         STX $00
         JSR HexToTiles
+        LDX $16
+        INC $16
+        LDA $0200, X
+        AND #$0077
+        STA $17
+        LSR
+        LSR
+        LSR
+        TAX
         LDA $10
         AND #$00FF
-        STA $0180, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+        STA $1080, Y
         LDA $10
         XBA
         AND #$00FF
-        STA $0380, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+        STA $1280, Y
         INY
         INY
         LDA #$0074
-        STA $0180, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+        STA $1080, Y
         -:
             LDA ($12)
             AND #$00FF
             ASL 
-            STA $0380, Y
+            ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+            STA $1280, Y
             INC $12
             INY
             INY
             LDA ($12)
             AND #$00FF
             ASL 
-            STA $0180, Y
+            ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+            STA $1080, Y
             LDA $12
             INC A
             STA $12
@@ -737,7 +1222,8 @@ DrawHeaderTrackerMode:
             CMP #$000E
             BNE -
         LDA #$0040
-        STA $0380, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+        STA $1280, Y
         TYA
         SEC
         SBC #$000E
@@ -747,29 +1233,38 @@ DrawHeaderTrackerMode:
         LDX $14
         STX $00
         JSR HexToTiles
+        LDA $17
+        AND #$0007
+        ASL
+        TAX
         LDA $10
         AND #$00FF
-        STA $01C0, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+        STA $10C0, Y
         LDA $10
         XBA
         AND #$00FF
-        STA $03C0, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+        STA $12C0, Y
         INY
         INY
         LDA #$0074
-        STA $01C0, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+        STA $10C0, Y
         -:
             LDA ($12)
             AND #$00FF
             ASL 
-            STA $03C0, Y
+            ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+            STA $12C0, Y
             INC $12
             INY
             INY
             LDA ($12)
             AND #$00FF
             ASL 
-            STA $01C0, Y
+            ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+            STA $10C0, Y
             LDA $12
             INC A
             STA $12
@@ -778,7 +1273,8 @@ DrawHeaderTrackerMode:
             CMP #$000E
             BNE -
         LDA #$0040
-        STA $03C0, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+        STA $12C0, Y
         TYA
         SEC
         SBC #$000E
@@ -788,29 +1284,43 @@ DrawHeaderTrackerMode:
         LDX $14
         STX $00
         JSR HexToTiles
+        LDX $16
+        INC $16
+        LDA $0200, X
+        AND #$0077
+        STA $17
+        LSR
+        LSR
+        LSR
+        TAX
         LDA $10
         AND #$00FF
-        STA $0200, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+        STA $1100, Y
         LDA $10
         XBA
         AND #$00FF
-        STA $0400, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+        STA $1300, Y
         INY
         INY
         LDA #$0074
-        STA $0200, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+        STA $1100, Y
         -:
             LDA ($12)
             AND #$00FF
             ASL 
-            STA $0400, Y
+            ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+            STA $1300, Y
             INC $12
             INY
             INY
             LDA ($12)
             AND #$00FF
             ASL 
-            STA $0200, Y
+            ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+            STA $1100, Y
             LDA $12
             INC A
             STA $12
@@ -819,7 +1329,8 @@ DrawHeaderTrackerMode:
             CMP #$000E
             BNE -
         LDA #$0040
-        STA $0400, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+        STA $1300, Y
         TYA
         SEC
         SBC #$000E
@@ -829,29 +1340,38 @@ DrawHeaderTrackerMode:
         LDX $14
         STX $00
         JSR HexToTiles
+        LDA $17
+        AND #$0007
+        ASL
+        TAX
         LDA $10
         AND #$00FF
-        STA $0240, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+        STA $1140, Y
         LDA $10
         XBA
         AND #$00FF
-        STA $0440, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+        STA $1340, Y
         INY
         INY
         LDA #$0074
-        STA $0240, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+        STA $1140, Y
         -:
             LDA ($12)
             AND #$00FF
             ASL 
-            STA $0440, Y
+            ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+            STA $1340, Y
             INC $12
             INY
             INY
             LDA ($12)
             AND #$00FF
             ASL 
-            STA $0240, Y
+            ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+            STA $1140, Y
             LDA $12
             INC A
             STA $12
@@ -860,7 +1380,8 @@ DrawHeaderTrackerMode:
             CMP #$000E
             BNE -
         LDA #$0040
-        STA $0440, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+        STA $1340, Y
         TYA
         SEC
         SBC #$000E
@@ -870,29 +1391,43 @@ DrawHeaderTrackerMode:
         LDX $14
         STX $00
         JSR HexToTiles
+        LDX $16
+        INC $16
+        LDA $0200, X
+        AND #$0077
+        STA $17
+        LSR
+        LSR
+        LSR
+        TAX
         LDA $10
         AND #$00FF
-        STA $0280, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+        STA $1180, Y
         LDA $10
         XBA
         AND #$00FF
-        STA $0480, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+        STA $1380, Y
         INY
         INY
         LDA #$0074
-        STA $0280, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+        STA $1180, Y
         -:
             LDA ($12)
             AND #$00FF
             ASL 
-            STA $0480, Y
+            ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+            STA $1380, Y
             INC $12
             INY
             INY
             LDA ($12)
             AND #$00FF
             ASL 
-            STA $0280, Y
+            ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+            STA $1180, Y
             LDA $12
             INC A
             STA $12
@@ -901,7 +1436,8 @@ DrawHeaderTrackerMode:
             CMP #$000E
             BNE -
         LDA #$0040
-        STA $0480, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+        STA $1380, Y
         TYA
         SEC
         SBC #$000E
@@ -911,29 +1447,38 @@ DrawHeaderTrackerMode:
         LDX $14
         STX $00
         JSR HexToTiles
+        LDA $17
+        AND #$0007
+        ASL
+        TAX
         LDA $10
         AND #$00FF
-        STA $02C0, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+        STA $11C0, Y
         LDA $10
         XBA
         AND #$00FF
-        STA $04C0, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+        STA $13C0, Y
         INY
         INY
         LDA #$0074
-        STA $02C0, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+        STA $11C0, Y
         -:
             LDA ($12)
             AND #$00FF
             ASL 
-            STA $04C0, Y
+            ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+            STA $13C0, Y
             INC $12
             INY
             INY
             LDA ($12)
             AND #$00FF
             ASL 
-            STA $02C0, Y
+            ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
+            STA $11C0, Y
             LDA $12
             INC A
             STA $12
@@ -942,14 +1487,14 @@ DrawHeaderTrackerMode:
             CMP #$000E
             BNE -
         LDA #$0040
-        STA $04C0, Y
+        ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
+        STA $13C0, Y
         TYA
         INY
         INY
         INC $14
-        INC $15
-        LDA $15
-        AND #$0003
+        DEC $15
+        LDX $15
         BEQ DrawHeaderTrackerMode_DMAs
         JMP DrawHeaderTrackerMode_BigLoop
     .DMAs:
@@ -970,9 +1515,9 @@ DrawHeaderTrackerMode:
         PLD				;__
         LDX #$18		;VRAM Write register
         STX $11			;DMA 2 B Address
-        LDX #$7E		;Bank of tilemap
+        LDX #$F0		;Bank of tilemap
         STX $14			;DMA 2 A Bank
-        LDA #$0100		;Address of tilemap
+        LDA #$1000		;Address of tilemap
         STA $12			;DMA 2 A Offset
         LDX #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
         STX $10
@@ -1044,7 +1589,7 @@ DrawHeaderTrackerMode:
         ORA #$7000      ;__
         LDX #$00        ;
         STX $2115       ;
-        STA $16         ;
+        STA $16         ;__
         LDX #$08        ;
         LDY #$00        ;
         -:                  ;   Draw the new row on BG1
@@ -1056,7 +1601,7 @@ DrawHeaderTrackerMode:
         LDA $0010       ;
         ORA #$7800      ;
         STA $16         ;
-        -:                  ;   Draw the new row on BG1
+        -:                  ;   Draw the new row on BG2
             STX $18         ;
             INY             ;
             CPY #$40        ;
@@ -1104,13 +1649,21 @@ DrawHeaderTrackerMode:
         PLB
         RTS
 
+    .PaletteLookupTable:
+        ..2bpp:
+            dw $0000, $1000, $0400, $1400
+            dw $0800, $1800, $0C00, $1C00
+        ..4bpp:
+            dw $0000, $0400, $0800, $0C00
+            dw $1000, $1400, $1800, $1C00 
+
 HexToTiles:
     ;Memory allocation:
         ;Inputs:
         ;$0000 - The hex number to convert to tiles
         ;Outputs:
-        ;$0010 - The low byte of tile data to shove into VRAM (low nybble)
-        ;$0011 - The low byte of tile data to shove into VRAM (high nybble)
+        ;$0010 - The low byte of tile data to shove into VRAM (high nybble)
+        ;$0011 - The low byte of tile data to shove into VRAM (low nybble)
     PHB             ;
     PHD             ;   Back up some registers
     PHP             ;__
@@ -1119,31 +1672,28 @@ HexToTiles:
     PLD				;set dp to 00
     LDA $00
     AND #$0F
-    CMP #$0A
-    BMI +
-        CLC
-        ADC #$07
-    +   CLC
-    ADC #$30
-    ASL A
+    TAX
+    LDA HexToTiles_LookupTable, X
     STA $11
-    LDA $00
 
-    AND #$F0
+    LDA $00
     LSR
     LSR
     LSR
-    CMP #$14
-    BMI +
-        CLC
-        ADC #$0E
-    +   CLC
-    ADC #$60
+    LSR
+    TAX
+    LDA HexToTiles_LookupTable, X
     STA $10
     PLP
     PLD
     PLB
     RTS
+
+    .LookupTable:
+        db $60, $62, $64, $66
+        db $68, $6A, $6C, $6E
+        db $70, $72, $82, $84
+        db $86, $88, $8A, $8C
 
 DecompressLocaleBlock:
     ;Memory allocation:
@@ -1156,11 +1706,12 @@ DecompressLocaleBlock:
     PHP             ;__
     REP #%00100000  ;   Set A to 16 bit
     SEP #%00010000  ;__ Set XY to 8 bit
-    PEA $0000       ;
-    PLD				;set dp to 00
-    PEA $0083       ;   Push bank *twice*
-    PLB             ;   
-    LDA $F00000
+    PEA $0000       ;   Set DP to 00
+    PLD				;__
+    LDX #$83        ;
+    PHX             ;   Set DB to 83, locales in FastROM
+    PLB             ;__   
+    LDA $F00000     ;
     AND #$007F      ;__
     ASL
     ASL
@@ -1221,143 +1772,87 @@ DecompressLocaleBlock:
     ROL $19
     ASL $10
     ROL $11
-    PLB
     PLP
     PLD
     PLB
     RTS
 
 UpdateColumn:
-    PHB             ;
-    PHD             ;   Back up some registers
-    PHP             ;__
-    PEA $2100       ;   Set Direct Page to $2100 
-    PLD             ;__ because PPU registers
-    REP #%00100000  ;   Set XY to 8 bit
-    SEP #%00010000  ;__ Set A to 16 bit
-    LDA $00FF       ;
-    ASL A           ;
-    ASL A           ;
-    ASL A           ;   Get old row address 
-    ASL A           ;
-    ASL A           ;
-    STA $0010       ;__
-    LDX #$00
-.EraseLoop:
-    LDA $00F0, X    ;   Get column value, 
-    AND #$00FF      ;   end if 0
-    BEQ UpdateColumn_ReplacePrep;__ 
-    LSR A           ;
-    BCC +           ;   Choose BG1 or BG2 tilemap
-    ORA #$0800      ;__
-+   ORA $0010       ;
-    ORA #$7000      ;   Write the address
-    STA $16         ;__
-    LDA #$000C      ;
-    STA $18         ;
-    INX             ;
-    CPX #$0F        ;
-    BNE UpdateColumn_EraseLoop
-.ReplacePrep:
-    LDA $0000       ;
-    STA $00FF       ;
-    ASL A           ;
-    ASL A           ;
-    ASL A           ;   Get new row address 
-    ASL A           ;
-    ASL A           ;
-    STA $0010       ;__
-    LDX #$00
-.ReplaceLoop:
-    LDA $00F0, X    ;   Get column value, 
-    AND #$00FF      ;   end if 0
-    BEQ UpdateColumn_End;__ 
-    LSR A           ;
-    BCC +           ;   Choose BG1 or BG2 tilemap
-    ORA #$0800      ;__
-+   ORA $0010       ;
-    ORA #$7000      ;   Write the address
-    STA $16         ;__
-    LDA #$000A      ;
-    STA $18         ;
-    INX             ;
-    CPX #$0F        ;
-    BNE UpdateColumn_ReplaceLoop
-.End:
-    PLP
-    PLD
-    PLB
-    RTS
+        PHB             ;
+        PHD             ;   Back up some registers
+        PHP             ;__
+        PEA $2100       ;   Set Direct Page to $2100 
+        PLD             ;__ because PPU registers
+        REP #%00100000  ;   Set XY to 8 bit
+        SEP #%00010000  ;__ Set A to 16 bit
+        LDA $00FF       ;
+        ASL A           ;
+        ASL A           ;
+        ASL A           ;   Get old row address 
+        ASL A           ;
+        ASL A           ;
+        STA $0010       ;__
+        LDX #$00
+    .EraseLoop:
+        LDA $00F0, X    ;   Get column value, 
+        AND #$00FF      ;   end if 0
+        BEQ UpdateColumn_ReplacePrep;__ 
+        LSR A           ;
+        BCC +           ;   Choose BG1 or BG2 tilemap
+        ORA #$0800      ;__
+    +   ORA $0010       ;
+        ORA #$7000      ;   Write the address
+        STA $16         ;__
+        LDA #$000C      ;
+        STA $18         ;
+        INX             ;
+        CPX #$0F        ;
+        BNE UpdateColumn_EraseLoop
+    .ReplacePrep:
+        LDA $0000       ;
+        STA $00FF       ;
+        ASL A           ;
+        ASL A           ;
+        ASL A           ;   Get new row address 
+        ASL A           ;
+        ASL A           ;
+        STA $0010       ;__
+        LDX #$00
+    .ReplaceLoop:
+        LDA $00F0, X    ;   Get column value, 
+        AND #$00FF      ;   end if 0
+        BEQ UpdateColumn_End;__ 
+        LSR A           ;
+        BCC +           ;   Choose BG1 or BG2 tilemap
+        ORA #$0800      ;__
+    +   ORA $0010       ;
+        ORA #$7000      ;   Write the address
+        STA $16         ;__
+        LDA #$000A      ;
+        STA $18         ;
+        INX             ;
+        CPX #$0F        ;
+        BNE UpdateColumn_ReplaceLoop
+    .End:
+        PLP
+        PLD
+        PLB
+        RTS
+DrawTrackerRow:
+    ;Memory allocation:
+        ;$00 - Row number (low byte)
+        ;$01 - Row number (high bit, anything not 0 is 1)
+        ;$100-180 - Actual tile data to shove into VRAM (little-endian)
+    .Setup:
+        PHB             ;
+        PHD             ;   Back up some registers
+        PHP             ;__
+        PEA $0000       ;   Set Direct Page to 0
+        PLD             ;__
+        PEA $7E7E       ;
+        PLB             ;   Set Data Bank to 7E
+        PLB             ;__ 
 
-UpdateRow:
-    PHB             ;
-    PHD             ;   Back up some registers
-    PHP             ;__
-    PEA $2100       ;   Set Direct Page to $2100 
-    PLD             ;__ because PPU registers
-    REP #%00100000  ;   Set A to 16 bit
-    SEP #%00010000  ;__ Set XY to 8 bit
-    LDA $00FF       ;
-    AND #$00FF      ;
-    ASL A           ;
-    ASL A           ;
-    ASL A           ;   Get old row address 
-    ASL A           ;
-    ASL A           ;
-    STA $0010       ;
-    ORA #$7000      ;__
-    STA $16         ;
-    LDX #$00        ;
-    LDA #$0000      ;
--:                  ;   Erase the old row on BG1
-    STA $18         ;
-    INX             ;
-    CPX #$20        ;
-    BNE -           ;__
-    LDX #$00        ;
-    LDA $0010       ;
-    ORA #$7800      ;
-    STA $16         ;
-    LDA #$0000      ;
--:                  ;   Erase the old row on BG2
-    STA $18         ;
-    INX             ;
-    CPX #$20        ;
-    BNE -           ;__
-.DrawNewRow:
-    LDA $0000       ;
-    AND #$00FF      ;
-    ASL A           ;
-    ASL A           ;
-    ASL A           ;   Get new row address 
-    ASL A           ;
-    ASL A           ;
-    STA $0010       ;
-    ORA #$7000      ;__
-    STA $16         ;
-    LDX #$00        ;
-    LDA #$0008      ;
--:                  ;   Draw the new row on BG1
-    STA $18         ;
-    INX             ;
-    CPX #$20        ;
-    BNE -           ;__
-    LDX #$00        ;
-    LDA $0010       ;
-    ORA #$7800      ;
-    STA $16         ;
-    LDA #$0008      ;
--:                  ;   Draw the new row on BG2
-    STA $18         ;
-    INX             ;
-    CPX #$20        ;
-    BNE -           ;__
-
-
-    PLP
-    PLD
-    PLB
-    RTS
 DecompressUnicodeBlock:
     ;Memory allocation:
         ;$00 - Unicode block to use
@@ -1568,45 +2063,65 @@ DecompressUnicodeBlock:
     RTS
 
 ClearInstrumentBuffer:
-    PHB             ;
-    PHD             ;   Back up some registers
-    PHP             ;__
-    REP #%00100000  ;   Set A to 16 bit
-    SEP #%00010000  ;__ Set XY to 8 bit
-    PEA $4300       ;
-    PLD				;set dp to 43
-    LDX #$80		;WRAM Write register
-    STX $11			;DMA 1 B Address
-    STZ $12
-    LDA #$8280		;Address of tileset
-    STA $13			;DMA 1 A Bank
-    LDA #$0100		;Amount of data
-    STA $15			;DMA 1 Number of bytes
-    LDX #%00001000	;Settings d--uummm (Direction (0 = A to B) Update (01 = do nothing) Mode (000 = 1 byte, write once)
-    STX $10
-    STZ $2181
-    STZ $2183
-    LDX #$8B
-    STX $2182
-    LDX #%00000010	;bit 1 corresponds to channel 1
-    STX $420B		;Init
 
-    LDX.b #(ClearInstrumentBuffer_EmptyTile&$0000FF)
-    STX $12
-    LDA.w #(ClearInstrumentBuffer_EmptyTile&$FFFF00)>>8		;Address of tile
-    STA $13			;DMA 1 A Bank
-    LDA #$0C00		;Amount of data
-    STA $15			;DMA 1 Number of bytes
-    LDX #%00001000	;Settings d--uummm (Direction (0 = A to B) Update (01 = do nothing) Mode (000 = 1 byte, write once)
-    STX $10
-    LDX #%00000010	;bit 1 corresponds to channel 1
-    STX $420B		;Init
-    PLP
-    PLD
-    PLB
-    RTS
-.EmptyTile:
-db $20
+
+;TODO: WRAM TO SRAM
+        PHB             ;
+        PHD             ;   Back up some registers
+        PHP             ;__
+        REP #%00100000  ;   Set A to 16 bit
+        SEP #%00010000  ;__ Set XY to 8 bit
+        PEA $4300       ;
+        PLD				;set dp to 43
+        LDX #$80		;WRAM Write register & Data Bank
+        PHX             ;   Data bank
+        PLB             ;__
+        STX $11			;DMA 1 B Address
+        STZ $12
+        LDA #$8280		;Address of tileset
+        STA $13			;DMA 1 A Bank
+        LDA #$0200		;Amount of data
+        STA $15			;DMA 1 Number of bytes
+        LDX #%00001000	;Settings d--uummm (Direction (0 = A to B) Update (01 = do nothing) Mode (000 = 1 byte, write once)
+        STX $10         ;__
+        STZ $2181       ;
+        STZ $2182       ;   DMA to primary RAM buffer
+        LDX #$01        ;
+        STX $2182       ;__
+        LDX #%00000010	;bit 1 corresponds to channel 1
+        STX $420B		;Init
+
+        LDX.b #(ClearInstrumentBuffer_EmptyTile&$0000FF)
+        STX $12
+        LDA.w #(ClearInstrumentBuffer_EmptyTile&$FFFF00)>>8		;Address of tile
+        STA $13			;DMA 1 A Bank
+        LDA #$0C00		;Amount of data
+        STA $15			;DMA 1 Number of bytes
+        LDX #%00000010	;bit 1 corresponds to channel 1
+        STX $420B		;Init
+        LDX #%10000000	;Settings d--uummm (Direction (1 = B to A) Update (00 = increment) Mode (000 = 1 byte, write once)
+        STX $10         ;
+
+
+        STZ $12
+        LDA #$F002		;Address of SRAM
+        STA $13			;DMA 1 A Bank&Page
+        STZ $2181       ;
+        STZ $2182       ;   DMA from primary RAM buffer
+        LDX #$01        ;
+        STX $2182       ;__
+
+        LDA #$0E00		;Amount of data
+        STA $15			;DMA 1 Number of bytes
+        LDX #%00000010	;bit 1 corresponds to channel 1
+        STX $420B		;Init
+
+        PLP
+        PLD
+        PLB
+        RTS
+    .EmptyTile:
+        db $20
 org $818000 ;The plotting engine for now
 ;1bpp to 2bpp converter
 
@@ -1878,8 +2393,7 @@ PlotGraph:
         SEP #%00100000 ;set a to 8bit
         PEA $4300
         PLD	;set dp to 43
-        LDA #$00
-        PHA
+        PHK
         PLB
         lda #$80            ; = 10000000
         sta $2100           ; F-Blank
@@ -2051,6 +2565,9 @@ PhaseModulation:
         PLB
         RTL
 
+DisplaySRAMWarningMessage:
+    .LoadLocale:
+        nop
 org $81E000
 arch spc700-inline
 incsrc "SNESFM.asm"

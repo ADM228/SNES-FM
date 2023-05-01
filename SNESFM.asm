@@ -1,52 +1,60 @@
 incsrc "SPC_constants.asm"
-SPC_Documentation:
+namespace SPC
+Documentation:
     ;   ==== Code/data distribution table: ====
-    ;   Page        Purpose
-    ;   $00         $00 - $BF: Flags & pointers for the note stuff:
-    ;   |           Song data pointer, Instrument data pointer, Effect data pointer, Sample pointer, note index, pitch, pitchbend
-    ;   |__ _ _ _ _ $C0 - $EF: Operating space of subroutines (how exactly described before every subroutine)
-    ;   $01 _ _ _ _ Stack
-    ;   $02 _ _ _ _ Sample Directory
-    ;   $03         $00 - $7F: Effect IDs
-    ;   |__ _ _ _ _ $80 - $FF: Basic effect time counters
-    ;   $04-$07 _ _ Effect q
-    ;   $0A-$0B _ _ 256 instrument data pointers
-    ;   $0C _ _ _ _ 7/8 multiplication lookup table
-    ;   $0D _ _ _ _ 15/16 multiplication lookup table
-    ;   $0E         $00 - $BF: Pitch table, 96 entries long
-    ;   |__ _ _ _ _ $C0 - $C8: Dummy empty sample (for beginnings and noise)
-    ;   $0F _ _ _ _ Sine table, only $0F00-$0F42 is written, everything else is calculated
-    ;   $10-$1F _ _ Instrument data      \_ Combined for
-    ;   $20-$4F _ _ FM generation buffers/  song data   (16KB!!!!)
-    ;   $50-$5F _ _ Code
-    ;   $60-$FE _ _ Actual sample storage, echo buffer (separated depending on the delay & amount of samples)
-    ;   $FF         $00 - $BF: Hardsync routine (here for use with PCALL to save 2 cycles)
-    ;   |__ _ _ _ _ $C0 - $FF: TCALL pointers/Boot ROM
+        ;   Page        Purpose
+        ;   $00         $00 - $BF: Flags & pointers for the note stuff:
+        ;   |           Song data pointer, Instrument data pointer, Effect data pointer, Sample pointer, note index, pitch, pitchbend
+        ;   |__ _ _ _ _ $C0 - $EF: Operating space of subroutines (how exactly described before every subroutine)
+        ;   $01 _ _ _ _ Stack
+        ;   $02 _ _ _ _ Sample Directory
+        ;   $03         $00 - $7F: Effect IDs
+        ;   |__ _ _ _ _ $80 - $FF: Basic effect time counters
+        ;   $04-$07 _ _ Effect q
+        ;   $0A _ _ _ _ Low bytes of instrument data pointers
+        ;   $0B _ _ _ _ High bytes of instrument data pointers
+        ;   $0C _ _ _ _ 7/8 multiplication lookup table
+        ;   $0D _ _ _ _ 15/16 multiplication lookup table
+        ;   $0E         $00 - $BF: Pitch table, 96 entries long
+        ;   |__ _ _ _ _ $C0 - $C8: Dummy empty sample (for beginnings and noise)
+        ;   $0F _ _ _ _ Sine table, only $0F00-$0F42 is written, everything else is calculated
+        ;   $10-$1F _ _ Instrument data      \_ Combined for
+        ;   $20-$4F _ _ FM generation buffers/  song data   (16KB!!!!)
+        ;   $50-$5F _ _ Code
+        ;   $60-$FE _ _ Actual sample storage, echo buffer (separated depending on the delay & amount of samples)
+        ;   $FF         $00 - $BF: Hardsync routine (here for use with PCALL to save 2 cycles)
+        ;   |__ _ _ _ _ $C0 - $FF: TCALL pointers/Boot ROM
     ;   ==== Communication with SNES: ====
-    ;       (Port 0 is always message number; Port 1's high 4 bits is message ID)
-    ;       === To SNES: ===
-    ;   Id  | P1 |    Pt2    |    Pt3    |   Meaning
-    ;   $0  |    |           |           |   Waiting for yo command
-    ;   $1  |    |  id | location & $FFF |   Read, jumping to transfer routine, redirect me to $5000 | location
-    ;   $2  |    |    location - $1000   |   Send song data to location + $1000
-    ;   $3  |     20-bit tick counter    |   Currently playing song, here's what tick it is
-    ;   $F  |    |           |           |   What? 
-    ;       === To SPC: ===
-    ;   Id  | P1 |    Pt2    |    Pt3    |   Meaning
-    ;   $0  |    |           |           |   Read yo message
-    ;   $1  |    |           |           |   Stop song
-    ;   $2  |    |           |  Channels |   Mute channels
-    ;   $3  |     20-bit tick counter    |   Seek to tick 
-    ;   $4  |    |           |           |   Prepare to get some song data and gimme the location
-    ;   $5  |    |           |           |   Prepare to get some instrument data and gimme the location
-    ;   $6  |    |           |           |   Play the song you have received
-    ;   $7  |    |           |   SFX ID  |   Play sound effect 
-    ;   $8  |    | instrument|  note ID  |   Play just a note  
-    ;   $F  |    |           |           |   What? 
+        ;       (Port 0 is always message number; Port 1's high 4 bits is message ID)
+        ;       === To SNES: ===
+        ;   Id  | P1 |    Pt2    |    Pt3    |   Meaning
+        ;   $0  |    |           |           |   Waiting for yo command
+        ;   $1  |    |  id | location & $FFF |   Read, jumping to transfer routine, redirect me to $5000 | location
+        ;   $2  |    |    location - $1000   |   Send song data to location + $1000
+        ;   $3  |     20-bit tick counter    |   Currently playing song, here's what tick it is
+        ;   $F  |    |           |           |   What? 
+        ;       === To SPC: ===
+        ;   Id  | P1 |    Pt2    |    Pt3    |   Meaning
+        ;   $0  |    |           |           |   Read yo message
+        ;   $1  |    |           |           |   Stop song
+        ;   $2  |    |           |  Channels |   Mute channels
+        ;   $3  |     20-bit tick counter    |   Seek to tick 
+        ;   $4  |    |           |           |   Prepare to get some song data and gimme the location
+        ;   $5  |    |           |           |   Prepare to get some instrument data and gimme the location
+        ;   $6  |    |           |           |   Play the song you have received
+        ;   $7  |    |           |   SFX ID  |   Play sound effect 
+        ;   $8  |    | instrument|  note ID  |   Play just a note  
+        ;   $F  |    |           |           |   What? 
+    ;   Sound engine documentation:
+        ;   Channel flags: n0000eis
+        ;   n - sample number (0 or 1)
+        ;   e - whether to not parse effect data
+        ;   i - whether to not parse instrument data
+        ;   s - whether to not parse song data
 ;
 
 org $5000
-SPC_Init:       ;init routine, totally not grabbed from tales of phantasia
+Init:       ;init routine, totally not grabbed from tales of phantasia
     CLRP
     MOV A, #$00     ;__
     MOV $F4, A      ;
@@ -100,7 +108,7 @@ SPC_Init:       ;init routine, totally not grabbed from tales of phantasia
     MOV $F3, A      ;__
     MOV $F2, #$3D   ;   Disable Noise
     MOV $F3, A      ;__
-    CALL SPC_set_echoFIR
+    CALL set_echoFIR
     MOV $F2, #$0C   ;
     MOV $F3, #$7F   ;   Set main volume to 127
     MOV $F2, #$1C   ;
@@ -110,7 +118,7 @@ SPC_Init:       ;init routine, totally not grabbed from tales of phantasia
     MOV $FA, #$50   ;   Set Timer 0 to 10 ms     (100 Hz)
     MOV $F1, #$07   ;__
 
-SPC_SineSetup:
+SineSetup:
 
     ; Setting up the sine table
 
@@ -124,7 +132,7 @@ SPC_SineSetup:
         INC X
         MOV $0F41+Y, A
         DEC Y
-        DBNZ Y, SPC_SineSetup_loopCopy
+        DBNZ Y, SineSetup_loopCopy
     
     MOV Y, #$3F
 
@@ -135,16 +143,16 @@ SPC_SineSetup:
         MOV A, $0F40+Y
         EOR A, #$FF
         MOV $0FC0+Y, A
-        DBNZ Y, SPC_SineSetup_loopInvert
+        DBNZ Y, SineSetup_loopInvert
 
-SPC_EffectSetup:
+EffectSetup:
     MOV Y, #$00
     MOV A, #$FF
     .loopIndexSetup:
         MOV $0300+Y, A
-        DBNZ Y, SPC_EffectSetup_loopIndexSetup
+        DBNZ Y, EffectSetup_loopIndexSetup
 
-SPC_SetVolume:
+SetVolume:
     MOV X, #$7F
     MOV Y, #$08
     MOV A, #$00
@@ -155,157 +163,157 @@ SPC_SetVolume:
         MOV $F3, X
         CLRC
         ADC A, #$10
-        DBNZ Y, SPC_SetVolume_loopVolumeSetup
+        DBNZ Y, SetVolume_loopVolumeSetup
 
-SPC_CompileInstruments:
+CompileInstruments:
     MOV !LTS_IN_PAGE, #$0F
     MOV !LTS_OUT_PAGE, #$20
     MOV !LTS_OUT_SUBPAGE, #$00
-    CALL SPC_LongToShort
+    CALL LongToShort
     MOV !MOD_CAR_PAGE, #$20
     MOV !MOD_MOD_PAGE, #$20
     MOV !MOD_OUT_PAGE, #$20
     MOV !MOD_MOD_STRENGTH, #$20
     MOV !MOD_MOD_PHASE_SHIFT, #$00
     MOV !MOD_SUBPAGE, #$04
-    CALL SPC_PhaseModulation_32
+    CALL PhaseModulation_32
     MOV !MOD_MOD_STRENGTH, #$1E
     MOV !MOD_MOD_PHASE_SHIFT, #$02
     MOV !MOD_SUBPAGE, #$08
-    CALL SPC_PhaseModulation_32
+    CALL PhaseModulation_32
     MOV !MOD_MOD_STRENGTH, #$1C
     MOV !MOD_MOD_PHASE_SHIFT, #$04
     MOV !MOD_SUBPAGE, #$0C
-    CALL SPC_PhaseModulation_32
+    CALL PhaseModulation_32
 
     MOV !MOD_OUT_PAGE, #$21
 
     MOV !MOD_MOD_STRENGTH, #$1A
     MOV !MOD_MOD_PHASE_SHIFT, #$06
     MOV !MOD_SUBPAGE, #$00
-    CALL SPC_PhaseModulation_32
+    CALL PhaseModulation_32
     MOV !MOD_MOD_STRENGTH, #$18
     MOV !MOD_MOD_PHASE_SHIFT, #$08
     MOV !MOD_SUBPAGE, #$04
-    CALL SPC_PhaseModulation_32
+    CALL PhaseModulation_32
     MOV !MOD_MOD_STRENGTH, #$16
     MOV !MOD_MOD_PHASE_SHIFT, #$0A
     MOV !MOD_SUBPAGE, #$08
-    CALL SPC_PhaseModulation_32
+    CALL PhaseModulation_32
     MOV !MOD_MOD_STRENGTH, #$14
     MOV !MOD_MOD_PHASE_SHIFT, #$0C
     MOV !MOD_SUBPAGE, #$0C
-    CALL SPC_PhaseModulation_32
+    CALL PhaseModulation_32
 
     MOV !MOD_OUT_PAGE, #$22
 
     MOV !MOD_MOD_STRENGTH, #$12
     MOV !MOD_MOD_PHASE_SHIFT, #$0E
     MOV !MOD_SUBPAGE, #$00
-    CALL SPC_PhaseModulation_32
+    CALL PhaseModulation_32
     MOV !MOD_MOD_STRENGTH, #$10
     MOV !MOD_MOD_PHASE_SHIFT, #$10
     MOV !MOD_SUBPAGE, #$04
-    CALL SPC_PhaseModulation_32
+    CALL PhaseModulation_32
     MOV !MOD_MOD_STRENGTH, #$0E
     MOV !MOD_MOD_PHASE_SHIFT, #$12
     MOV !MOD_SUBPAGE, #$08
-    CALL SPC_PhaseModulation_32
+    CALL PhaseModulation_32
     MOV !MOD_MOD_STRENGTH, #$0C
     MOV !MOD_MOD_PHASE_SHIFT, #$14
     MOV !MOD_SUBPAGE, #$0C
-    CALL SPC_PhaseModulation_32
+    CALL PhaseModulation_32
 
     MOV !MOD_OUT_PAGE, #$23
 
     MOV !MOD_MOD_STRENGTH, #$0A
     MOV !MOD_MOD_PHASE_SHIFT, #$16
     MOV !MOD_SUBPAGE, #$00
-    CALL SPC_PhaseModulation_32
+    CALL PhaseModulation_32
     MOV !MOD_MOD_STRENGTH, #$08
     MOV !MOD_MOD_PHASE_SHIFT, #$18
     MOV !MOD_SUBPAGE, #$04
-    CALL SPC_PhaseModulation_32
+    CALL PhaseModulation_32
     MOV !MOD_MOD_STRENGTH, #$06
     MOV !MOD_MOD_PHASE_SHIFT, #$1A
     MOV !MOD_SUBPAGE, #$08
-    CALL SPC_PhaseModulation_32
+    CALL PhaseModulation_32
     MOV !MOD_MOD_STRENGTH, #$04
     MOV !MOD_MOD_PHASE_SHIFT, #$1C
     MOV !MOD_SUBPAGE, #$0C
-    CALL SPC_PhaseModulation_32
+    CALL PhaseModulation_32
 
     MOV !BRR_PCM_PAGE, #$20
     MOV !BRR_OUT_INDEX, #$00
     MOV !BRR_FLAGS, #%11000100
-    CALL SPC_ConvertToBRR
+    CALL ConvertToBRR
     MOV !BRR_OUT_INDEX, #$01
     MOV !BRR_FLAGS, #%11001000
-    CALL SPC_ConvertToBRR
+    CALL ConvertToBRR
     MOV !BRR_OUT_INDEX, #$02
     MOV !BRR_FLAGS, #%11001100
-    CALL SPC_ConvertToBRR
+    CALL ConvertToBRR
 
     MOV !BRR_PCM_PAGE, #$21
 
     MOV !BRR_OUT_INDEX, #$03
     MOV !BRR_FLAGS, #%11000000
-    CALL SPC_ConvertToBRR
+    CALL ConvertToBRR
     MOV !BRR_OUT_INDEX, #$04
     MOV !BRR_FLAGS, #%11000100
-    CALL SPC_ConvertToBRR
+    CALL ConvertToBRR
     MOV !BRR_OUT_INDEX, #$05
     MOV !BRR_FLAGS, #%11001000
-    CALL SPC_ConvertToBRR
+    CALL ConvertToBRR
     MOV !BRR_OUT_INDEX, #$06
     MOV !BRR_FLAGS, #%11001100
-    CALL SPC_ConvertToBRR
+    CALL ConvertToBRR
 
     MOV !BRR_PCM_PAGE, #$22
     
     MOV !BRR_OUT_INDEX, #$07
     MOV !BRR_FLAGS, #%11000000
-    CALL SPC_ConvertToBRR
+    CALL ConvertToBRR
     MOV !BRR_OUT_INDEX, #$08
     MOV !BRR_FLAGS, #%11000100
-    CALL SPC_ConvertToBRR
+    CALL ConvertToBRR
     MOV !BRR_OUT_INDEX, #$09
     MOV !BRR_FLAGS, #%11001000
-    CALL SPC_ConvertToBRR
+    CALL ConvertToBRR
     MOV !BRR_OUT_INDEX, #$0A
     MOV !BRR_FLAGS, #%11001100
-    CALL SPC_ConvertToBRR
+    CALL ConvertToBRR
 
     MOV !BRR_PCM_PAGE, #$23
     
     MOV !BRR_OUT_INDEX, #$0B
     MOV !BRR_FLAGS, #%11000000
-    CALL SPC_ConvertToBRR
+    CALL ConvertToBRR
     MOV !BRR_OUT_INDEX, #$0C
     MOV !BRR_FLAGS, #%11000100
-    CALL SPC_ConvertToBRR
+    CALL ConvertToBRR
     MOV !BRR_OUT_INDEX, #$0D
     MOV !BRR_FLAGS, #%11001000
-    CALL SPC_ConvertToBRR
+    CALL ConvertToBRR
     MOV !BRR_OUT_INDEX, #$0E
     MOV !BRR_FLAGS, #%11001100
-    CALL SPC_ConvertToBRR
+    CALL ConvertToBRR
 
     MOV !PUL_FLAGS, #$03
     MOV !PUL_OUT_PAGE, #$28
     MOV !PUL_DUTY, #$20
-    CALL SPC_GeneratePulse_32
+    CALL GeneratePulse_32
     MOV !BRR_PCM_PAGE, #$28
     MOV !BRR_OUT_INDEX, #$FF
     MOV !BRR_FLAGS, #%11000000
-    CALL SPC_ConvertToBRR
+    CALL ConvertToBRR
 
     MOV $F2, #$5C
     MOV $F3, #$00
     MOV $F2, #$6C
     MOV $F3, #$20
 
-SPC_Begin:
+Begin:
     MOV X, #$00
     MOV !PATTERN_END_FLAGS, X
     MOV A, $0EC9
@@ -313,11 +321,11 @@ SPC_Begin:
     MOV A, $0ECA
     MOV !PATTERN_POINTER_H, A
     MOV A, $FD
-    CALL SPC_ParsePatternData
-    JMP SPC_mainLoop_00
+    CALL ParsePatternData
+    JMP mainLoop_00
 ;
 
-SPC_ParseSongData:
+ParseSongData:
 
     BBC0 !CHTEMP_FLAGS, +
     RET
@@ -325,7 +333,7 @@ SPC_ParseSongData:
         MOV Y, #$00
         MOV A, (!CHTEMP_SONG_POINTER_L)+Y 
         MOV $ED, A
-        BBC7 $ED, SPC_ParseSongData_NoRetrigger
+        BBC7 $ED, ParseSongData_NoRetrigger
     ;Retrigger
         AND A, #$7F
         SETC
@@ -336,7 +344,7 @@ SPC_ParseSongData:
         SBC A, #$3A
         PUSH X
         MOV X, A
-        JMP (SPC_ParseSongData_routineTable+X)
+        JMP (ParseSongData_routineTable+X)
     +:
         MOV !CHTEMP_NOTE, $ED
         MOV $F2, #$5C       ;
@@ -346,15 +354,18 @@ SPC_ParseSongData:
         MOV Y, #$00
         INCW !CHTEMP_SONG_POINTER_L
         MOV A, (!CHTEMP_SONG_POINTER_L)+Y
-        ASL A
-        MOV Y, A
-        MOV A, $0A01+Y
-        MOV !CHTEMP_INSTRUMENT_POINTER_H, A
-        MOV A, $0A00+Y
-        MOV !CHTEMP_INSTRUMENT_POINTER_L, A
+        MOV !CHTEMP_INSTRUMENT_INDEX, A
         CLR1 !CHTEMP_FLAGS
-        CALL SPC_ParseInstrumentData
-        INC !CHTEMP_INSTRUMENT_COUNTER
+        SET3 !CHTEMP_FLAGS
+        MOV !CHTEMP_COUNTERS_HALT, #$00
+        MOV !CHTEMP_COUNTERS_DIRECTION, #$00
+        CALL ParseInstrumentData
+        CLRC
+        ADC !CHTEMP_INSTRUMENT_TYPE_COUNTER, !TIMER_VALUE
+        ADC !CHTEMP_ENVELOPE_COUNTER, !TIMER_VALUE
+        ADC !CHTEMP_SAMPLE_POINTER_COUNTER, !TIMER_VALUE
+        ADC !CHTEMP_ARPEGGIO_COUNTER, !TIMER_VALUE
+        ADC !CHTEMP_PITCHBEND_COUNTER, !TIMER_VALUE
         MOV $F2, #$5C       ;
         MOV $F3, #$00       ;   Key off nothing (so no overrides happen)
         MOV $F2, #$4C       ;
@@ -367,7 +378,7 @@ SPC_ParseSongData:
         CLRC                    ;
         ADC A, !CHTEMP_ARPEGGIO ;__
         INCW !CHTEMP_SONG_POINTER_L
-        BBC0 !CHTEMP_INSTRUMENT_TYPE, SPC_ParseSongData_NoisePitch
+        BBC0 !CHTEMP_INSTRUMENT_TYPE, ParseSongData_NoisePitch
         ASL A
         MOV Y, A             
         MOV A, $0E00+Y
@@ -413,34 +424,34 @@ SPC_ParseSongData:
         POP X
         TCALL 13
         INCW !CHTEMP_SONG_POINTER_L
-        JMP -
+        CMP !PATTERN_END_FLAGS, #$FF
+        BNE -
+        CALL ParsePatternData
+        MOV X, #$00
+        JMP mainLoop_01
     .routineTable:
-        dw SPC_ParseSongData_Keyoff
-        dw SPC_ParseSongData_NoPitch
-        dw SPC_ParseSongData_End
-SPC_mainLoop:
+        dw ParseSongData_Keyoff
+        dw ParseSongData_NoPitch
+        dw ParseSongData_End
+mainLoop:
     .00:
-        MOV $E2, $FD
-        MOV A, $E2
-        BEQ SPC_mainLoop_00
+        MOV !TIMER_VALUE, $FD
+        MOV A, !TIMER_VALUE
+        BEQ mainLoop_00
     .01:
         TCALL 15
-        CALL SPC_UpdateEffects
+        CALL UpdateEffects
         SETC
-        SBC !CHTEMP_EFFECT_COUNTER, $E2
+        SBC !CHTEMP_EFFECT_COUNTER, !TIMER_VALUE
         BPL +
-        CALL SPC_ParseEffectData
+        CALL ParseEffectData
     +:
         SETC
-        SBC !CHTEMP_SONG_COUNTER, $E2
+        SBC !CHTEMP_SONG_COUNTER, !TIMER_VALUE
         BPL +
-        CALL SPC_ParseSongData
+        CALL ParseSongData
     +:
-        SETC
-        SBC !CHTEMP_INSTRUMENT_COUNTER, $E2
-        BPL +
-        CALL SPC_ParseInstrumentData
-    +:
+        CALL ParseInstrumentData
         TCALL 14    ;Transfer shit back
         MOV A, X
         CLRC
@@ -449,179 +460,314 @@ SPC_mainLoop:
         MOV !CHTEMP_REGISTER_INDEX, A
         ASL !CHTEMP_REGISTER_INDEX
         MOV X, A
-        BNE SPC_mainLoop_01
-        CMP !PATTERN_END_FLAGS, #$FF
-        BNE SPC_mainLoop_00
-        CALL SPC_ParsePatternData
-        JMP SPC_mainLoop_01
+        BNE mainLoop_01
+        JMP mainLoop_00
 
-SPC_ParseInstrumentData:
-        BBC1 !CHTEMP_FLAGS, SPC_ParseInstrumentData_Load
+ParseInstrumentData:
+        BBC1 !CHTEMP_FLAGS, ParseInstrumentData_Load
         RET
     .Load:
+        MOV Y, !CHTEMP_INSTRUMENT_INDEX
+        MOV A, $0A00+Y
+        MOV !TEMP_POINTER0_L, A
+        MOV A, $0B00+Y
+        MOV !TEMP_POINTER0_H, A
         MOV Y, #$00
-        MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y
-        MOV $E0, A
-        INCW !CHTEMP_INSTRUMENT_POINTER_L
-        BBC7 $E0, SPC_ParseInstrumentData_UpdateSamplePointer
-        AND A, #$60
-        XCN A    
-        PUSH X
-        MOV X, A
-        JMP (SPC_ParseInstrumentData_CommandJumpTable+X)
-    .StopInstrumentData:
-        MOV A, $E0                                  ;
-        CMP A, #$FF                                 ;
-        BNE SPC_ParseInstrumentData_LoadAgain       ;   Stop parsing instrument data if !END_DATA
-            POP X                                   ;
-            SET1 !CHTEMP_FLAGS                      ;__
-        RET
-    .LoopInstrumentData:
-        MOV A, $E0
-        AND A, #$1F
-        CLRC
-        ADC A, #$10
-        PUSH A
-        MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y
-        POP Y
-        MOVW !CHTEMP_INSTRUMENT_POINTER_L, YA
-        POP X
-        JMP SPC_ParseInstrumentData_Load
-
-
-    .ChangeType:
-        POP X
-        PUSH X
-        MOV A, $E0                          ;
-        AND A, #$1F                         ;   Actually get the instrument type
-        MOV !CHTEMP_INSTRUMENT_TYPE, A      ;__
-        MOV $F2, #$3D                       ;
-        MOV !CHG_BIT_ADDRESS, #$F3          ;
-        BBC0 !CHTEMP_INSTRUMENT_TYPE, +     ;
-            TCALL 12                        ;   Update the noise enable flag
-            JMP ++                          ;
-        +:                                  ;
-            TCALL 13                        ;__
-    ++  AND !CHTEMP_REGISTER_INDEX, #$70    ; 
-        OR !CHTEMP_REGISTER_INDEX, #$05     ;
-        MOV $F2, !CHTEMP_REGISTER_INDEX     ;
-        MOV A, $F3                          ;
-        XCN A                               ;   If the envelope mode isn't changed, 
-        LSR A                               ;   don't clear the envelope
-        LSR A                               ;
-        EOR A, !CHTEMP_INSTRUMENT_TYPE      ;
-        AND A, #$02                         ;
-        BNE SPC_ParseInstrumentData_LoadAgain;__
-        AND !CHTEMP_REGISTER_INDEX, #$70    ; 
-        BBS1 !CHTEMP_INSTRUMENT_TYPE, +     ;
-            OR !CHTEMP_REGISTER_INDEX, #$05 ;   Write address to DSP (ADSR1)
-            MOV $F2, !CHTEMP_REGISTER_INDEX ;__
-            MOV $F3, #$80                   ;   If ADSR is used,
-            INC $F2                         ;   Clear out the ADSR envelope
-            MOV $F3, #$00                   ;__
-            JMP SPC_ParseInstrumentData_LoadAgain
-        +:                                  ;
-            OR !CHTEMP_REGISTER_INDEX, #$08 ;
-            MOV $F2, !CHTEMP_REGISTER_INDEX ;
-            MOV A, $F3                      ;   If GAIN is used,
-            DEC $F2                         ;   set the GAIN envelope to the current value
-            MOV $F3, A                      ;
-            DEC $F2                         ;
-            DEC $F2                         ;
-            MOV $F3, #$00                   ;__
-    .LoadAgain:
-        POP X
-        MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y
-        MOV $E0, A
-        INCW !CHTEMP_INSTRUMENT_POINTER_L
-    .UpdateSamplePointer:
-        BBC6 $E0, SPC_ParseInstrumentData_UpdateEnvelope ;__ If no sample pointer update, skip
-        BBC3 !CHTEMP_INSTRUMENT_TYPE, +         ;__ If use sample index,
-        MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;
-        INCW !CHTEMP_INSTRUMENT_POINTER_L       ;
-        MOV Y, A                                ;
-        MOV A, $E0                              ;
-        AND A, #$30                             ;
-        XCN A                                   ;
-        MOV $EF, A                              ;  Get pointer from sample index
-        MOV A, !CHTEMP_INSTRUMENT_TYPE          ;
-        AND A, #$10                             ;
-        OR A, $EF                               ;
-        TCALL 11                                ;
-        MOVW !CHTEMP_SAMPLE_POINTER_L, YA       ;
-        MOV Y, #$00                             ;
-        JMP ++                                  ;__
-    +   MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;
-        MOV !CHTEMP_SAMPLE_POINTER_L, A         ;   If no, just blatantly
-        INCW !CHTEMP_INSTRUMENT_POINTER_L       ;   Load sample pointer into memory
-        MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;
-        MOV !CHTEMP_SAMPLE_POINTER_H, A         ;
-        INCW !CHTEMP_INSTRUMENT_POINTER_L       ;__
-    ++  CALL SPC_updatePointer                  ;__ Update the sample pointer
-    .UpdateEnvelope:
-        BBC2 $E0, SPC_ParseInstrumentData_UpdateArpeggio;__ If no envelope update, skip
-        AND !CHTEMP_REGISTER_INDEX, #$70        ;
-        BBS1 !CHTEMP_INSTRUMENT_TYPE, +         ;
-            OR !CHTEMP_REGISTER_INDEX, #$05         ;
-            MOV $F2, !CHTEMP_REGISTER_INDEX         ;
-            MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;   Update Attack, Decay
-            INCW !CHTEMP_INSTRUMENT_POINTER_L       ;
-            OR A, #$80                              ;
-            MOV $F3, A                              ;__
-            INC $F2                                 ;
-            MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;   Update Sustain, Release
-            INCW !CHTEMP_INSTRUMENT_POINTER_L       ;
-            MOV $F3, A                              ;
-            JMP SPC_ParseInstrumentData_UpdateArpeggio
+        BBS3 !CHTEMP_FLAGS, +
+        JMP ParseInstrumentData_NotFirstTime
         +:
-            OR !CHTEMP_REGISTER_INDEX, #$07         ;
-            MOV $F2, !CHTEMP_REGISTER_INDEX         ;   Update GAIN envelope
-            MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;
-            MOV $F3, A                              ;
-            INCW !CHTEMP_INSTRUMENT_POINTER_L       ;__
-    .UpdateArpeggio:
-        BBC1 $E0, +                             ;__ If no apreggio update, skip
-        MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;   
-        MOV !CHTEMP_ARPEGGIO, A                 ;   Update arpeggio
-        INCW !CHTEMP_INSTRUMENT_POINTER_L       ;__
-        MOV A, !CHTEMP_NOTE                     ;   Apply arpeggio
-        CLRC                                    ;
-        ADC A, !CHTEMP_ARPEGGIO                 ;__
-        BBC0 !CHTEMP_INSTRUMENT_TYPE, ++
-        ASL A                                   ;
-        MOV Y, A                                ;__
-        MOV A, $0E00+Y                          ;
-        AND !CHTEMP_REGISTER_INDEX, #$70        ;
-        OR !CHTEMP_REGISTER_INDEX, #$02         ;   Update low byte of pitch
-        MOV $F2, !CHTEMP_REGISTER_INDEX;        ;
-        MOV $F3, A                              ;__
-        MOV A, $0E01+Y                          ;
-        OR !CHTEMP_REGISTER_INDEX, #$01         ;   Update high byte of pitch
-        MOV $F2, !CHTEMP_REGISTER_INDEX;        ;
-        MOV $F3, A                              ;
-        MOV Y, #$00                             ;__
-        JMP +
-    ++:
-        AND A, #$1F                             ;
-        MOV $F2, #$6C                           ;  Update noise clock
-        AND $F3, #$E0                           ;
-        OR A, $F3                               ;
-        MOV $F3, A                              ;__
-    +:
-        MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;
-        DEC A                                   ;
-        MOV !CHTEMP_INSTRUMENT_COUNTER, A       ;   Update instrument counter
-        INCW !CHTEMP_INSTRUMENT_POINTER_L       ;__
+        MOV !CHTEMP_ARPEGGIO, #$00
+        MOV $E0, #$05
+        
+        SETP
+        MOV A, #$00
+        MOV !CH1_INSTRUMENT_TYPE_POINTER+X, A
+        MOV !CH1_ENVELOPE_POINTER+X, A
+        MOV !CH1_SAMPLE_POINTER_POINTER+X, A
+        MOV !CH1_ARPEGGIO_POINTER+X, A
+        MOV !CH1_PITCHBEND_POINTER+X, A
+
+        CLRP
+        INCW !TEMP_POINTER0_L
+        INCW !TEMP_POINTER0_L
+        CALL ParseInstrumentData_UpdateInstrumentType
+        CALL ParseInstrumentData_UpdateEnvelope
+        CALL ParseInstrumentData_UpdateSamplePointer
+
+        CLR3 !CHTEMP_FLAGS
+        RET
+    .NotFirstTime
+        INCW !TEMP_POINTER0_L
+        INCW !TEMP_POINTER0_L
+        BBS0 !CHTEMP_COUNTERS_HALT, +
+            SETC
+            SBC !CHTEMP_INSTRUMENT_TYPE_COUNTER, !TIMER_VALUE
+            BPL +
+                CALL ParseInstrumentData_UpdateInstrumentType
+                JMP ++
+        +
+        CALL ParseInstrumentData_SkipMacro
+        ++
+        BBS1 !CHTEMP_COUNTERS_HALT, +
+            SETC
+            SBC !CHTEMP_ENVELOPE_COUNTER, !TIMER_VALUE
+            BPL +
+                CALL ParseInstrumentData_UpdateEnvelope
+                JMP ++
+        +
+        CALL ParseInstrumentData_SkipMacro
+        ++
+        BBS2 !CHTEMP_COUNTERS_HALT, +
+            SETC
+            SBC !CHTEMP_SAMPLE_POINTER_COUNTER, !TIMER_VALUE
+            BPL +
+                CALL ParseInstrumentData_UpdateSamplePointer
+                JMP ++
+
+        +
+        CALL ParseInstrumentData_SkipMacro
+        ++
+        RET
+        
+    .UpdateInstrumentType
+        MOV Y, #$00
+        MOV A, (!TEMP_POINTER0_L)+Y             ;
+        MOV !TEMP_POINTER1_L, A                 ;
+        INCW !TEMP_POINTER0_L                   ;   Get base instrument type
+        MOV A, (!TEMP_POINTER0_L)+Y             ;   macro pointer
+        MOV !TEMP_POINTER1_H, A                 ;
+        INCW !TEMP_POINTER0_L                   ;__
+
+        SETP                                    ;
+        MOV A, !CH1_INSTRUMENT_TYPE_POINTER+X   ;
+        CLRP                                    ;   Get the current instrument
+        MOV Y, #$00                             ;   type macro pointer
+        ADDW YA, !TEMP_POINTER1_L               ;
+        MOVW !TEMP_POINTER1_L, YA               ;__
+        MOV Y, #$00                             ;
+        MOV A, (!TEMP_POINTER1_L)+Y             ;   Get the instrument type
+        MOV !CHTEMP_INSTRUMENT_TYPE, A          ;__
+
+        MOV A, (!TEMP_POINTER0_L)+Y             ;   Get the amount of steps
+        INCW !TEMP_POINTER0_L                   ;__
+        SETP
+        CMP A, !CH1_INSTRUMENT_TYPE_POINTER+X   
+        BNE ++
+            CLRP
+            SET0 !CHTEMP_COUNTERS_HALT
+            INCW !TEMP_POINTER0_L
+            JMP ParseInstrumentData_UpdateInstrumentType_ActualUpdate
+        ++  INC !CH1_INSTRUMENT_TYPE_POINTER+X      ;TODO: More looping types
+            CLRP
+            MOV A, (!TEMP_POINTER0_L)+Y             ;   Get the counter value
+            INCW !TEMP_POINTER0_L                   ;__
+            MOV !CHTEMP_INSTRUMENT_TYPE_COUNTER, A  ;__ Store counter value
+        ..ActualUpdate:
+            MOV $F2, #$3D                       ;
+            MOV !CHG_BIT_ADDRESS, #$F3          ;
+            BBC0 !CHTEMP_INSTRUMENT_TYPE, +     ;
+                TCALL 12                        ;   Update the noise enable flag
+                JMP ++                          ;
+            +:                                  ;
+                TCALL 13                        ;__
+        ++  AND !CHTEMP_REGISTER_INDEX, #$70    ; 
+            OR !CHTEMP_REGISTER_INDEX, #$05     ;
+            MOV $F2, !CHTEMP_REGISTER_INDEX     ;
+            MOV A, $F3                          ;
+            XCN A                               ;   If the envelope mode isn't changed, 
+            LSR A                               ;   don't clear the envelope
+            LSR A                               ;
+            EOR A, !CHTEMP_INSTRUMENT_TYPE      ;
+            AND A, #$02                         ;
+            BNE RET_                            ;__
+            AND !CHTEMP_REGISTER_INDEX, #$70    ; 
+            BBS1 !CHTEMP_INSTRUMENT_TYPE, +     ;
+                OR !CHTEMP_REGISTER_INDEX, #$05 ;   Write address to DSP (ADSR1)
+                MOV $F2, !CHTEMP_REGISTER_INDEX ;__
+                MOV $F3, #$80                   ;   If ADSR is used,
+                INC $F2                         ;   Clear out the ADSR envelope
+                MOV $F3, #$00                   ;__
+            #RET_ RET
+            +:                                  ;
+                OR !CHTEMP_REGISTER_INDEX, #$08 ;
+                MOV $F2, !CHTEMP_REGISTER_INDEX ;
+                MOV A, $F3                      ;   If GAIN is used,
+                DEC $F2                         ;   set the GAIN envelope to the current value
+                MOV $F3, A                      ;
+                DEC $F2                         ;
+                DEC $F2                         ;
+                MOV $F3, #$00                   ;__
+            RET
+    ;
+
+    .UpdateEnvelope:
+        MOV Y, #$00
+        MOV A, (!TEMP_POINTER0_L)+Y             ;
+        MOV !TEMP_POINTER1_L, A                 ;
+        INCW !TEMP_POINTER0_L                   ;   Get base envelope
+        MOV A, (!TEMP_POINTER0_L)+Y             ;   macro pointer
+        MOV !TEMP_POINTER1_H, A                 ;
+        INCW !TEMP_POINTER0_L                   ;__
+
+        SETP                                    ;
+        MOV A, !CH1_ENVELOPE_POINTER+X   ;
+        CLRP                                    ;
+        MOV Y, #$00                             ;
+        BBS1 !CHTEMP_INSTRUMENT_TYPE, +         ;
+            ASL A                               ;   Get the current envelope macro pointer
+            BCC +                               ;
+                INC Y                           ;
+        +:                                      ;
+        ADDW YA, !TEMP_POINTER1_L               ;
+        MOVW !TEMP_POINTER1_L, YA               ;__
+
+        MOV Y, #$00                             ;
+        MOV A, (!TEMP_POINTER0_L)+Y             ;   Get the amount of steps
+        INCW !TEMP_POINTER0_L                   ;__
+        SETP
+        CMP A, !CH1_ENVELOPE_POINTER+X   
+        BNE ++
+            CLRP
+            SET1 !CHTEMP_COUNTERS_HALT
+            INCW !TEMP_POINTER0_L
+            JMP ParseInstrumentData_UpdateEnvelope_ActualUpdate
+        ++  INC !CH1_ENVELOPE_POINTER+X             ;TODO: More looping types
+            CLRP
+            MOV A, (!TEMP_POINTER0_L)+Y             ;   Get the counter value
+            INCW !TEMP_POINTER0_L                   ;__
+            MOV !CHTEMP_ENVELOPE_COUNTER, A         ;__ Store counter value
+        ..ActualUpdate:
+            AND !CHTEMP_REGISTER_INDEX, #$70        ;
+            BBS1 !CHTEMP_INSTRUMENT_TYPE, +         ;
+                OR !CHTEMP_REGISTER_INDEX, #$05         ;
+                MOV $F2, !CHTEMP_REGISTER_INDEX         ;
+                MOV A, (!TEMP_POINTER1_L)+Y             ;   Update Attack, Decay
+                INCW !TEMP_POINTER1_L                   ;
+                OR A, #$80                              ;
+                MOV $F3, A                              ;__
+                INC $F2                                 ;
+                MOV A, (!TEMP_POINTER1_L)+Y             ;   Update Sustain, Release
+                INCW !TEMP_POINTER1_L                   ;
+                MOV $F3, A                              ;
+                RET
+            +:
+                OR !CHTEMP_REGISTER_INDEX, #$07         ;
+                MOV $F2, !CHTEMP_REGISTER_INDEX         ;   Update GAIN envelope
+                MOV A, (!TEMP_POINTER1_L)+Y             ;
+                MOV $F3, A                              ;
+                INCW !TEMP_POINTER1_L                   ;__
+                RET
+    ;
+
+    .UpdateSamplePointer:
+        MOV Y, #$00
+        MOV A, (!TEMP_POINTER0_L)+Y             ;
+        MOV !TEMP_POINTER1_L, A                 ;
+        INCW !TEMP_POINTER0_L                   ;   Get base sample pointer
+        MOV A, (!TEMP_POINTER0_L)+Y             ;   macro pointer
+        MOV !TEMP_POINTER1_H, A                 ;
+        INCW !TEMP_POINTER0_L                   ;__
+
+        SETP                                    ;
+        MOV A, !CH1_SAMPLE_POINTER_POINTER+X    ;
+        CLRP                                    ;
+        MOV Y, #$00                             ;
+        BBS3 !CHTEMP_INSTRUMENT_TYPE, +         ;
+            ASL A                               ;   Get the current sample pointer macro pointer
+            BCC +                               ;
+                INC Y                           ;
+        +:                                      ;
+        ADDW YA, !TEMP_POINTER1_L               ;
+        MOVW !TEMP_POINTER1_L, YA               ;__
+
+        MOV Y, #$00                             ;
+        MOV A, (!TEMP_POINTER0_L)+Y             ;   Get the amount of steps
+        INCW !TEMP_POINTER0_L                   ;__
+        SETP
+        CMP A, !CH1_SAMPLE_POINTER_POINTER+X   
+        BNE ++
+            CLRP
+            SET2 !CHTEMP_COUNTERS_HALT
+            INCW !TEMP_POINTER0_L
+            JMP ParseInstrumentData_UpdateSamplePointer_ActualUpdate
+        ++  INC !CH1_SAMPLE_POINTER_POINTER+X       ;TODO: More looping types
+            CLRP
+            MOV A, (!TEMP_POINTER0_L)+Y             ;   Get the counter value
+            INCW !TEMP_POINTER0_L                   ;__
+            MOV !CHTEMP_SAMPLE_POINTER_COUNTER, A   ;__ Store counter value
+        ..ActualUpdate:
+                BBC3 !CHTEMP_INSTRUMENT_TYPE, +         ;__ If sample index is used,
+                MOV A, (!TEMP_POINTER1_L)+Y             ;
+                INCW !TEMP_POINTER1_L                   ;
+                MOV Y, A                                ;
+                MOV A, !CHTEMP_INSTRUMENT_TYPE          ;
+                AND A, #$30                             ;
+                XCN A                                   ;
+                MOV $EF, A                              ;  Get pointer from sample index
+                MOV A, !CHTEMP_INSTRUMENT_TYPE          ;
+                AND A, #$40                             ;
+                OR A, $EF                               ;
+                TCALL 11                                ;
+                MOVW !CHTEMP_SAMPLE_POINTER_L, YA       ;
+                MOV Y, #$00                             ;
+                JMP ++                                  ;__
+            +   MOV A, (!TEMP_POINTER1_L)+Y             ;
+                MOV !CHTEMP_SAMPLE_POINTER_L, A         ;   If no, just blatantly
+                INCW !TEMP_POINTER1_L                   ;   Load sample pointer into memory
+                MOV A, (!TEMP_POINTER1_L)+Y             ;
+                MOV !CHTEMP_SAMPLE_POINTER_H, A         ;
+                INCW !TEMP_POINTER1_L                   ;__
+            ++  CALL updatePointer                      ;__ Update the sample pointer
+                RET
+    .SkipMacro:
+        INCW !TEMP_POINTER0_L
+        INCW !TEMP_POINTER0_L
+        INCW !TEMP_POINTER0_L
+        INCW !TEMP_POINTER0_L
+        RET
+    ; .UpdateArpeggio:
+    ;     BBC1 $E0, +                             ;__ If no apreggio update, skip
+    ;     MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;   
+    ;     MOV !CHTEMP_ARPEGGIO, A                 ;   Update arpeggio
+    ;     INCW !CHTEMP_INSTRUMENT_POINTER_L       ;__
+    ;     MOV A, !CHTEMP_NOTE                     ;   Apply arpeggio
+    ;     CLRC                                    ;
+    ;     ADC A, !CHTEMP_ARPEGGIO                 ;__
+    ;     BBC0 !CHTEMP_INSTRUMENT_TYPE, ++
+    ;     ASL A                                   ;
+    ;     MOV Y, A                                ;__
+    ;     MOV A, $0E00+Y                          ;
+    ;     AND !CHTEMP_REGISTER_INDEX, #$70        ;
+    ;     OR !CHTEMP_REGISTER_INDEX, #$02         ;   Update low byte of pitch
+    ;     MOV $F2, !CHTEMP_REGISTER_INDEX;        ;
+    ;     MOV $F3, A                              ;__
+    ;     MOV A, $0E01+Y                          ;
+    ;     OR !CHTEMP_REGISTER_INDEX, #$01         ;   Update high byte of pitch
+    ;     MOV $F2, !CHTEMP_REGISTER_INDEX;        ;
+    ;     MOV $F3, A                              ;
+    ;     MOV Y, #$00                             ;__
+    ;     JMP +
+    ; ++:
+    ;     AND A, #$1F                             ;
+    ;     MOV $F2, #$6C                           ;  Update noise clock
+    ;     AND $F3, #$E0                           ;
+    ;     OR A, $F3                               ;
+    ;     MOV $F3, A                              ;__
+    ; +:
+    ;     MOV A, (!CHTEMP_INSTRUMENT_POINTER_L)+Y ;
+    ;     DEC A                                   ;
+    ;     MOV !CHTEMP_INSTRUMENT_COUNTER, A       ;   Update instrument counter
+    ;     INCW !CHTEMP_INSTRUMENT_POINTER_L       ;__
     RET
 
-    .CommandJumpTable:
-    dw SPC_ParseInstrumentData_ChangeType
-    dw SPC_ParseInstrumentData_LoopInstrumentData
-    dw SPC_ParseInstrumentData_LoadAgain
-    dw SPC_ParseInstrumentData_StopInstrumentData
+    ; .CommandJumpTable:
+    ; dw ParseInstrumentData_ChangeType
+    ; dw ParseInstrumentData_LoopInstrumentData
+    ; dw ParseInstrumentData_LoadAgain
+    ; dw ParseInstrumentData_StopInstrumentData
 
-SPC_ParseEffectData:
-    BBC2 !CHTEMP_FLAGS, SPC_ParseEffectData_Load
+ParseEffectData:
+    BBC2 !CHTEMP_FLAGS, ParseEffectData_Load
     RET
     .Load:
         PUSH X
@@ -633,14 +779,14 @@ SPC_ParseEffectData:
         AND $E0, #$01
         AND A, #$FE
         MOV X, A
-        JMP (SPC_ParseEffectData_EffectJumpTable+X)
+        JMP (ParseEffectData_EffectJumpTable+X)
     +:
         INCW !CHTEMP_EFFECT_POINTER_L
         SETC
         SBC A, #$FE
         ASL A
         MOV X, A
-        JMP (SPC_ParseEffectData_EndingJumpTable+X)
+        JMP (ParseEffectData_EndingJumpTable+X)
     .Wait:
         POP X
         MOV A, (!CHTEMP_EFFECT_POINTER_L)+Y
@@ -661,7 +807,7 @@ SPC_ParseEffectData:
         BBC0 $E0, +         ;   Store to right volume register if bit 0 set
         INC $F2             ;__
     +   MOV $F3, A
-        JMP SPC_ParseEffectData_Load
+        JMP ParseEffectData_Load
 
     .SetVolumeLR:
         POP X
@@ -675,29 +821,29 @@ SPC_ParseEffectData:
         INCW !CHTEMP_EFFECT_POINTER_L       ;__
     +   INC $F2                             
         MOV $F3, A
-        JMP SPC_ParseEffectData_Load
+        JMP ParseEffectData_Load
 
     .VolumeSlideLR:
-        JMP SPC_ParseEffectData_Load
+        JMP ParseEffectData_Load
     .EndingJumpTable:
-    dw SPC_ParseEffectData_Wait
-    dw SPC_ParseEffectData_EndEffectData
+    dw ParseEffectData_Wait
+    dw ParseEffectData_EndEffectData
     .EffectJumpTable:
-    dw SPC_ParseEffectData_SetVolumeLR
-    dw SPC_ParseEffectData_SetVolumeL_or_R
-    dw SPC_ParseEffectData_VolumeSlideLR
+    dw ParseEffectData_SetVolumeLR
+    dw ParseEffectData_SetVolumeL_or_R
+    dw ParseEffectData_VolumeSlideLR
 
-SPC_UpdateEffects:
+UpdateEffects:
     RET
 
-SPC_ParsePatternData:
+ParsePatternData:
     MOV X, #$00
     MOV !PATTERN_END_FLAGS, #$00
     -:
         MOV Y, #$00
         MOV A, (!PATTERN_POINTER_L)+Y
         CMP A, #$FF
-        BEQ SPC_End
+        BEQ End
         INCW !PATTERN_POINTER_L
         ASL A
         MOV Y, A
@@ -730,7 +876,7 @@ SPC_ParsePatternData:
         BNE -
     RET
 
-SPC_End:
+End:
     MOV $F2, #$6C   ;   Mute!
     MOV $F3, #$60   ;__
     MOV $6C, #$C0
@@ -742,12 +888,12 @@ SPC_End:
 
 ;
 
-SPC_updatePointer:         ;When the sample is 0
-        BBS7 !CHTEMP_FLAGS, SPC_updatePointer_1  ;If the sample currently playing is 1, update sample 0
+updatePointer:         ;When the sample is 0
+        BBS7 !CHTEMP_FLAGS, updatePointer_1  ;If the sample currently playing is 1, update sample 0
     .0:
         MOV A, !CHTEMP_SAMPLE_POINTER_H     ;   Check if high byte is the same
         CMP A, $0203+X                      ;__
-        BNE SPC_updatePointer_0_withRestart
+        BNE updatePointer_0_withRestart
         MOV A, !CHTEMP_SAMPLE_POINTER_L     ;
         MOV $0202+X, A                      ;__ Update low byte of sample pointer
         RET
@@ -776,7 +922,7 @@ SPC_updatePointer:         ;When the sample is 0
     .1:
         MOV A, !CHTEMP_SAMPLE_POINTER_H     ;   Check if high byte is the same
         CMP A, $0207+X                      ;__
-        BNE SPC_updatePointer_1_withRestart
+        BNE updatePointer_1_withRestart
         MOV A, !CHTEMP_SAMPLE_POINTER_L     ;
         MOV $0206+X, A                      ;__ Update low byte of sample pointer
         RET
@@ -800,13 +946,13 @@ SPC_updatePointer:         ;When the sample is 0
         CLR7 !CHTEMP_FLAGS                  ;__ Next time sample 1 is updated
     RET
 
-SPC_set_echoFIR:
+set_echoFIR:
     MOV $00, #$08
     MOV $01, #$0F
     MOV Y, #$00
     -:
         MOV $F2, $01
-        MOV A, SPC_set_echoFIR_FIRTable+Y
+        MOV A, set_echoFIR_FIRTable+Y
         MOV $F3, A
         CLRC
         ADC $01, #$10
@@ -818,7 +964,7 @@ SPC_set_echoFIR:
     .FIRTable:
         db #$7f, #$00, #$00, #$00, #$00, #$00, #$00, #$00
 
-SPC_GeneratePulse_128:
+GeneratePulse_128:
     ;   Memory allocation:
     ;   Inputs:
     ;       $D0 - Output page
@@ -839,7 +985,7 @@ SPC_GeneratePulse_128:
         MOV A, !PUL_FLAGS
         AND A, #$02
         MOV X, A
-        MOV A, SPC_GeneratePulse_128_LookupTable+1+X
+        MOV A, GeneratePulse_128_LookupTable+1+X
         -:
             DEC Y
             DEC Y
@@ -853,7 +999,7 @@ SPC_GeneratePulse_128:
         MOV A, !PUL_FLAGS
         AND A, #$03
         MOV X, A
-        MOV A, SPC_GeneratePulse_128_LookupTable+X
+        MOV A, GeneratePulse_128_LookupTable+X
         EOR A, #$80
         -:
             DEC Y
@@ -866,7 +1012,7 @@ SPC_GeneratePulse_128:
         MOV A, !PUL_FLAGS           ;
         AND A, #$03                 ;
         MOV X, A                    ;   Get the inversion value into "temp variable"
-        MOV A, SPC_GeneratePulse_128_LookupTable+4+X
+        MOV A, GeneratePulse_128_LookupTable+4+X
         MOV !PUL_OUT_PTR_L, A     ;__
         MOV A, !PUL_DUTY            ;
         LSR A                       ;   Get the actual fraction,
@@ -897,7 +1043,7 @@ SPC_GeneratePulse_128:
         AND A, #$02
         EOR A, #$02
         MOV X, A
-        MOV A, SPC_GeneratePulse_128_LookupTable+1+X
+        MOV A, GeneratePulse_128_LookupTable+1+X
         -:
             DEC Y
             DEC Y
@@ -913,7 +1059,7 @@ SPC_GeneratePulse_128:
         AND A, #$03
         EOR A, #$02
         MOV X, A
-        MOV A, SPC_GeneratePulse_128_LookupTable+X
+        MOV A, GeneratePulse_128_LookupTable+X
         EOR A, #$80
         -:
             DEC Y
@@ -934,7 +1080,7 @@ SPC_GeneratePulse_128:
     db $7F, $FE, $00, $80
 
 
-SPC_GeneratePulse_32:
+GeneratePulse_32:
     ;   Memory allocation:
     ;   Inputs:
     ;       $D0 - Output page
@@ -959,7 +1105,7 @@ SPC_GeneratePulse_32:
     MOV A, !PUL_FLAGS
     AND A, #$02
     MOV X, A
-    MOV A, SPC_GeneratePulse_128_LookupTable+1+X
+    MOV A, GeneratePulse_128_LookupTable+1+X
     -:
         DEC Y
         DEC Y
@@ -974,7 +1120,7 @@ SPC_GeneratePulse_32:
     MOV A, !PUL_FLAGS
     AND A, #$03
     MOV X, A
-    MOV A, SPC_GeneratePulse_128_LookupTable+X
+    MOV A, GeneratePulse_128_LookupTable+X
     EOR A, #$80
     -:
         DEC Y
@@ -987,7 +1133,7 @@ SPC_GeneratePulse_32:
     MOV A, !PUL_FLAGS           ;
     AND A, #$03                 ;
     MOV X, A                    ;   Get the inversion value into "temp variable"
-    MOV A, SPC_GeneratePulse_128_LookupTable+4+X
+    MOV A, GeneratePulse_128_LookupTable+4+X
     MOV !PUL_OUT_PTR_L, A     ;__
     MOV A, !PUL_DUTY            ;
     LSR A                       ;   Get the actual fraction,
@@ -1018,7 +1164,7 @@ SPC_GeneratePulse_32:
     AND A, #$02
     EOR A, #$02
     MOV X, A
-    MOV A, SPC_GeneratePulse_128_LookupTable+1+X
+    MOV A, GeneratePulse_128_LookupTable+1+X
     -:
         DEC Y
         DEC Y
@@ -1035,7 +1181,7 @@ SPC_GeneratePulse_32:
     AND A, #$03
     EOR A, #$02
     MOV X, A
-    MOV A, SPC_GeneratePulse_128_LookupTable+X
+    MOV A, GeneratePulse_128_LookupTable+X
     EOR A, #$80
     -:
         DEC Y
@@ -1046,7 +1192,7 @@ SPC_GeneratePulse_32:
     RET
 
 
-SPC_LongToShort:
+LongToShort:
     ;   Memory allocation:
     ;   Inputs:
     ;       $D0 - Input page
@@ -1080,7 +1226,7 @@ SPC_LongToShort:
         DBNZ Y, -
     RET
 
-SPC_PhaseModulation_128:
+PhaseModulation_128:
     ;   Memory allocation:
     ;   Inputs:
     ;       $D0 - Carrier page
@@ -1103,7 +1249,7 @@ SPC_PhaseModulation_128:
         INC !MOD_MOD_INDEX_L            ;
         MOV A, (!MOD_MOD_INDEX_L+X)     ;   Get high byte
         MOV !MOD_MAIN_TEMP_H, A         ;
-        BMI SPC_PhaseModulation_128_loop_negative 
+        BMI PhaseModulation_128_loop_negative 
         MOV Y, !MOD_MOD_STRENGTH        ;
         MUL YA                          ;   Multiply high byte by modulation strength
         MOVW !MOD_MAIN_TEMP_L, YA       ;__
@@ -1116,7 +1262,7 @@ SPC_PhaseModulation_128:
         CLRC
         ADC A, !MOD_MAIN_TEMP_L
         ADC !MOD_MAIN_TEMP_H, #$00
-        JMP SPC_PhaseModulation_128_loop_afterMul
+        JMP PhaseModulation_128_loop_afterMul
     .loop_negative:
         EOR A, #$FF
         MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
@@ -1163,10 +1309,10 @@ SPC_PhaseModulation_128:
         INC !MOD_MOD_INDEX_L
         INC !MOD_MOD_INDEX_L
         MOV A, !MOD_OUT_INDEX_L
-        BNE SPC_PhaseModulation_128_loop
+        BNE PhaseModulation_128_loop
     RET
 
-SPC_PhaseModulation_32:
+PhaseModulation_32:
     ;   Memory allocation:
     ;   Inputs:
     ;       $D0 - Carrier page
@@ -1211,7 +1357,7 @@ SPC_PhaseModulation_32:
         INC !MOD_MOD_INDEX_L
         MOV A, (!MOD_MOD_INDEX_L+X)
         MOV !MOD_MAIN_TEMP_H, A
-        BMI SPC_PhaseModulation_32_loop_negative 
+        BMI PhaseModulation_32_loop_negative 
         MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
         MUL YA
         MOVW !MOD_MAIN_TEMP_L, YA
@@ -1224,7 +1370,7 @@ SPC_PhaseModulation_32:
         CLRC
         ADC A, !MOD_MAIN_TEMP_L
         ADC !MOD_MAIN_TEMP_H, #$00
-        JMP SPC_PhaseModulation_32_loop_afterMul
+        JMP PhaseModulation_32_loop_afterMul
     .loop_negative:
         EOR A, #$FF
         MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
@@ -1272,13 +1418,13 @@ SPC_PhaseModulation_32:
         MOV !MOD_MOD_INDEX_L, A
         MOV A, !MOD_OUT_INDEX_L
         CMP A, !MOD_END_INDEX_L
-        BNE SPC_PhaseModulation_32_loop
+        BNE PhaseModulation_32_loop
         POP A
     RET
 
 
 
-SPC_ConvertToBRR:
+ConvertToBRR:
     ;   Memory allocation:
     ;   Inputs:
     ;       $D0 - PCM sample page
@@ -1346,10 +1492,10 @@ SPC_ConvertToBRR:
         MOV A, !BRR_CSMPT_H             ;   BRRBuffer[i]=currentsmppoint#
         MOV (X+), A                     ;                               #
         CMP X, #$40                     ;   Loop                        #
-        BNE SPC_ConvertToBRR_CopyLoop   ;__                             #
+        BNE ConvertToBRR_CopyLoop   ;__                             #
     .SetupFilter
-        BBS7 !BRR_TEMP_FLAGS, SPC_ConvertToBRR_FirstBlock;   If this is the first block, Or filter 0 is forced,
-        BBS7 !BRR_FLAGS, SPC_ConvertToBRR_FirstBlock     ;Skip doing filter 1 entirely   
+        BBS7 !BRR_TEMP_FLAGS, ConvertToBRR_FirstBlock;   If this is the first block, Or filter 0 is forced,
+        BBS7 !BRR_FLAGS, ConvertToBRR_FirstBlock     ;Skip doing filter 1 entirely   
         MOV X, #$00
 
 
@@ -1365,13 +1511,13 @@ SPC_ConvertToBRR:
         MOV !BRR_CSMPT_H, A
         POP A
         MOV !BRR_CSMPT_L, A
-        JMP SPC_ConvertToBRR_FilterLoop
+        JMP ConvertToBRR_FilterLoop
     .FirstBlock:
 
         MOV !BRR_MAXM0_L, #$FF
         MOV !BRR_MAXM0_H, #$7F
         MOV X, #$20
-        JMP SPC_ConvertToBRR_BRREncoding_OuterLoop
+        JMP ConvertToBRR_BRREncoding_OuterLoop
     .FilterLoop:
         MOV Y, !BRR_SMPPT_L         ;                                       #
         MOV A, $0D00+Y              ;                                       #
@@ -1418,10 +1564,10 @@ SPC_ConvertToBRR:
         EOR !BRR_SMPPT_L, #$FF      ;                                       #
         EOR !BRR_SMPPT_H, #$FF      ;__                                     #
         +   CMP X, #$20             ;   Loop                                #
-        BNE SPC_ConvertToBRR_FilterLoop;__ 
+        BNE ConvertToBRR_FilterLoop;__ 
         MOV !BRR_LSMPT_L, !BRR_SMPPT_L
         MOV !BRR_LSMPT_H, !BRR_SMPPT_H
-        BBC4 !BRR_TEMP_FLAGS, SPC_ConvertToBRR_BRREncoding
+        BBC4 !BRR_TEMP_FLAGS, ConvertToBRR_BRREncoding
         EOR !BRR_LSMPT_L, #$FF
         EOR !BRR_LSMPT_H, #$FF
         CLR4 !BRR_TEMP_FLAGS
@@ -1454,18 +1600,18 @@ SPC_ConvertToBRR:
             +:
             MOV A, X
             AND A, #$1F
-            BNE SPC_ConvertToBRR_BRREncoding_MaximumFilter1
+            BNE ConvertToBRR_BRREncoding_MaximumFilter1
             CMP X, #$40
             BEQ +
                 MOVW YA, !BRR_SMPPT_L
                 MOVW !BRR_MAXM0_L, YA
                 ;Set up the routine for maximum in the OG PCM buffer
-                JMP  SPC_ConvertToBRR_BRREncoding_OuterLoop
+                JMP  ConvertToBRR_BRREncoding_OuterLoop
             +:
                 MOV X, #$00
                 MOVW YA, !BRR_SMPPT_L
                 CMPW YA, !BRR_MAXM0_L
-                BPL SPC_ConvertToBRR_BRREncoding_ShiftValuePart1
+                BPL ConvertToBRR_BRREncoding_ShiftValuePart1
                 MOVW !BRR_MAXM0_L, YA
                 MOV X, #$20
                 CLR6 !BRR_TEMP_FLAGS
@@ -1475,7 +1621,7 @@ SPC_ConvertToBRR:
             BEQ +
             -:
                 ASL A
-                BCS SPC_ConvertToBRR_BRREncoding_CheckIf8
+                BCS ConvertToBRR_BRREncoding_CheckIf8
                 DEC Y
                 CMP Y, #$04
                 BNE -
@@ -1486,23 +1632,23 @@ SPC_ConvertToBRR:
             CLRC
             -:
                 ASL A
-                BCS SPC_ConvertToBRR_BRREncoding_CheckIf8
+                BCS ConvertToBRR_BRREncoding_CheckIf8
                 DEC Y
                 BNE -
-            JMP SPC_ConvertToBRR_FormHeader
+            JMP ConvertToBRR_FormHeader
         ..CheckIf8:
             CMP Y, #$05
             BEQ +
             CMP Y, #$06
-            BNE SPC_ConvertToBRR_BRREncoding_Check8
+            BNE ConvertToBRR_BRREncoding_Check8
             ; Executed if Y = 6, aka the high bit to check is in the high byte and the low bit is in low byte
-            BBS0 !BRR_MAXM0_H, SPC_ConvertToBRR_FormHeader
-            BBS7 !BRR_MAXM0_L, SPC_ConvertToBRR_FormHeader
+            BBS0 !BRR_MAXM0_H, ConvertToBRR_FormHeader
+            BBS7 !BRR_MAXM0_L, ConvertToBRR_FormHeader
             JMP ++
             +   MOV A, !BRR_MAXM0_L ;Executed if Y = 5, aka both bits to check are in the low byte
             ..Check8:   ;Executed if Y = 1..4 or Y = 7..12 - aka the bits to check are in the same byte
             ASL A
-            BCS SPC_ConvertToBRR_FormHeader
+            BCS ConvertToBRR_FormHeader
             ASL A
             BCC ++      ; = BCS FormHeader; JMP +
     .FormHeader:
@@ -1580,7 +1726,7 @@ SPC_ConvertToBRR:
         +   PUSH A
         MOV A, X
         AND A, #$03
-        BNE SPC_ConvertToBRR_FormData
+        BNE ConvertToBRR_FormData
         .SecondNybble:
             POP A
             MOV !BRR_CSMPT_L, A
@@ -1591,12 +1737,12 @@ SPC_ConvertToBRR:
             INCW !BRR_OUT_PTR_L             ;__
             MOV A, X
             AND A, #$1F
-            BNE SPC_ConvertToBRR_FormData
+            BNE ConvertToBRR_FormData
     .AfterEncoding:
         CLR7 !BRR_TEMP_FLAGS
         POP A                           ;
         CMP A, !BRR_IN0_PTR_L           ;   If this is the last block, end
-        BEQ SPC_ConvertToBRR_End        ;__
+        BEQ ConvertToBRR_End        ;__
         PUSH A                          ;   If it ain't, push the finishing low byte back
         PUSH A                          ;__      
         BBS7 !BRR_FLAGS, ++             ;
@@ -1606,19 +1752,19 @@ SPC_ConvertToBRR:
             PUSH A                          ;   currentsmppoint = BRRBuffer[last]
             MOV A, $1F                      ;
             PUSH A                          ;__
-        ++  JMP SPC_ConvertToBRR_SetupCopy
+        ++  JMP ConvertToBRR_SetupCopy
         +:                                  ;   If we just used filter mode 0,   
             MOV !BRR_LSMPT_L, $3E           ;   smppoint = BRRBuffer[last]
             MOV !BRR_LSMPT_H, $3F           ;__
             MOV A, #$00                     ;
             PUSH A                          ;   currentsmppoint = 0
             PUSH A                          ;__
-            JMP SPC_ConvertToBRR_SetupCopy
+            JMP ConvertToBRR_SetupCopy
     .End:
     RET
 ;
 
-SPC_transferChToTemp:       ;TCALL 15
+transferChToTemp:       ;TCALL 15
     PUSH A
     MOV Y, #$08
     MOV A, X
@@ -1654,7 +1800,7 @@ SPC_transferChToTemp:       ;TCALL 15
     POP A
     RET
 
-SPC_transferTempToCh:       ;TCALL 14
+transferTempToCh:       ;TCALL 14
     PUSH A
     MOV Y, #$08
     MOV A, X
@@ -1690,36 +1836,36 @@ SPC_transferTempToCh:       ;TCALL 14
     POP A
     RET
 
-SPC_SetFlagdp:              ;TCALL 13
+SetFlagdp:              ;TCALL 13
     .Setup:
         MOV A, X
         ASL A
         ASL A
         AND A, #$E0
         OR A, #$02
-        MOV SPC_SetFlagdp_act, A
+        MOV SetFlagdp_act, A
         MOV A, $D0
-        MOV SPC_SetFlagdp_act+1, A
+        MOV SetFlagdp_act+1, A
     .act:
         SET1 $00
         RET
 
-SPC_ClrFlagdp:              ;TCALL 12
+ClrFlagdp:              ;TCALL 12
     .Setup:
         MOV A, X
         ASL A
         ASL A
         AND A, #$E0
         OR A, #$12
-        MOV SPC_ClrFlagdp_act, A
+        MOV ClrFlagdp_act, A
         MOV A, $D0
-        MOV SPC_ClrFlagdp_act+1, A
+        MOV ClrFlagdp_act+1, A
     .act:
         CLR1 $00
         RET
 
 
-SPC_IndexToSamplePointer:   ;TCALL 11
+IndexToSamplePointer:   ;TCALL 11
     ;   Memory allocation:
     ;   Inputs:
     ;       Y - Sample index
@@ -1740,7 +1886,7 @@ SPC_IndexToSamplePointer:   ;TCALL 11
         POP A                       ;__
         AND A, #$03                 ;
         MOV Y, A                    ;   Set up the BRR sample subpage
-        MOV A, SPC_IndexToSamplePointer_LookuptableMul18+Y
+        MOV A, IndexToSamplePointer_LookuptableMul18+Y
         MOV Y, #$00                 ;
         ADDW YA, $EE                ;
         MOVW $EE, YA                ;__
@@ -1757,7 +1903,7 @@ SPC_IndexToSamplePointer:   ;TCALL 11
     .LookuptableMul18:
     db $00, $12, $24, $36
 
-SPC_Includes:
+Includes:
     org $0C00
         incbin "lookuptables.bin"
     org $0E00
@@ -1772,7 +1918,11 @@ SPC_Includes:
         incsrc "songData.asm"
     org $0A00
         ;instrument data pointers
-        dw Instr00Data, Instr01Data, Instr02Data, Instr03Data
+        db Instr00Data&$FF, Instr01Data&$FF, Instr02Data&$FF, Instr03Data&$FF
+    org $0B00
+        db (Instr00Data>>8)&$FF, (Instr01Data>>8)&$FF, (Instr02Data>>8)&$FF, (Instr03Data>>8)&$FF
     org $FFC0   ;For TCALLs
-        dw SPC_transferChToTemp, SPC_transferTempToCh, SPC_SetFlagdp, SPC_ClrFlagdp, SPC_IndexToSamplePointer
-startpos SPC_Init
+        dw transferChToTemp, transferTempToCh, SetFlagdp, ClrFlagdp, IndexToSamplePointer
+startpos Init
+
+namespace off

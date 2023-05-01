@@ -1,5 +1,8 @@
+namespace SPC
+
 ;Song format description (in development):
     ;1. Instrument data
+    ;======================== irrelevant old ===============================
     ;   t {f ([s s]/[s]) ([v v]/[v]) [a] [p p] t}
     ;   t - Instrument type change command
     ;       100hiret
@@ -9,7 +12,7 @@
     ;       e - Envelope type (if 0 - ADSR, if 1 - GAIN) (basically reverse x5.7)
     ;       t - Instrument type (0 - Noise, 1 - sample)
     ;   f - Flags
-    ;       0slLR_SAMEvap
+    ;       0sllrvap
     ;       s - Update sample
     ;       ll - Subpage of sample index
     ;       r - Update sample position relative to current position (works independently of i) (not done yet)
@@ -31,6 +34,7 @@
     ;   [a] - Arpeggio (if a is set)
     ;   [p p] - Pitchbend (if p is set)
     ;   t - Time to wait until next updates
+    ;============================================================================
     ;2. Song data
     ;   e e {n [i] t} $FF
     ;   n - Note
@@ -54,7 +58,16 @@
     ;   $FF - End effect data
 PatternData:
     db $01, $00, $00, $00, $00, $00, $00, $00
-    db $01, $02, $00, $00, $00, $00, $00, $00
+    db $01, $00, $00, $00, $00, $00, $00, $00
+    db $01, $00, $00, $00, $00, $00, $00, $00
+    db $01, $00, $00, $00, $00, $00, $00, $00
+    db $01, $00, $00, $00, $00, $00, $00, $00
+    db $01, $00, $00, $00, $00, $00, $00, $00
+    db $01, $00, $00, $00, $00, $00, $00, $00
+    db $01, $00, $00, $00, $00, $00, $00, $00
+    db $01, $00, $00, $00, $00, $00, $00, $00
+
+    ;db $01, $02, $00, $00, $00, $00, $00, $00
     db $03, $00, $00, $00, $00, $00, $00, $00
     db !END_DATA
 PatternPointers:
@@ -65,95 +78,128 @@ PatternPointers:
     dw NoteDataNone
     dw NoteDataNone
 
-;instrument data
-Instr00Data:
-    db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_ADSR|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
-
-    db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO|!SAMPLE_SUBPAGE_0
-    db $00, $5E, $90, $00, $02
-    db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-    db $01, $01
-    db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-    db $02, $01
-
-    db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-    db $03, $01
-    db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-    db $04, $01
-    db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-    db $05, $01
-    db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-    db $06, $01
-
-    db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-    db $07, $01
-    db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-    db $08, $01
-    db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-    db $09, $01
-    db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-    db $0A, $01
-
-    db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-    db $0B, $01
-    db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-    db $0C, $01
-    db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-    db $0D, $01
-    db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-    db $0E, $01
-
-    db !COMMAND_LOOP|(Instr00Data&$FF00-$1000), Instr00Data&$FF
-
-    db !END_DATA
-
 Instr01Data:
-    db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
-
-    db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
-    dw $6288
-    db $7F, $00, $01
-    db !UPD_ENVELOPE|!UPD_ARPEGGIO, $8D, $F4, $01
-    db !UPD_ARPEGGIO, $EE, $01
-    db !UPD_ARPEGGIO, $E8, $01
-    db !UPD_ARPEGGIO, $E5, $01
-    db !UPD_ARPEGGIO, $E2, $01
-    db !UPD_ARPEGGIO, $DF, $01
-    db !UPD_ARPEGGIO, $DC, $01
-    db !UPD_ARPEGGIO, $DB, $01
-    db !UPD_ARPEGGIO, $DA, $01
-    db !UPD_ARPEGGIO, $D9, $01
-    db !UPD_ARPEGGIO, $D8, $01
-    db !UPD_ENVELOPE|!UPD_ARPEGGIO, $00, $01, $01
-
-
-    db !END_DATA
-
 Instr02Data:
-    db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
-
-    db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
-    dw $6240
-    db $60, $00, $01
-    db !UPD_ENVELOPE|!UPD_ARPEGGIO, $30, $EE, $01
-
-    db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_NOISE
-    db !UPD_ENVELOPE|!UPD_ARPEGGIO
-    db $8C, $19, $01
-    db !UPD_ARPEGGIO
-    db $1C, $03
-
-    db !END_DATA
-
 Instr03Data:
-    db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
+Instr00Data:
+.Header:
+db %00000000, %00000000    ;Looping, everything one-shot for now
 
-    db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
-    db $FF, $7F, $00, $02
+dw Instr00Data_InsType
+db $00, $00     ;
 
-    db !UPD_ENVELOPE
-    db $8A, $03
-    db !END_DATA
+dw Instr00Data_Envelope
+db $00, $00
+
+dw Instr00Data_SmpPtr
+db $0F, $00
+
+dw Instr00Data_Arpeggio
+db $00, $00
+
+dw Instr00Data_Pitchbend
+db $00, $00
+.InsType:
+db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_ADSR|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX|!SAMPLE_SUBPAGE_0
+.Envelope:
+db $5E, $90
+.SmpPtr:
+db $00, $00, $01, $02
+db $03, $04, $05, $06
+db $07, $08, $09, $0A
+db $0B, $0C, $0D, $0E
+.Arpeggio:
+.Pitchbend:
+db $00
+; ;instrument data
+; Instr00Data:
+;     db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_ADSR|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
+
+;     db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO|!SAMPLE_SUBPAGE_0
+;     db $00, $5E, $90, $00, $02
+;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+;     db $01, $01
+;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+;     db $02, $01
+
+;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+;     db $03, $01
+;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+;     db $04, $01
+;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+;     db $05, $01
+;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+;     db $06, $01
+
+;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+;     db $07, $01
+;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+;     db $08, $01
+;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+;     db $09, $01
+;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+;     db $0A, $01
+
+;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+;     db $0B, $01
+;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+;     db $0C, $01
+;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+;     db $0D, $01
+;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
+;     db $0E, $01
+
+;     db !COMMAND_LOOP|(Instr00Data&$FF00-$1000), Instr00Data&$FF
+
+;     db !END_DATA
+
+; Instr01Data:
+;     db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
+
+;     db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
+;     dw $6288
+;     db $7F, $00, $01
+;     db !UPD_ENVELOPE|!UPD_ARPEGGIO, $8D, $F4, $01
+;     db !UPD_ARPEGGIO, $EE, $01
+;     db !UPD_ARPEGGIO, $E8, $01
+;     db !UPD_ARPEGGIO, $E5, $01
+;     db !UPD_ARPEGGIO, $E2, $01
+;     db !UPD_ARPEGGIO, $DF, $01
+;     db !UPD_ARPEGGIO, $DC, $01
+;     db !UPD_ARPEGGIO, $DB, $01
+;     db !UPD_ARPEGGIO, $DA, $01
+;     db !UPD_ARPEGGIO, $D9, $01
+;     db !UPD_ARPEGGIO, $D8, $01
+;     db !UPD_ENVELOPE|!UPD_ARPEGGIO, $00, $01, $01
+
+
+;     db !END_DATA
+
+; Instr02Data:
+;     db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
+
+;     db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
+;     dw $6240
+;     db $60, $00, $01
+;     db !UPD_ENVELOPE|!UPD_ARPEGGIO, $30, $EE, $01
+
+;     db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_NOISE
+;     db !UPD_ENVELOPE|!UPD_ARPEGGIO
+;     db $8C, $19, $01
+;     db !UPD_ARPEGGIO
+;     db $1C, $03
+
+;     db !END_DATA
+
+; Instr03Data:
+;     db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
+
+;     db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
+;     db $FF, $7F, $00, $02
+
+;     db !UPD_ENVELOPE
+;     db $8A, $03
+;     db !END_DATA
 
 NoteDataBass1:
     dw EffectDataBass
@@ -330,14 +376,14 @@ NoteDataNoise:
 
 EffectDataBass:
     db !SET_VOLUME_LR_SAME, $7F, !WAIT, $10
-    db !SET_VOLUME_LR_DIFF, $40, $00, !WAIT, $10
-    db !SET_VOLUME_LR_DIFF, $00, $20, !WAIT, $10
-    db !SET_VOLUME_LR_SAME, $7F, !WAIT, $10
-    db !SET_VOLUME_LR_DIFF, $10, $08, !WAIT, $10
-    db !SET_VOLUME_LR_SAME, $7F, !WAIT, $10
-    db !SET_VOLUME_LR_DIFF, $00, $40, !WAIT, $10
-    db !SET_VOLUME_LR_DIFF, $20, $00, !WAIT, $10
-    db !SET_VOLUME_LR_SAME, $7F, !WAIT, $10
-    db !SET_VOLUME_LR_DIFF, $00, $40, !WAIT, $10
-    db !SET_VOLUME_LR_DIFF, $20, $00, !WAIT, $10
+    ; db !SET_VOLUME_LR_DIFF, $40, $00, !WAIT, $10
+    ; db !SET_VOLUME_LR_DIFF, $00, $20, !WAIT, $10
+    ; db !SET_VOLUME_LR_SAME, $7F, !WAIT, $10
+    ; db !SET_VOLUME_LR_DIFF, $10, $08, !WAIT, $10
+    ; db !SET_VOLUME_LR_SAME, $7F, !WAIT, $10
+    ; db !SET_VOLUME_LR_DIFF, $00, $40, !WAIT, $10
+    ; db !SET_VOLUME_LR_DIFF, $20, $00, !WAIT, $10
+    ; db !SET_VOLUME_LR_SAME, $7F, !WAIT, $10
+    ; db !SET_VOLUME_LR_DIFF, $00, $40, !WAIT, $10
+    ; db !SET_VOLUME_LR_DIFF, $20, $00, !WAIT, $10
     db !END_DATA
