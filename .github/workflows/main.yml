@@ -3,7 +3,6 @@ on: [push]
 jobs:
   build_rom:
     runs-on: ubuntu-latest
-    container: custom scheisse
     name: Compile rom
     steps:
       - name: Checkout
