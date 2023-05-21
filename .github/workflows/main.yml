@@ -13,12 +13,8 @@ jobs:
         run: make get_dependencies
       - name: Build the thing
         run: make build
-      - name: Start xvfb 
-        run: sudo Xvfb :99 -screen 0 1280x1024x24 &
-      - name: Clean up xvfb
-        uses: bcomnes/cleanup-xvfb@v1
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: ROM
-          path: SNESFMTrackDAW.asm
+          name: SNESFMTrackDAW.sfc
+          path: SNESFMTrackDAW.sfc
