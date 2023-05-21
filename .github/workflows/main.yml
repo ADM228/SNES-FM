@@ -8,7 +8,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Get curl because you need to get it separately fsr
-        run: sudo apt-get update && apt-get install curl -y
+        run: sudo apt-get update && sudo apt-get install curl -y
       - name: Get Dependencies (asar)
         run: make get_dependencies
       - name: Build the thing
