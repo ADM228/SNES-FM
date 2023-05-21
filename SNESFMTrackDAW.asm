@@ -56,9 +56,8 @@
 ;SRAM Map:
 ;$0000-0003:    Verification code "SNES" ($53 $4E $45 $53)
 ;$0004:         Major SRAM format revision
-;$0005:         Minor SRAM format revision
-;$0006:         Last mode used
-;$0007:         Locale
+;$0005:         Last mode used
+;$0006:         Locale
 ;$00FE-00FF:    Second verification code BASS ($BA $55)
 ;$0200-027F:    Instruments' palettes
 ;$0280-03FF:    Instruments' names (high bits)
@@ -99,7 +98,6 @@
 ;center of screen:    --
 
 !SRAM_VERSION_MAJOR = #$00
-!SRAM_VERSION_MINOR = #$00
 
 math pri on
 incsrc "header.asm"
@@ -281,12 +279,12 @@ InitSRAM:
         STX $0004
 
 ReadLocale:
-    LDA $0007     ;   Load locale
+    LDA $0006     ;   Load locale
     AND #$007F      ;__
     CMP #$0004      ;
     BMI +           ;   Default to English if locale number is invalid
         LDA #$0000  ;__
-        STA $0007
+        STA $0006
     +:
     PLB             ;__ Set DB to $00
     ASL
@@ -669,7 +667,6 @@ InitiateTrackerMode:
 ;         LDX #$83        ;
 ;         PHX             ;   Set DB to 83, locales in FastROM
 ;         PLB             ;__   
-;     ; FUCK IT IM MAKING NON NATIVE SCHEISSE
 
 DrawColumn:
     .Setup:
