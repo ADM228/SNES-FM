@@ -7,8 +7,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Move things into the spots github CI expects them in
-        run: "cp -a /root/. /github/home"
       - name: Get curl because you need to get it separately fsr
         run: apt-get update && apt-get install curl -y
       - name: Get Dependencies (asar)
