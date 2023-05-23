@@ -16,9 +16,9 @@ endif
 
 
 debug:
-	"${ASAR_DIR}"/asar/"${ASAR_EXECUTABLE}" -v --symbols=wla --symbols-path="${current_dir}/SNESFMTrackDAW.sym" --fix-checksum=on "${current_dir}/SNESFMTrackDAW.asm" "${current_dir}/SNESFMTrackDAW.sfc"
+	"${ASAR_DIR}"/asar/"${ASAR_EXECUTABLE}" -v --symbols=wla --symbols-path="${current_dir}/SNESFMTrackDAW.sym" -I"${current_dir}/graphics" -I"${current_dir}/tables" -I"${current_dir}/source/sound" --fix-checksum=on "${current_dir}/source/gui/SNESFMTrackDAW.asm" "${current_dir}/SNESFMTrackDAW.sfc"
 build: 
-	"${ASAR_DIR}"/asar/"${ASAR_EXECUTABLE}" -v --symbols=none --fix-checksum=on "${current_dir}/SNESFMTrackDAW.asm" "${current_dir}/SNESFMTrackDAW.sfc"
+	"${ASAR_DIR}"/asar/"${ASAR_EXECUTABLE}" -v --symbols=none --fix-checksum=on -I"${current_dir}/graphics" -I"${current_dir}/tables" -I"${current_dir}/source/sound" "${current_dir}/SNESFMTrackDAW.asm" "${current_dir}/SNESFMTrackDAW.sfc"
 
 get_dependencies:
 	$(info Installing asar...)

@@ -3,7 +3,7 @@
 !MAPMODE = $30
 !ROMTYPE = $02
 !ROMSIZE = $09      ; = 512 Kibibytes
-!SRAMSIZE = $04     ; = 128 Kibibytes
+!SRAMSIZE = $06     ; = 128 Kibibytes
 !REGION = $00      ;   International
 !DEVNAME = $00
 !VERSION = $00
@@ -19,7 +19,7 @@
 !EMU_COP = $813E    ; Software interrupt. Triggered by the COP instruction. 
 !EMU_ABORT = $813E  ; Not used in the SNES. 
 !EMU_NMI = $8160    ; Non-maskable interrupt. Called when vertical refresh (vblank) begins. 
-!EMU_RES = $811C    ; Reset vector, execution begins via this vector. 
+!EMU_RES = SNES_Init&$FFFF; Reset vector, execution begins via this vector. 
 !EMU_IRQBRK = $813E ; Interrupt request. Can be set to be called at a certain spot in the horizontal refresh cycle. Also a software interrupt triggered by the BRK instruction. 
 
 ;=== Actually setting the sh*t ===;

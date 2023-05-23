@@ -1,15 +1,4 @@
 ;== SNES INITALISATION CONVERSION BY alexmush ==;
-org $00811C
-  sei                     ;disable interrupts
-  clc                     ;switch to native mode
-  xce
-
-  REP #$38		; mem/A = 16 bit, X/Y = 16 bit
-      ;decimal mode off
-
-  LDX #$1FFF	;Setup the stack
-  TXS			;Transfer Index X to Stack Pointer Register
-  JSL $008000
 org $008000
   PHK			;set Data Bank = Program Bank
   PLB
@@ -236,3 +225,16 @@ ClearPaletteLoop:
    PLP
    PLX
    RTS
+
+;Actually where the init begins
+SNES_Init:
+  SEI                     ;disable interrupts
+  CLC                     ;switch to native mode
+  XCE
+
+  REP #$38		; mem/A = 16 bit, X/Y = 16 bit
+      ;decimal mode off
+
+  LDX #$1FFF	;Setup the stack
+  TXS			;Transfer Index X to Stack Pointer Register
+  JSL $008000
