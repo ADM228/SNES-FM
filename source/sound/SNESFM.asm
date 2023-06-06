@@ -720,10 +720,9 @@ ParseInstrumentData:
             ++  CALL updatePointer                      ;__ Update the sample pointer
                 RET
     .SkipMacro:
-        INCW !TEMP_POINTER0_L
-        INCW !TEMP_POINTER0_L
-        INCW !TEMP_POINTER0_L
-        INCW !TEMP_POINTER0_L
+        CLRC
+        ADC !TEMP_POINTER0_L, #$04
+        ADC !TEMP_POINTER0_H, #$00
         RET
     ; .UpdateArpeggio:
     ;     BBC1 $E0, +                             ;__ If no apreggio update, skip
