@@ -23,6 +23,7 @@ class Tile {
 
 class TileRow {
     public:
+        TileRow() {};
         TileRow(uint16_t length);
         TileRow(uint16_t length, uint32_t src[]);
         TileRow(uint16_t length, uint32_t fillTile);
@@ -45,15 +46,15 @@ class TileRow {
 class TileMatrix {
     public:
         TileMatrix(uint16_t width, uint16_t height);
-        TileMatrix(uint16_t width, uint16_t height, uint32_t fillTile);
         TileMatrix(uint16_t width, uint16_t height, TileRow tiles[]);
+        TileMatrix(uint16_t width, uint16_t height, uint32_t fillTile);
 
         void fill(uint32_t tile);
         void fillRow(uint16_t row, uint32_t tile);
         void fillCol(uint16_t col, uint32_t tile);
         void fillRect(uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint32_t tile);
 
-        void setFlip(uint16_t row, uint16_t col, bool hFlip, bool vFlip);
+        void setFlip(uint16_t x, uint16_t y, bool hFlip, bool vFlip);
         void setFlipRect(uint16_t x, uint16_t y, uint16_t width, uint16_t height, bool hFlip, bool vFlip);
 
         void copyRow(uint16_t row, uint32_t src[]);
@@ -61,7 +62,8 @@ class TileMatrix {
         void copyRect(uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint32_t src[]);
         void copyRect(uint16_t x, uint16_t y, uint16_t width, uint16_t height, TileRow src[]);
 
-        void render(uint16_t x, uint16_t y, sf::Window window, sf::Texture texture);
+        void render(uint16_t x, uint16_t y, sf::RenderWindow *window, sf::Texture texture);
+        sf::Texture renderToTexture(sf::Texture texture);
 
         uint16_t getWidth (){ return _width; };
         uint16_t getHeight (){ return _height; };
@@ -69,7 +71,7 @@ class TileMatrix {
     private:
 
         uint16_t _width, _height;
-        TileRow _tiles[];
+        std::vector<TileRow> _tiles;
 
 };
 

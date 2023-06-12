@@ -29,9 +29,9 @@ int main()
     sprite0.setScale(sf::Vector2f((float)scale, (float)scale));
     sprite0.setTextureRect(sf::IntRect(0, 8*0x30, 8, 8));
 
-    sprite7.setTexture(font[0x00]);
-    sprite7.setScale(sf::Vector2f((float)scale, (float)scale));
-    sprite7.setTextureRect(sf::IntRect(0, 8*0x37, 8, 8));
+    //sprite7.setTexture(font[0x00]);
+    sprite7.setScale(sf::Vector2f(1.f, 1.f));//((float)scale, (float)scale));
+    //sprite7.setTextureRect(sf::IntRect(0, 8*0x37, 8, 8));
 
     // renderText(font, "Test SNESFM сука");
     // sf::VertexArray tile = createTile(sf::Vector2i(0, 0), 1);
@@ -40,8 +40,8 @@ int main()
     // Tile tile2 (0, 1, 3, true, false);
     // Tile tile3 (1, 1, 0x46);
     uint32_t tilesd[] = {0,1,2,2};
-    TileRow tile(4, tilesd);
-
+    TileMatrix tiles(4,4, 0x30);
+    tiles.copyRect(0, 2, 4, 1, tilesd);
     while (window.isOpen())
     {
         sf::Event event;
@@ -64,17 +64,12 @@ int main()
 
         window.clear(sf::Color(255,255,0,0));
         window.setView(InstrumentView);
-        // window.draw(sprite7);
-        for (int i = 0; i < tile._tiles.size(); i++){
-            sf::Vector2f texturePos {0, (tile._tiles[i] & 0x7F) << 3};
-            sf::Vertex vertices[] {
-                sf::Vertex(sf::Vector2f(i*8, 0), texturePos+sf::Vector2f(tile._flip[i]&1?8:0,tile._flip[i]&2?8:0)),
-                sf::Vertex(sf::Vector2f(i*8+8, 0), texturePos+sf::Vector2f(tile._flip[i]&1?0:8,tile._flip[i]&2?8:0)),
-                sf::Vertex(sf::Vector2f(i*8+8, 8), texturePos+sf::Vector2f(tile._flip[i]&1?0:8,tile._flip[i]&2?0:8)),
-                sf::Vertex(sf::Vector2f(i*8, 8), texturePos+sf::Vector2f(tile._flip[i]&1?8:0,tile._flip[i]&2?0:8))
-            };
-            window.draw(vertices, 4, sf::TriangleFan, sf::RenderStates(&font[0]));
-        }
+
+        sf::Texture test = tiles.renderToTexture(font[0]);
+        sprite7.setTexture(test);
+        sprite7.setPosition(sf::Vector2f(0, 0));
+        window.draw(sprite7);
+        // tiles.render(0,0,&window, font[0]);
         // window.draw(tile.renderVertex, sf::RenderStates(&font[0]));
         // window.draw(tile1.renderVertex, sf::RenderStates(&font[0]));
         // window.draw(tile2.renderVertex, sf::RenderStates(&font[0]));
