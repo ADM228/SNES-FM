@@ -395,7 +395,7 @@ ParseSongData:
         AND A, #$1F  ;
         MOV $F2, #$6C;  Update noise clock
         AND $F3, #$E0;
-        TSET $F3    ;__
+        TSET $F3, A  ;__
     +:
     -:
         MOV Y, #$00
@@ -1339,7 +1339,7 @@ PhaseModulation_32:
         ASL A                       ;
         AND A, #$C0                 ;
         PUSH A                      ;
-        TSET !MOD_MOD_INDEX_L      ;__
+        TSET !MOD_MOD_INDEX_L, A    ;__
         MOV A, !MOD_SUBPAGE         ;
         XCN A                       ;   Get low byte of output pointer
         AND A, #$C0                 ;
