@@ -1859,7 +1859,7 @@ GetSETCLRBitmask:       ; TCALL 13
         ; There will be a TSET/TCLR right after this, +6 cycles
         RET
     .Table:
-        db $80, $40, $20, $10, $08, $04, $02, $01
+        db $01, $02, $04, $08, $10, $20, $40, $80
 
 IndexToSamplePointer:   ;TCALL 12
     ;   Memory allocation:
