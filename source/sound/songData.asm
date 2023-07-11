@@ -58,14 +58,10 @@ namespace SPC
     ;   $FF - End effect data
 PatternData:
     db $01, $00, $00, $00, $00, $00, $00, $00
+    db $01, $02, $00, $00, $00, $00, $00, $00
     db $01, $00, $00, $00, $00, $00, $00, $00
-    db $01, $00, $00, $00, $00, $00, $00, $00
-    db $01, $00, $00, $00, $00, $00, $00, $00
-    db $01, $00, $00, $00, $00, $00, $00, $00
-    db $01, $00, $00, $00, $00, $00, $00, $00
-    db $01, $00, $00, $00, $00, $00, $00, $00
-    db $01, $00, $00, $00, $00, $00, $00, $00
-    db $01, $00, $00, $00, $00, $00, $00, $00
+    db $01, $02, $00, $00, $00, $00, $00, $00
+    db $01, $01, $02, $00, $00, $00, $00, $00
 
     ;db $01, $02, $00, $00, $00, $00, $00, $00
     db $03, $00, $00, $00, $00, $00, $00, $00
@@ -78,7 +74,7 @@ PatternPointers:
     dw NoteDataNone
     dw NoteDataNone
 
-Instr01Data:
+
 Instr02Data:
 Instr03Data:
 Instr00Data:
@@ -111,69 +107,8 @@ db $0B, $0C, $0D, $0E
 .Arpeggio:
 .Pitchbend:
 db $00
-; ;instrument data
-; Instr00Data:
-;     db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_ADSR|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
-
-;     db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO|!SAMPLE_SUBPAGE_0
-;     db $00, $5E, $90, $00, $02
-;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-;     db $01, $01
-;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-;     db $02, $01
-
-;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-;     db $03, $01
-;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-;     db $04, $01
-;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-;     db $05, $01
-;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-;     db $06, $01
-
-;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-;     db $07, $01
-;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-;     db $08, $01
-;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-;     db $09, $01
-;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-;     db $0A, $01
-
-;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-;     db $0B, $01
-;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-;     db $0C, $01
-;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-;     db $0D, $01
-;     db !UPD_SAMPLE|!SAMPLE_SUBPAGE_0
-;     db $0E, $01
-
-;     db !COMMAND_LOOP|(Instr00Data&$FF00-$1000), Instr00Data&$FF
-
-;     db !END_DATA
-
-; Instr01Data:
-;     db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
-
-;     db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
-;     dw $6288
-;     db $7F, $00, $01
-;     db !UPD_ENVELOPE|!UPD_ARPEGGIO, $8D, $F4, $01
-;     db !UPD_ARPEGGIO, $EE, $01
-;     db !UPD_ARPEGGIO, $E8, $01
-;     db !UPD_ARPEGGIO, $E5, $01
-;     db !UPD_ARPEGGIO, $E2, $01
-;     db !UPD_ARPEGGIO, $DF, $01
-;     db !UPD_ARPEGGIO, $DC, $01
-;     db !UPD_ARPEGGIO, $DB, $01
-;     db !UPD_ARPEGGIO, $DA, $01
-;     db !UPD_ARPEGGIO, $D9, $01
-;     db !UPD_ARPEGGIO, $D8, $01
-;     db !UPD_ENVELOPE|!UPD_ARPEGGIO, $00, $01, $01
 
 
-;     db !END_DATA
 
 ; Instr02Data:
 ;     db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
@@ -190,6 +125,36 @@ db $00
 ;     db $1C, $03
 
 ;     db !END_DATA
+
+Instr01Data:
+i01:
+.Header:
+db %00000000, %00000000
+
+dw i01_InsType
+db $00, $00
+dw i01_Envelope
+db $0C, $00
+dw i01_SmpPtr
+db $00, $00
+dw i01_Arpeggio
+db $0C, $00
+dw i01_Pitchbend
+db $00, $00
+
+.InsType: db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
+.Envelope:
+db $7F, $F4, $F4, $F4
+db $F4, $F4, $F4, $F4
+db $F4, $F4, $F4, $F4
+db $00
+.SmpPtr: dw $6288
+.Arpeggio:
+db $00, $F4, $EE, $E8
+db $E5, $E2, $DF, $DC
+db $DB, $DA, $D9, $D8
+.Pitchbend:
+db $00  ;also used by arpeggio
 
 ; Instr03Data:
 ;     db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
@@ -359,6 +324,7 @@ NoteDataCh4:
 
 NoteDataNone:
     dw EffectDataNone
+    db !KEY_OFF, $01
 EffectDataNone:
     db !END_DATA
 

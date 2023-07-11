@@ -314,14 +314,12 @@ CompileInstruments:
     MOV $F3, #$20
 
 Begin:
-    MOV X, #$00
-    MOV !PATTERN_END_FLAGS, X
     MOV A, $0EC9
     MOV !PATTERN_POINTER_L, A
     MOV A, $0ECA
     MOV !PATTERN_POINTER_H, A
-    MOV A, $FD
     CALL ParsePatternData
+    MOV A, $FD
     JMP mainLoop_00
 ;
 
@@ -347,9 +345,8 @@ ParseSongData:
         JMP (ParseSongData_routineTable+X)
     +:
         MOV !CHTEMP_NOTE, $ED
-        MOV $F2, #$5C       ;
-        MOV $F3, #$00       ;   Key off the needed channel
-        TCALL 13            ;
+        MOV $F2, #$5C       ;   Key off the needed channel
+        MOV A, !CHANNEL_BITMASK
         TSET $F3, A         ;__
         MOV Y, #$00
         INCW !CHTEMP_SONG_POINTER_L
@@ -368,10 +365,9 @@ ParseSongData:
         ADC !CHTEMP_PITCHBEND_COUNTER, !TIMER_VALUE
         MOV $F2, #$5C       ;
         MOV $F3, #$00       ;   Key off nothing (so no overrides happen)
-        MOV $F2, #$4C       ;
-        MOV $F3, #$00       ;   Key on the needed channel
-        TCALL 13            ;
-        TSET $F3, A         ;__
+        MOV $F2, #$4C       ;   
+        MOV A, !CHANNEL_BITMASK;Key on the needed channel
+        TSET $F3, A         ;__ 
     .NoRetrigger:
         MOV A, $ED              ;
         MOV !CHTEMP_NOTE, A     ;   Apply arpeggio
@@ -409,9 +405,7 @@ ParseSongData:
         SET1 !CHTEMP_FLAGS
         MOV $F2, #$5C
         MOV $F3, #$00
-        POP X
-        PUSH X
-        TCALL 13            ;
+        MOV A, !CHANNEL_BITMASK
         TSET $F3, A         ;__
     .NoPitch:
         INCW !CHTEMP_SONG_POINTER_L
@@ -420,9 +414,8 @@ ParseSongData:
     .End:
         SET0 !CHTEMP_FLAGS
         POP X
-        TCALL 13
+        MOV A, !CHANNEL_BITMASK
         TSET !PATTERN_END_FLAGS, A
-        INCW !CHTEMP_SONG_POINTER_L
         CMP !PATTERN_END_FLAGS, #$FF
         BNE -
         CALL ParsePatternData
@@ -455,11 +448,15 @@ mainLoop:
         MOV A, X
         CLRC
         ADC A, #$08
-        AND A, #$38
         MOV !CHTEMP_REGISTER_INDEX, A
         ASL !CHTEMP_REGISTER_INDEX
         MOV X, A
+        MOV A, !CHANNEL_BITMASK
+        ASL A
+        MOV !CHANNEL_BITMASK, A
         BNE mainLoop_01
+        MOV X, A
+        INC !CHANNEL_BITMASK
         JMP mainLoop_00
 
 ParseInstrumentData:
@@ -563,7 +560,7 @@ ParseInstrumentData:
             MOV !CHTEMP_INSTRUMENT_TYPE_COUNTER, A  ;__ Store counter value
         ..ActualUpdate:
             MOV $F2, #$3D                       ;
-            TCALL 13                            ;
+            MOV A, !CHANNEL_BITMASK             ;
             BBC0 !CHTEMP_INSTRUMENT_TYPE, +     ;
                 TCLR $F3, A                     ;   Update the noise enable flag
                 JMP ++                          ;
@@ -706,7 +703,7 @@ ParseInstrumentData:
                 MOV A, !CHTEMP_INSTRUMENT_TYPE          ;
                 AND A, #$40                             ;
                 OR A, $EF                               ;
-                TCALL 12                                ;
+                TCALL 13                                ;
                 MOVW !CHTEMP_SAMPLE_POINTER_L, YA       ;
                 MOV Y, #$00                             ;
                 JMP ++                                  ;__
@@ -835,8 +832,10 @@ UpdateEffects:
     RET
 
 ParsePatternData:
-    MOV X, #$00
-    MOV !PATTERN_END_FLAGS, #$00
+    MOV X, #$01
+    MOV !CHANNEL_BITMASK, X
+    DEC X
+    MOV !PATTERN_END_FLAGS, X
     -:
         MOV Y, #$00
         MOV A, (!PATTERN_POINTER_L)+Y
@@ -1459,7 +1458,7 @@ ConvertToBRR:
         MOV Y, !BRR_OUT_INDEX           ;
         MOV A, !BRR_FLAGS               ;
         AND A, #$23                     ;   Get the sample pointer from index
-        TCALL 12                        ;
+        TCALL 13                        ;
         MOVW !BRR_OUT_PTR_L, YA         ;__
 
     .SetupCopy:
@@ -1770,28 +1769,12 @@ transferChToTemp:       ;TCALL 15
     MOV X, A
     -:
         MOV A, $00+X
-        DEC X
         MOV !CHTEMP_POINTER_0+Y, A
-        DBNZ Y, -
-    MOV Y, #$08
-    MOV A, X
-    CLRC
-    ADC A, #$08
-    MOV X, A
-    -:
         MOV A, $40+X
-        DEC X
         MOV !CHTEMP_POINTER_1+Y, A
-        DBNZ Y, -
-    MOV Y, #$08
-    MOV A, X
-    CLRC
-    ADC A, #$08
-    MOV X, A
-    -:
         MOV A, $80+X
-        DEC X
         MOV !CHTEMP_POINTER_2+Y, A
+        DEC X
         DBNZ Y, -
     INC X
     POP A
@@ -1807,25 +1790,9 @@ transferTempToCh:       ;TCALL 14
     -:
         MOV.b A, !CHTEMP_POINTER_0+Y
         MOV.b $00+X, A
-        DEC X
-        DBNZ Y, -
-    MOV Y, #$08
-    MOV A, X
-    CLRC
-    ADC A, #$08
-    MOV X, A
-    -:
-        MOV.b  A, !CHTEMP_POINTER_1+Y
+        MOV.b A, !CHTEMP_POINTER_1+Y
         MOV.b $40+X, A
-        DEC X
-        DBNZ Y, -
-    MOV Y, #$08
-    MOV A, X
-    CLRC
-    ADC A, #$08
-    MOV X, A
-    -:
-        MOV.b  A, !CHTEMP_POINTER_2+Y
+        MOV.b A, !CHTEMP_POINTER_2+Y
         MOV.b $80+X, A
         DEC X
         DBNZ Y, -
@@ -1833,35 +1800,7 @@ transferTempToCh:       ;TCALL 14
     POP A
     RET
 
-; SetFlagdp:              ;TCALL 13
-;     .Setup: ; 27
-;         MOV A, X        ;   2
-;         ASL A           ;   2
-;         ASL A           ;   2
-;         AND A, #$E0     ;   2
-;         OR A, #$02      ;   2
-;         MOV SetFlagdp_act, A    ; 5
-;         MOV A, $D0      ;   3
-;         MOV SetFlagdp_act+1, A  ; 5
-;     .act:
-;         SET1 $00    ;4
-;         RET
-
-; Saves 5 cycles compared to the old ones
-GetSETCLRBitmask:       ; TCALL 13
-    .Routine:   ; 22
-        MOV A, X ; 2
-        LSR A   ; 2
-        LSR A   ; 2
-        LSR A   ; 2
-        MOV Y, A    ;2
-        MOV A, SetFlagDPNew_Table+Y ; 6
-        ; There will be a TSET/TCLR right after this, +6 cycles
-        RET
-    .Table:
-        db $01, $02, $04, $08, $10, $20, $40, $80
-
-IndexToSamplePointer:   ;TCALL 12
+IndexToSamplePointer:   ;TCALL 13
     ;   Memory allocation:
     ;   Inputs:
     ;       Y - Sample index
@@ -1918,7 +1857,7 @@ Includes:
     org $0B00
         db (Instr00Data>>8)&$FF, (Instr01Data>>8)&$FF, (Instr02Data>>8)&$FF, (Instr03Data>>8)&$FF
     org $FFC0   ;For TCALLs
-        dw transferChToTemp, transferTempToCh, GetSETCLRBitmask, IndexToSamplePointer
+        dw transferChToTemp, transferTempToCh, IndexToSamplePointer
 startpos Init
 
 namespace off
