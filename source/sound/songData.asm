@@ -324,7 +324,6 @@ NoteDataCh4:
 
 NoteDataNone:
     dw EffectDataNone
-    db !KEY_OFF, $01
 EffectDataNone:
     db !END_DATA
 

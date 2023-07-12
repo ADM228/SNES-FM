@@ -18,3 +18,5 @@ jobs:
         with:
           name: SNESFMTrackDAW.sfc
           path: SNESFMTrackDAW.sfc
+          name: SNESFM.bin
+          path: SNESFM.bin

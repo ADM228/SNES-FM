@@ -1,16 +1,19 @@
+arch spc700-inline
+
 incsrc "SPC_constants.asm"
 namespace SPC
+warnings disable W1008
 Documentation:
     ;   ==== Code/data distribution table: ====
         ;   Page        Purpose
-        ;   $00         $00 - $BF: Flags & pointers for the note stuff:
-        ;   |           Song data pointer, Instrument data pointer, Effect data pointer, Sample pointer, note index, pitch, pitchbend
+        ;   $00         $20 - $3F: Temporary storage of flags, counters and pointers for note stuff
         ;   |__ _ _ _ _ $C0 - $EF: Operating space of subroutines (how exactly described before every subroutine)
         ;   $01 _ _ _ _ Stack
         ;   $02 _ _ _ _ Sample Directory
         ;   $03         $00 - $7F: Effect IDs
         ;   |__ _ _ _ _ $80 - $FF: Basic effect time counters
         ;   $04-$07 _ _ Effect q
+        ;   $08 _ _ _ _ Permanent storage of flags, counters and pointers for note stuff
         ;   $0A _ _ _ _ Low bytes of instrument data pointers
         ;   $0B _ _ _ _ High bytes of instrument data pointers
         ;   $0C _ _ _ _ 7/8 multiplication lookup table
@@ -51,6 +54,7 @@ Documentation:
         ;   e - whether to not parse effect data
         ;   i - whether to not parse instrument data
         ;   s - whether to not parse song data
+warnings enable W1008
 ;
 
 org $5000
@@ -151,6 +155,12 @@ EffectSetup:
     .loopIndexSetup:
         MOV $0300+Y, A
         DBNZ Y, EffectSetup_loopIndexSetup
+
+RAMClear:
+    MOV A, Y
+    .loop:
+        MOV $0800+Y, A
+        DBNZ Y, RAMClear_loop
 
 SetVolume:
     MOV X, #$7F
@@ -378,13 +388,13 @@ ParseSongData:
         ASL A
         MOV Y, A             
         MOV A, $0E00+Y
-        AND !CHTEMP_REGISTER_INDEX, #$70
-        OR !CHTEMP_REGISTER_INDEX, #$02
-        MOV $F2, !CHTEMP_REGISTER_INDEX;
+        AND !CHANNEL_REGISTER_INDEX, #$70
+        OR !CHANNEL_REGISTER_INDEX, #$02
+        MOV $F2, !CHANNEL_REGISTER_INDEX;
         MOV $F3, A
         MOV A, $0E01+Y
-        OR !CHTEMP_REGISTER_INDEX, #$01    
-        MOV $F2, !CHTEMP_REGISTER_INDEX;
+        OR !CHANNEL_REGISTER_INDEX, #$01    
+        MOV $F2, !CHANNEL_REGISTER_INDEX;
         MOV $F3, A ;pitch
         JMP +
     .NoisePitch:
@@ -448,8 +458,8 @@ mainLoop:
         MOV A, X
         CLRC
         ADC A, #$08
-        MOV !CHTEMP_REGISTER_INDEX, A
-        ASL !CHTEMP_REGISTER_INDEX
+        MOV !CHANNEL_REGISTER_INDEX, A
+        ASL !CHANNEL_REGISTER_INDEX
         MOV X, A
         MOV A, !CHANNEL_BITMASK
         ASL A
@@ -472,18 +482,16 @@ ParseInstrumentData:
         BBS3 !CHTEMP_FLAGS, +
         JMP ParseInstrumentData_NotFirstTime
         +:
-        MOV !CHTEMP_ARPEGGIO, #$00
+        MOV A, #$00
+        MOV !CHTEMP_ARPEGGIO, A
         MOV $E0, #$05
         
-        SETP
-        MOV A, #$00
-        MOV !CH1_INSTRUMENT_TYPE_POINTER+X, A
-        MOV !CH1_ENVELOPE_POINTER+X, A
-        MOV !CH1_SAMPLE_POINTER_POINTER+X, A
-        MOV !CH1_ARPEGGIO_POINTER+X, A
-        MOV !CH1_PITCHBEND_POINTER+X, A
+        MOV !CHTEMP_INSTRUMENT_TYPE_POINTER, A
+        MOV !CHTEMP_ENVELOPE_POINTER, A
+        MOV !CHTEMP_SAMPLE_POINTER_POINTER, A
+        MOV !CHTEMP_ARPEGGIO_POINTER, A
+        MOV !CHTEMP_PITCHBEND_POINTER, A
 
-        CLRP
         INCW !TEMP_POINTER0_L
         INCW !TEMP_POINTER0_L
         CALL ParseInstrumentData_UpdateInstrumentType
@@ -534,11 +542,9 @@ ParseInstrumentData:
         MOV !TEMP_POINTER1_H, A                 ;
         INCW !TEMP_POINTER0_L                   ;__
 
-        SETP                                    ;
-        MOV A, !CH1_INSTRUMENT_TYPE_POINTER+X   ;
-        CLRP                                    ;   Get the current instrument
-        MOV Y, #$00                             ;   type macro pointer
-        ADDW YA, !TEMP_POINTER1_L               ;
+        MOV A, !CHTEMP_INSTRUMENT_TYPE_POINTER  ;
+        MOV Y, #$00                             ;   Get the current instrument
+        ADDW YA, !TEMP_POINTER1_L               ;   type macro pointer
         MOVW !TEMP_POINTER1_L, YA               ;__
         MOV Y, #$00                             ;
         MOV A, (!TEMP_POINTER1_L)+Y             ;   Get the instrument type
@@ -546,15 +552,12 @@ ParseInstrumentData:
 
         MOV A, (!TEMP_POINTER0_L)+Y             ;   Get the amount of steps
         INCW !TEMP_POINTER0_L                   ;__
-        SETP
-        CMP A, !CH1_INSTRUMENT_TYPE_POINTER+X   
+        CMP A, !CHTEMP_INSTRUMENT_TYPE_POINTER
         BNE ++
-            CLRP
             SET0 !CHTEMP_COUNTERS_HALT
             INCW !TEMP_POINTER0_L
             JMP ParseInstrumentData_UpdateInstrumentType_ActualUpdate
-        ++  INC !CH1_INSTRUMENT_TYPE_POINTER+X      ;TODO: More looping types
-            CLRP
+        ++  INC !CHTEMP_INSTRUMENT_TYPE_POINTER+X   ;TODO: More looping types
             MOV A, (!TEMP_POINTER0_L)+Y             ;   Get the counter value
             INCW !TEMP_POINTER0_L                   ;__
             MOV !CHTEMP_INSTRUMENT_TYPE_COUNTER, A  ;__ Store counter value
@@ -566,9 +569,9 @@ ParseInstrumentData:
                 JMP ++                          ;
             +:                                  ;
                 TSET $F3, A                     ;__ 
-        ++  AND !CHTEMP_REGISTER_INDEX, #$70    ; 
-            OR !CHTEMP_REGISTER_INDEX, #$05     ;
-            MOV $F2, !CHTEMP_REGISTER_INDEX     ;
+        ++  AND !CHANNEL_REGISTER_INDEX, #$70    ; 
+            OR !CHANNEL_REGISTER_INDEX, #$05     ;
+            MOV $F2, !CHANNEL_REGISTER_INDEX     ;
             MOV A, $F3                          ;
             XCN A                               ;   If the envelope mode isn't changed, 
             LSR A                               ;   don't clear the envelope
@@ -576,17 +579,17 @@ ParseInstrumentData:
             EOR A, !CHTEMP_INSTRUMENT_TYPE      ;
             AND A, #$02                         ;
             BNE RET_                            ;__
-            AND !CHTEMP_REGISTER_INDEX, #$70    ; 
+            AND !CHANNEL_REGISTER_INDEX, #$70    ; 
             BBS1 !CHTEMP_INSTRUMENT_TYPE, +     ;
-                OR !CHTEMP_REGISTER_INDEX, #$05 ;   Write address to DSP (ADSR1)
-                MOV $F2, !CHTEMP_REGISTER_INDEX ;__
+                OR !CHANNEL_REGISTER_INDEX, #$05 ;   Write address to DSP (ADSR1)
+                MOV $F2, !CHANNEL_REGISTER_INDEX ;__
                 MOV $F3, #$80                   ;   If ADSR is used,
                 INC $F2                         ;   Clear out the ADSR envelope
                 MOV $F3, #$00                   ;__
             #RET_ RET
             +:                                  ;
-                OR !CHTEMP_REGISTER_INDEX, #$08 ;
-                MOV $F2, !CHTEMP_REGISTER_INDEX ;
+                OR !CHANNEL_REGISTER_INDEX, #$08 ;
+                MOV $F2, !CHANNEL_REGISTER_INDEX ;
                 MOV A, $F3                      ;   If GAIN is used,
                 DEC $F2                         ;   set the GAIN envelope to the current value
                 MOV $F3, A                      ;
@@ -605,9 +608,7 @@ ParseInstrumentData:
         MOV !TEMP_POINTER1_H, A                 ;
         INCW !TEMP_POINTER0_L                   ;__
 
-        SETP                                    ;
-        MOV A, !CH1_ENVELOPE_POINTER+X   ;
-        CLRP                                    ;
+        MOV A, !CHTEMP_ENVELOPE_POINTER+X       ;
         MOV Y, #$00                             ;
         BBS1 !CHTEMP_INSTRUMENT_TYPE, +         ;
             ASL A                               ;   Get the current envelope macro pointer
@@ -620,23 +621,20 @@ ParseInstrumentData:
         MOV Y, #$00                             ;
         MOV A, (!TEMP_POINTER0_L)+Y             ;   Get the amount of steps
         INCW !TEMP_POINTER0_L                   ;__
-        SETP
-        CMP A, !CH1_ENVELOPE_POINTER+X   
+        CMP A, !CHTEMP_ENVELOPE_POINTER
         BNE ++
-            CLRP
             SET1 !CHTEMP_COUNTERS_HALT
             INCW !TEMP_POINTER0_L
             JMP ParseInstrumentData_UpdateEnvelope_ActualUpdate
-        ++  INC !CH1_ENVELOPE_POINTER+X             ;TODO: More looping types
-            CLRP
+        ++  INC !CHTEMP_ENVELOPE_POINTER            ;TODO: More looping types
             MOV A, (!TEMP_POINTER0_L)+Y             ;   Get the counter value
             INCW !TEMP_POINTER0_L                   ;__
             MOV !CHTEMP_ENVELOPE_COUNTER, A         ;__ Store counter value
         ..ActualUpdate:
-            AND !CHTEMP_REGISTER_INDEX, #$70        ;
+            AND !CHANNEL_REGISTER_INDEX, #$70        ;
             BBS1 !CHTEMP_INSTRUMENT_TYPE, +         ;
-                OR !CHTEMP_REGISTER_INDEX, #$05         ;
-                MOV $F2, !CHTEMP_REGISTER_INDEX         ;
+                OR !CHANNEL_REGISTER_INDEX, #$05         ;
+                MOV $F2, !CHANNEL_REGISTER_INDEX         ;
                 MOV A, (!TEMP_POINTER1_L)+Y             ;   Update Attack, Decay
                 INCW !TEMP_POINTER1_L                   ;
                 OR A, #$80                              ;
@@ -647,8 +645,8 @@ ParseInstrumentData:
                 MOV $F3, A                              ;
                 RET
             +:
-                OR !CHTEMP_REGISTER_INDEX, #$07         ;
-                MOV $F2, !CHTEMP_REGISTER_INDEX         ;   Update GAIN envelope
+                OR !CHANNEL_REGISTER_INDEX, #$07         ;
+                MOV $F2, !CHANNEL_REGISTER_INDEX         ;   Update GAIN envelope
                 MOV A, (!TEMP_POINTER1_L)+Y             ;
                 MOV $F3, A                              ;
                 INCW !TEMP_POINTER1_L                   ;__
@@ -664,9 +662,7 @@ ParseInstrumentData:
         MOV !TEMP_POINTER1_H, A                 ;
         INCW !TEMP_POINTER0_L                   ;__
 
-        SETP                                    ;
-        MOV A, !CH1_SAMPLE_POINTER_POINTER+X    ;
-        CLRP                                    ;
+        MOV A, !CHTEMP_SAMPLE_POINTER_POINTER   ;
         MOV Y, #$00                             ;
         BBS3 !CHTEMP_INSTRUMENT_TYPE, +         ;
             ASL A                               ;   Get the current sample pointer macro pointer
@@ -679,15 +675,13 @@ ParseInstrumentData:
         MOV Y, #$00                             ;
         MOV A, (!TEMP_POINTER0_L)+Y             ;   Get the amount of steps
         INCW !TEMP_POINTER0_L                   ;__
-        SETP
-        CMP A, !CH1_SAMPLE_POINTER_POINTER+X   
+        CMP A, !CHTEMP_SAMPLE_POINTER_POINTER
         BNE ++
-            CLRP
             SET2 !CHTEMP_COUNTERS_HALT
             INCW !TEMP_POINTER0_L
             JMP ParseInstrumentData_UpdateSamplePointer_ActualUpdate
-        ++  INC !CH1_SAMPLE_POINTER_POINTER+X       ;TODO: More looping types
-            CLRP
+        ++  INC !CHTEMP_SAMPLE_POINTER_POINTER      ;TODO: More looping types
+
             MOV A, (!TEMP_POINTER0_L)+Y             ;   Get the counter value
             INCW !TEMP_POINTER0_L                   ;__
             MOV !CHTEMP_SAMPLE_POINTER_COUNTER, A   ;__ Store counter value
@@ -732,13 +726,13 @@ ParseInstrumentData:
     ;     ASL A                                   ;
     ;     MOV Y, A                                ;__
     ;     MOV A, $0E00+Y                          ;
-    ;     AND !CHTEMP_REGISTER_INDEX, #$70        ;
-    ;     OR !CHTEMP_REGISTER_INDEX, #$02         ;   Update low byte of pitch
-    ;     MOV $F2, !CHTEMP_REGISTER_INDEX;        ;
+    ;     AND !CHANNEL_REGISTER_INDEX, #$70        ;
+    ;     OR !CHANNEL_REGISTER_INDEX, #$02         ;   Update low byte of pitch
+    ;     MOV $F2, !CHANNEL_REGISTER_INDEX;        ;
     ;     MOV $F3, A                              ;__
     ;     MOV A, $0E01+Y                          ;
-    ;     OR !CHTEMP_REGISTER_INDEX, #$01         ;   Update high byte of pitch
-    ;     MOV $F2, !CHTEMP_REGISTER_INDEX;        ;
+    ;     OR !CHANNEL_REGISTER_INDEX, #$01         ;   Update high byte of pitch
+    ;     MOV $F2, !CHANNEL_REGISTER_INDEX;        ;
     ;     MOV $F3, A                              ;
     ;     MOV Y, #$00                             ;__
     ;     JMP +
@@ -797,8 +791,8 @@ ParseEffectData:
         POP X
         MOV A, (!CHTEMP_EFFECT_POINTER_L)+Y
         INCW !CHTEMP_EFFECT_POINTER_L 
-        AND !CHTEMP_REGISTER_INDEX, #$70
-        MOV $F2, !CHTEMP_REGISTER_INDEX
+        AND !CHANNEL_REGISTER_INDEX, #$70
+        MOV $F2, !CHANNEL_REGISTER_INDEX
         BBC0 $E0, +         ;   Store to right volume register if bit 0 set
         INC $F2             ;__
     +   MOV $F3, A
@@ -808,8 +802,8 @@ ParseEffectData:
         POP X
         MOV A, (!CHTEMP_EFFECT_POINTER_L)+Y
         INCW !CHTEMP_EFFECT_POINTER_L 
-        AND !CHTEMP_REGISTER_INDEX, #$70
-        MOV $F2, !CHTEMP_REGISTER_INDEX
+        AND !CHANNEL_REGISTER_INDEX, #$70
+        MOV $F2, !CHANNEL_REGISTER_INDEX
         MOV $F3, A
         BBC0 $E0, +                         ;
         MOV A, (!CHTEMP_EFFECT_POINTER_L)+Y ;   Load different value if bit 0 set
@@ -864,7 +858,8 @@ ParsePatternData:
         MOV !CH1_EFFECT_POINTER_H+X, A
         MOVW YA, !CHTEMP_SONG_POINTER_L
         MOV !CH1_SONG_POINTER_L+X, A
-        MOV !CH1_SONG_POINTER_H+X, Y
+        MOV A, Y
+        MOV !CH1_SONG_POINTER_H+X, A
         MOV A, X
         CLRC
         ADC A, #$08
@@ -903,10 +898,10 @@ updatePointer:         ;When the sample is 0
         MOV $0204+X, A                      ;   Reset sample 1 start pointer to blank sample
         MOV A, #$0E                         ;
         MOV $0205+X, A                      ;__
-        AND !CHTEMP_REGISTER_INDEX, #$70    ;   
-        OR !CHTEMP_REGISTER_INDEX, #$04     ;   Write address to DSP
-        MOV $F2, !CHTEMP_REGISTER_INDEX     ;__
-        MOV A, !CHTEMP_REGISTER_INDEX       ;
+        AND !CHANNEL_REGISTER_INDEX, #$70    ;   
+        OR !CHANNEL_REGISTER_INDEX, #$04     ;   Write address to DSP
+        MOV $F2, !CHANNEL_REGISTER_INDEX     ;__
+        MOV A, !CHANNEL_REGISTER_INDEX       ;
         LSR A                               ;
         LSR A                               ;   Write Source Number to DSP
         LSR A                               ;
@@ -932,10 +927,10 @@ updatePointer:         ;When the sample is 0
         MOV $0200+X, A                      ;   Reset sample 1 start pointer to blank sample
         MOV A, #$0E                         ;
         MOV $0201+X, A                      ;__
-        AND !CHTEMP_REGISTER_INDEX, #$70    ;   
-        OR !CHTEMP_REGISTER_INDEX, #$04     ;   Write address to DSP
-        MOV $F2, !CHTEMP_REGISTER_INDEX     ;__
-        MOV A, !CHTEMP_REGISTER_INDEX       ;
+        AND !CHANNEL_REGISTER_INDEX, #$70    ;   
+        OR !CHANNEL_REGISTER_INDEX, #$04     ;   Write address to DSP
+        MOV $F2, !CHANNEL_REGISTER_INDEX     ;__
+        MOV A, !CHANNEL_REGISTER_INDEX       ;
         LSR A                               ;
         LSR A                               ;   Write Source Number to DSP
         LSR A                               ;
@@ -1762,41 +1757,56 @@ ConvertToBRR:
 
 transferChToTemp:       ;TCALL 15
     PUSH A
-    MOV Y, #$08
+    PUSH X
+
     MOV A, X
     CLRC
     ADC A, #$07
-    MOV X, A
+    MOV Y, A
+
+    MOV X, #$07
     -:
-        MOV A, $00+X
-        MOV !CHTEMP_POINTER_0+Y, A
-        MOV A, $40+X
-        MOV !CHTEMP_POINTER_1+Y, A
-        MOV A, $80+X
-        MOV !CHTEMP_POINTER_2+Y, A
+        MOV A, !CH1_POINTER_0+Y
+        MOV !CHTEMP_POINTER_0+X, A
+        MOV A, !CH1_POINTER_1+Y
+        MOV !CHTEMP_POINTER_1+X, A
+        MOV A, !CH1_POINTER_2+Y
+        MOV !CHTEMP_POINTER_2+X, A
+        MOV A, !CH1_POINTER_3+Y
+        MOV !CHTEMP_POINTER_3+X, A
+        DEC Y
         DEC X
-        DBNZ Y, -
-    INC X
+        BPL -
+
+    POP X
     POP A
     RET
 
 transferTempToCh:       ;TCALL 14
     PUSH A
-    MOV Y, #$08
+    PUSH X
+
+
     MOV A, X
     CLRC
     ADC A, #$07
-    MOV X, A
+    MOV Y, A
+
+    MOV X, #$07
     -:
-        MOV.b A, !CHTEMP_POINTER_0+Y
-        MOV.b $00+X, A
-        MOV.b A, !CHTEMP_POINTER_1+Y
-        MOV.b $40+X, A
-        MOV.b A, !CHTEMP_POINTER_2+Y
-        MOV.b $80+X, A
+        MOV A, !CHTEMP_POINTER_0+X
+        MOV !CH1_POINTER_0+Y, A
+        MOV A, !CHTEMP_POINTER_1+X
+        MOV !CH1_POINTER_1+Y, A
+        MOV A, !CHTEMP_POINTER_2+X
+        MOV !CH1_POINTER_2+Y, A
+        MOV A, !CHTEMP_POINTER_3+X
+        MOV !CH1_POINTER_3+Y, A
+        DEC Y
         DEC X
-        DBNZ Y, -
-    INC X
+        BPL -
+
+    POP X
     POP A
     RET
 

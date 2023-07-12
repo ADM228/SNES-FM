@@ -2566,5 +2566,4 @@ DisplaySRAMWarningMessage:
     .LoadLocale:
         nop
 org $81E000
-arch spc700-inline
-incsrc "SNESFM.asm"
+incbin "SNESFM.bin"

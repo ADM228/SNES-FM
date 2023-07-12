@@ -10,15 +10,26 @@ else
 		ASAR_EXECUTABLE := asar-standalone
 	endif
 	ifeq ($(UNAME_S),Darwin)
-		$(error You seem to be running MacOS. Please contact me on Discord (alexmush#7063) and tell me the contents of $(ASAR_DIR)/asar so that i can make this available to compile on MacOS)
+		$(error You seem to be running MacOS. Please contact me on Discord (alexmush) and tell me the contents of $(ASAR_DIR)/asar so that i can make this available to compile on MacOS)
 	endif	
 endif
 
+SYMBOLS_GUI=none
+SYMBOLS_SND=none
 
-debug:
-	"${ASAR_DIR}"/asar/"${ASAR_EXECUTABLE}" -v --symbols=wla --symbols-path="${current_dir}/SNESFMTrackDAW.sym" -I"${current_dir}/graphics" -I"${current_dir}/tables" -I"${current_dir}/source/sound" --fix-checksum=on "${current_dir}/source/gui/SNESFMTrackDAW.asm" "${current_dir}/SNESFMTrackDAW.sfc"
-build: 
-	"${ASAR_DIR}"/asar/"${ASAR_EXECUTABLE}" -v --symbols=none --fix-checksum=on -I"${current_dir}/graphics" -I"${current_dir}/tables" -I"${current_dir}/source/sound" "${current_dir}/source/gui/SNESFMTrackDAW.asm" "${current_dir}/SNESFMTrackDAW.sfc"
+debug: SYMBOLS_GUI=wla --symbols-path="${current_dir}SNESFMTrackDAW.sym"
+debug: SYMBOLS_SND=wla --symbols-path="${current_dir}SNESFM.sym"
+
+debug: SNESFM.bin SNESFMTrackDAW.sfc
+build: SNESFM.bin SNESFMTrackDAW.sfc
+
+SNESFM.bin:
+	"${ASAR_DIR}"/asar/"${ASAR_EXECUTABLE}" -v --symbols= -I"${current_dir}tables" -I"${current_dir}source/sound" "${current_dir}source/sound/SNESFM.asm" "${current_dir}SNESFM.bin"
+
+SNESFMTrackDAW.sfc:
+	"${ASAR_DIR}"/asar/"${ASAR_EXECUTABLE}" -v --symbols= -I"${current_dir}graphics" -I"${current_dir}/tables" --fix-checksum=on "${current_dir}/source/gui/SNESFMTrackDAW.asm" "${current_dir}/SNESFMTrackDAW.sfc"
+
+
 SFML:
 	cd "SFMLtracker" && $(MAKE)
 
