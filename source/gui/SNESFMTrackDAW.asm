@@ -2566,4 +2566,10 @@ DisplaySRAMWarningMessage:
     .LoadLocale:
         nop
 org $81E000
-incbin "SNESFM.bin"
+
+!SNESFM_ASM ?= 0
+if !SNESFM_ASM == 1
+	incsrc "SNESFM.asm"
+else
+	incbin "SNESFM.bin"
+endif

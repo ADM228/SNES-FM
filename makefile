@@ -14,29 +14,41 @@ else
 	endif	
 endif
 
-SYMBOLS_GUI=none
-SYMBOLS_SND=none
+SYM_GUI=none
+SYM_SND=none
 
-debug: SYMBOLS_GUI=wla --symbols-path="${current_dir}SNESFMTrackDAW.sym"
-debug: SYMBOLS_SND=wla --symbols-path="${current_dir}SNESFM.sym"
+debug: SYM_GUI=wla --symbols-path="bin/SNESFMTrackDAW.sym"
+debug: SYM_SND=wla --symbols-path="bin/SNESFMTrackDAW.smp.sym"
 
-debug: SNESFM.bin SNESFMTrackDAW.sfc
-build: SNESFM.bin SNESFMTrackDAW.sfc
+build: asar SNESFM TDAW
+debug: asar SNESFM TDAW
 
-SNESFM.bin:
-	"${ASAR_DIR}"/asar/"${ASAR_EXECUTABLE}" -v --symbols= -I"${current_dir}tables" -I"${current_dir}source/sound" "${current_dir}source/sound/SNESFM.asm" "${current_dir}SNESFM.bin"
+asar: ${ASAR_DIR}/asar/${ASAR_EXECUTABLE}
+SNESFM: bin/SNESFM.bin
+TDAW: bin/SNESFMTrackDAW.sfc
+    
+bin/SNESFM.bin: bin source/sound/* tables/lookuptables.bin tables/pitchtable.bin tables/quartersinetable.bin
+	${ASAR_DIR}/asar/${ASAR_EXECUTABLE} -v --symbols=${SYM_SND} -I"tables" -I"source/sound" "source/sound/SNESFM.asm" "bin/SNESFM.bin"
 
-SNESFMTrackDAW.sfc:
-	"${ASAR_DIR}"/asar/"${ASAR_EXECUTABLE}" -v --symbols= -I"${current_dir}graphics" -I"${current_dir}/tables" --fix-checksum=on "${current_dir}/source/gui/SNESFMTrackDAW.asm" "${current_dir}/SNESFMTrackDAW.sfc"
+bin/SNESFMTrackDAW.sfc: bin bin/SNESFM.bin source/gui/* graphics/palette.pal graphics/tilesetUnicode.chr tables/sinetable.bin
+	${ASAR_DIR}/asar/${ASAR_EXECUTABLE} -v --symbols=${SYM_GUI} -I"bin" -I"graphics" -I"tables" --fix-checksum=on "source/gui/SNESFMTrackDAW.asm" "bin/SNESFMTrackDAW.sfc"
 
+bin:
+	mkdir -p bin
 
 SFML:
 	cd "SFMLtracker" && $(MAKE)
 
-get_dependencies:
+clean:
+	rm -f -R bin
+
+${ASAR_DIR}/src/asar/*:
 	$(info Installing asar...)
 	mkdir -p "${ASAR_DIR}"
-	curl -L "${ASAR_URL}" | tar -xz --strip-components=1 -C "${ASAR_DIR}"
-	cd "${ASAR_DIR}" && cmake src && $(MAKE)
+	wget -c "${ASAR_URL}" -O - | tar -xz --strip-components=1 -C "${ASAR_DIR}"
 
-.PHONY: build
+${ASAR_DIR}/asar/${ASAR_EXECUTABLE}: ${ASAR_DIR}/src/asar/*
+	cd "${ASAR_DIR}" && cmake src > /dev/null && $(MAKE) > /dev/null
+
+.PHONY: SFML clean asar SNESFM TDAW build debug
+.SILENT: build

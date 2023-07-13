@@ -1,5 +1,3 @@
-namespace SPC
-
 ;Song format description (in development):
     ;1. Instrument data
     ;======================== irrelevant old ===============================
@@ -142,7 +140,7 @@ db $0C, $00
 dw i01_Pitchbend
 db $00, $00
 
-.InsType: db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
+.InsType: db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_ADDRESS
 .Envelope:
 db $7F, $F4, $F4, $F4
 db $F4, $F4, $F4, $F4
