@@ -13,10 +13,15 @@ jobs:
         run: make get_dependencies
       - name: Build the thing
         run: make build
-      - name: Upload artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: SNESFMTrackDAW.sfc
-          path: SNESFMTrackDAW.sfc
-          name: SNESFM.bin
-          path: SNESFM.bin
+          name: SNESFM.zip
+          path: | 
+            bin/SNESFMTrackDAW.sfc
+            bin/SNESFM.bin
+      - name: Upload artifact with debug symbols
+        uses: actions/upload-artifact@v3
+        with:
+          name: SNESFM_With_debug_symbols.zip
+          path: bin/*
