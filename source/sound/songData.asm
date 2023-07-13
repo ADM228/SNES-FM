@@ -132,20 +132,17 @@ db %00000000, %00000000
 dw i01_InsType
 db $00, $00
 dw i01_Envelope
-db $0C, $00
+db $01, $0B
 dw i01_SmpPtr
 db $00, $00
 dw i01_Arpeggio
-db $0C, $00
+db $0B, $00
 dw i01_Pitchbend
 db $00, $00
 
 .InsType: db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_ADDRESS
 .Envelope:
-db $7F, $F4, $F4, $F4
-db $F4, $F4, $F4, $F4
-db $F4, $F4, $F4, $F4
-db $00
+db $7F, $00
 .SmpPtr: dw $6288
 .Arpeggio:
 db $00, $F4, $EE, $E8

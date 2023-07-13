@@ -500,7 +500,7 @@ Load:
     MOV CHTEMP_PITCHBEND_POINTER, X
     
     MOV !TEMP_VALUE, #$01
-    MOV !TEMP_VALUE2, #$03
+    MOV !TEMP_VALUE2, #$04
     
     -:
         CALL UpdateMacro
@@ -514,14 +514,16 @@ Load:
 NotFirstTime:
 
     MOV !TEMP_VALUE, #$01
-    MOV !TEMP_VALUE2, #$03
+    MOV !TEMP_VALUE2, #$04
 
     -:
         MOV A, CHTEMP_COUNTERS_HALT
         AND A, !TEMP_VALUE
         BNE +
             SETC
-            SBC CHTEMP_INSTRUMENT_TYPE_COUNTER, !TIMER_VALUE
+			MOV A, CHTEMP_INSTRUMENT_TYPE_COUNTER+X
+            SBC A, !TIMER_VALUE
+			MOV CHTEMP_INSTRUMENT_TYPE_COUNTER+X, A
             BPL +
                 CALL UpdateMacro
                 JMP ++
@@ -584,12 +586,12 @@ UpdateMacro:
         dw UpdateInstrumentType
         dw UpdateEnvelope
         dw UpdateSamplePointer
+		dw UpdateArpeggio
     .InsTypeMaskTable:     ; Doubles the actual pointer if the bit is set in instrument type
         db $00, $02, $08, $00, $00
 
 UpdateInstrumentType:
     POP X
-    MOV Y, #$00                         ;
     MOV A, (!TEMP_POINTER1_L)+Y         ;   Get the current value
     MOV CHTEMP_INSTRUMENT_TYPE, A      ;__
     MOV $F2, #$3D                       ;
@@ -642,15 +644,13 @@ UpdateEnvelope:
         MOV $F3, A                              ;__
         INC $F2                                 ;
         MOV A, (!TEMP_POINTER1_L)+Y             ;   Update Sustain, Release
-        INCW !TEMP_POINTER1_L                   ;
         MOV $F3, A                              ;__
         RET
     +:
         OR !CHANNEL_REGISTER_INDEX, #$07        ;
         MOV $F2, !CHANNEL_REGISTER_INDEX        ;   Update GAIN envelope
         MOV A, (!TEMP_POINTER1_L)+Y             ;
-        MOV $F3, A                              ;
-        INCW !TEMP_POINTER1_L                   ;__
+        MOV $F3, A                              ;__
         RET
 ;
 
@@ -658,7 +658,6 @@ UpdateSamplePointer:
 
     BBS3 CHTEMP_INSTRUMENT_TYPE, +         ;__ If sample index is used,
         MOV A, (!TEMP_POINTER1_L)+Y         ;
-        INCW !TEMP_POINTER1_L               ;
         MOV Y, A                            ;
         MOV A, CHTEMP_INSTRUMENT_TYPE      ;
         AND A, #$30                         ;
@@ -675,8 +674,7 @@ UpdateSamplePointer:
         MOV CHTEMP_SAMPLE_POINTER_L, A     ;   If no, just blatantly
         INCW !TEMP_POINTER1_L               ;   Load sample pointer into memory
         MOV A, (!TEMP_POINTER1_L)+Y         ;
-        MOV CHTEMP_SAMPLE_POINTER_H, A     ;
-        INCW !TEMP_POINTER1_L               ;__
+        MOV CHTEMP_SAMPLE_POINTER_H, A     	;__
 ++:
 		MOV A, !CHANNEL_REGISTER_INDEX		;
 		LSR A								;	Get current channel's X
@@ -742,44 +740,39 @@ updatePointer:         ;When the sample is 0
 		MOV $F3, A                          ;__
         CLR7 CHTEMP_FLAGS                  ;__ Next time sample 1 is updated
         POP X
-        RET
+        RET		
+
+UpdateArpeggio:
+	POP X
+	MOV A, (!TEMP_POINTER1_L)+Y 			;   Update arpeggio 
+	MOV CHTEMP_ARPEGGIO, A                 	;__
+	MOV A, CHTEMP_NOTE                     	;
+	CLRC                                    ;   Apply arpeggio
+	ADC A, CHTEMP_ARPEGGIO                 	;__
+	BBC0 CHTEMP_INSTRUMENT_TYPE, ++
+		ASL A                                   ;
+		MOV Y, A                                ;__
+		MOV A, $0E00+Y                          ;
+		AND !CHANNEL_REGISTER_INDEX, #$70       ;
+		OR !CHANNEL_REGISTER_INDEX, #$02        ;   Update low byte of pitch
+		MOV $F2, !CHANNEL_REGISTER_INDEX;       ;
+		MOV $F3, A                              ;__
+		MOV A, $0E01+Y                          ;
+		OR !CHANNEL_REGISTER_INDEX, #$01        ;   Update high byte of pitch
+		MOV $F2, !CHANNEL_REGISTER_INDEX;       ;
+		MOV $F3, A                              ;
+		MOV Y, #$00                             ;__
+		RET
+    ++:
+		AND A, #$1F                             ;
+		MOV $F2, #$6C                           ;  Update noise clock
+		AND $F3, #$E0                           ;
+		OR A, $F3                               ;
+		MOV $F3, A                              ;__
+   		RET
 
 namespace off
 
-    ; .UpdateArpeggio:
-    ;     BBC1 $E0, +                             ;__ If no apreggio update, skip
-    ;     MOV A, (CHTEMP_INSTRUMENT_POINTER_L)+Y ;   
-    ;     MOV CHTEMP_ARPEGGIO, A                 ;   Update arpeggio
-    ;     INCW CHTEMP_INSTRUMENT_POINTER_L       ;__
-    ;     MOV A, CHTEMP_NOTE                     ;   Apply arpeggio
-    ;     CLRC                                    ;
-    ;     ADC A, CHTEMP_ARPEGGIO                 ;__
-    ;     BBC0 CHTEMP_INSTRUMENT_TYPE, ++
-    ;     ASL A                                   ;
-    ;     MOV Y, A                                ;__
-    ;     MOV A, $0E00+Y                          ;
-    ;     AND !CHANNEL_REGISTER_INDEX, #$70        ;
-    ;     OR !CHANNEL_REGISTER_INDEX, #$02         ;   Update low byte of pitch
-    ;     MOV $F2, !CHANNEL_REGISTER_INDEX;        ;
-    ;     MOV $F3, A                              ;__
-    ;     MOV A, $0E01+Y                          ;
-    ;     OR !CHANNEL_REGISTER_INDEX, #$01         ;   Update high byte of pitch
-    ;     MOV $F2, !CHANNEL_REGISTER_INDEX;        ;
-    ;     MOV $F3, A                              ;
-    ;     MOV Y, #$00                             ;__
-    ;     JMP +
-    ; ++:
-    ;     AND A, #$1F                             ;
-    ;     MOV $F2, #$6C                           ;  Update noise clock
-    ;     AND $F3, #$E0                           ;
-    ;     OR A, $F3                               ;
-    ;     MOV $F3, A                              ;__
-    ; +:
-    ;     MOV A, (CHTEMP_INSTRUMENT_POINTER_L)+Y ;
-    ;     DEC A                                   ;
-    ;     MOV CHTEMP_INSTRUMENT_COUNTER, A       ;   Update instrument counter
-    ;     INCW CHTEMP_INSTRUMENT_POINTER_L       ;__
-    RET
 
     ; .CommandJumpTable:
     ; dw ChangeType
