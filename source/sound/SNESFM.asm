@@ -333,6 +333,7 @@ Begin:
     MOV A, $0ECA
     MOV !PATTERN_POINTER_H, A
     CALL ParsePatternData
+	MOV !CHANNEL_REGISTER_INDEX, #$00
     MOV A, $FD
     JMP mainLoop_00
 ;
@@ -430,6 +431,7 @@ ParseSongData:
         BNE -
         CALL ParsePatternData
         MOV X, #$00
+		MOV !CHANNEL_REGISTER_INDEX, #$00
         JMP mainLoop_01
     .routineTable:
         dw ParseSongData_Keyoff
