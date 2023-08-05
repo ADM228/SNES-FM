@@ -54,26 +54,68 @@
     ;   $05 v - Set echo both left and right volume
     ;   $FE t - Wait 
     ;   $FF - End effect data
+
+;Song data variables for more readability when assembling manually
+    ;Instrument data
+        ;   GAIN Envelopes
+            !ENV_DIRECT = %00000000
+            !ENV_DECREASE_LINEAR = %10000000
+            !ENV_DECREASE_EXPONENTIAL = %10100000
+            !ENV_INCREASE_LINEAR = %11000000
+            !ENV_INCREASE_BENTLINE = %11100000
+        ;   Instrument types
+            !SAMPLE_SUBPAGE_0 = %00000000
+            !SAMPLE_SUBPAGE_1 = %00010000
+            !SAMPLE_SUBPAGE_2 = %00100000
+            !SAMPLE_SUBPAGE_3 = %00110000
+            !SAMPLE_HIGH_PAGE_0 = %00000000
+            !SAMPLE_HIGH_PAGE_1 = %01000000
+            !SAMPLE_USE_INDEX = %00000000
+            !SAMPLE_USE_ADDRESS = %00001000
+            !PITCHBEND_ABSOLUTE = %00000000
+            !PITCHBEND_RELATIVE = %00000100
+            !ENVELOPE_TYPE_GAIN = %00000000
+            !ENVELOPE_TYPE_ADSR = %00000010
+            !INSTRUMENT_TYPE_NOISE = %0000000
+            !INSTRUMENT_TYPE_SAMPLE = %00000001 
+    ;Song data
+        !KEY_OFF = $FD
+    ;Effect data
+        !SET_VOLUME_LR_SAME = $00
+        !SET_VOLUME_LR_DIFF = $01
+        !SET_VOLUME_L = $02
+        !SET_VOLUME_R = $03
+        !VOLUME_LR_SLIDE_DOWN = $04
+        !VOLUME_LR_SLIDE_UP = $05
+        !VOLUME_LR_SLIDE_DOWN = $06
+        !VOLUME_LR_SLIDE_UP = $07
+        !VOLUME_L_SLIDE_DOWN = $08
+        !VOLUME_R_SLIDE_DOWN = $09
+        !VOLUME_L_SLIDE_UP = $0A
+        !VOLUME_R_SLIDE_UP = $0B
+    ;Common shit
+        !WAIT = $FE
+        !END_DATA = $FF
+
 PatternData:
     db $01, $00, $00, $00, $00, $00, $00, $00
     db $01, $02, $00, $00, $00, $00, $00, $00
-    db $01, $00, $00, $00, $00, $00, $00, $00
+    db $01, $03, $00, $00, $00, $00, $00, $00
     db $01, $02, $00, $00, $00, $00, $00, $00
     db $01, $01, $02, $00, $00, $00, $00, $00
 
     ;db $01, $02, $00, $00, $00, $00, $00, $00
-    db $03, $00, $00, $00, $00, $00, $00, $00
+    db $04, $00, $00, $00, $00, $00, $00, $00
     db !END_DATA
 PatternPointers:
     dw NoteDataNone
     dw NoteDataBass1
     dw NoteDataDrums1
+    dw NoteDataDrums2
     dw NoteDataLong
     dw NoteDataNone
-    dw NoteDataNone
 
 
-Instr02Data:
 Instr03Data:
 Instr00Data:
 .Header:
@@ -108,7 +150,7 @@ db $00
 
 
 
-; Instr02Data:
+; 
 ;     db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
 
 ;     db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
@@ -151,6 +193,37 @@ db $DB, $DA, $D9, $D8
 .Pitchbend:
 db $00  ;also used by arpeggio
 
+Instr02Data:
+i02:
+.Header:
+db %00000000, %00000000
+
+dw i02_InsType
+db $03, $01
+dw i02_Envelope
+db $04, $01
+dw i02_SmpPtr
+db $00, $00
+dw i02_Arpeggio
+db $03, $01
+dw i02_Pitchbend
+db $00, $00
+
+.InsType:
+db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_NOISE|!SAMPLE_USE_INDEX
+db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
+db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
+db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_NOISE|!SAMPLE_USE_INDEX
+.Envelope:
+db $20, $7F, $7F, $20, !ENV_DECREASE_LINEAR|$06
+.SmpPtr:
+db $FF
+.Arpeggio:
+db $1D, $2C, $2A, $1D
+.Pitchbend:
+db $00
+
+
 ; Instr03Data:
 ;     db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
 
@@ -185,6 +258,21 @@ NoteDataDrums1:
     db !KEY_OFF, $20
     db $BC, $01, $10
     db !KEY_OFF, $20
+
+    db !END_DATA
+
+NoteDataDrums2:
+    dw EffectDataNone
+    db $BC, $01, $10
+    db !KEY_OFF, $10
+	db $BC, $01, $10
+	db $80, $02, $20
+
+    db $BC, $01, $10
+    db !KEY_OFF, $10
+    db $BC, $01, $10
+    db $80, $02, $20
+	db $BC, $01, $10
 
     db !END_DATA
 

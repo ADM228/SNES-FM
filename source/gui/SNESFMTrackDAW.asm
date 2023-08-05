@@ -2569,7 +2569,7 @@ org $81E000
 
 !SNESFM_ASM ?= 0
 if !SNESFM_ASM == 1
-	incsrc "SNESFM.asm"
+	incsrc "../sound/demoConfig.asm"
 else
 	incbin "SNESFM.bin"
 endif

@@ -27,8 +27,8 @@ asar: ${ASAR_DIR}/asar/${ASAR_EXECUTABLE}
 SNESFM: bin/SNESFM.bin
 TDAW: bin/SNESFMTrackDAW.sfc
     
-bin/SNESFM.bin: bin source/sound/* tables/lookuptables.bin tables/pitchtable.bin tables/quartersinetable.bin
-	${ASAR_DIR}/asar/${ASAR_EXECUTABLE} -v --symbols=${SYM_SND} -I"tables" -I"source/sound" "source/sound/SNESFM.asm" "bin/SNESFM.bin"
+bin/SNESFM.bin: bin source/sound/* tables/multTables.bin tables/pitch*.bin tables/quartersinetable.bin
+	${ASAR_DIR}/asar/${ASAR_EXECUTABLE} -v --symbols=${SYM_SND} -I"tables" -I"source/sound" "source/sound/demoConfig.asm" "bin/SNESFM.bin"
 
 bin/SNESFMTrackDAW.sfc: bin bin/SNESFM.bin source/gui/* graphics/palette.pal graphics/tilesetUnicode.chr tables/sinetable.bin
 	${ASAR_DIR}/asar/${ASAR_EXECUTABLE} -v --symbols=${SYM_GUI} -I"bin" -I"graphics" -I"tables" --fix-checksum=on "source/gui/SNESFMTrackDAW.asm" "bin/SNESFMTrackDAW.sfc"
