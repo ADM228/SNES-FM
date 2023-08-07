@@ -56,173 +56,176 @@ Documentation:
         ;   i - whether to not parse instrument data
         ;   s - whether to not parse song data
 IntenalDefines:
-;Song data variables for more readability when assembling manually
-    ;Instrument data
-        ;   Instrument types
-            !SAMPLE_USE_ADDRESS = %00001000
-            !ENVELOPE_TYPE_ADSR = %00000010
+    ;Song data variables for more readability when assembling manually
+        ;Instrument data
+            ;   Instrument types
+                !SAMPLE_USE_ADDRESS = %00001000
+                !ENVELOPE_TYPE_ADSR = %00000010
 
-;Temporary variables, basically a shitton of names for the same thing
-;$D0-DF are usually inputs while $E0-EF are just temporary variables used by routines
-    ;Echo FIR set
-        !ECH_FIR_FIRSTBYTE = $D0
-    ;Pulse generation
-        !PUL_OUT_PAGE = $D0
-        !PUL_DUTY = $D1
-        !PUL_FLAGS = $D2
+    ;Temporary variables, basically a shitton of names for the same thing
+        ;$D0-DF are usually inputs while $E0-EF are just temporary variables used by routines
+        ;Echo FIR set
+            !ECH_FIR_FIRSTBYTE = $D0
+        ;Pulse generation
+            !PUL_OUT_PAGE = $D0
+            !PUL_DUTY = $D1
+            !PUL_FLAGS = $D2
 
-        !PUL_OUT_PTR_L = $EE
-        !PUL_OUT_PTR_H = $EF
-    ;Long to short sample conversion
-        !LTS_IN_PAGE = $D0
-        !LTS_OUT_PAGE = $D1
-        !LTS_OUT_SUBPAGE = $D2
+            !PUL_OUT_PTR_L = $EE
+            !PUL_OUT_PTR_H = $EF
+        ;Long to short sample conversion
+            !LTS_IN_PAGE = $D0
+            !LTS_OUT_PAGE = $D1
+            !LTS_OUT_SUBPAGE = $D2
 
-        !LTS_IN_PTR_L = $EC
-        !LTS_IN_PTR_H = $ED
-        !LTS_OUT_PTR_L = $EE
-        !LTS_OUT_PTR_H = $EF
-    ;Phase modulation
-        !MOD_CAR_PAGE = $D0
-        !MOD_MOD_PAGE = $D1
-        !MOD_OUT_PAGE = $D2
-        !MOD_MOD_STRENGTH = $D3
-        !MOD_MOD_PHASE_SHIFT = $D4
-        !MOD_SUBPAGE = $D5  ;Only in short version (obviously)
+            !LTS_IN_PTR_L = $EC
+            !LTS_IN_PTR_H = $ED
+            !LTS_OUT_PTR_L = $EE
+            !LTS_OUT_PTR_H = $EF
+        ;Phase modulation
+            !MOD_CAR_PAGE = $D0
+            !MOD_MOD_PAGE = $D1
+            !MOD_OUT_PAGE = $D2
+            !MOD_MOD_STRENGTH = $D3
+            !MOD_MOD_PHASE_SHIFT = $D4
+            !MOD_SUBPAGE = $D5  ;Only in short version (obviously)
 
-        !MOD_CAR_INDEX_L = $E8  ;   Only in short phase modulation
-        !MOD_END_INDEX_L = $E9  ;__
-        !MOD_OUT_INDEX_L = $EA
-        !MOD_OUT_INDEX_H = $EB
-        !MOD_MOD_INDEX_L = $EC
-        !MOD_MOD_INDEX_H = $ED
-        !MOD_MAIN_TEMP_L = $EE
-        !MOD_MAIN_TEMP_H = $EF
-    ;Set/clear DP bit
-        !CHG_BIT_ADDRESS = $D0
-    ;PCM to BRR conversion
-        !BRR_PCM_PAGE = $D0
-        !BRR_OUT_INDEX = $D1
-        !BRR_FLAGS = $D2
+            !MOD_CAR_INDEX_L = $E8  ;   Only in short phase modulation
+            !MOD_END_INDEX_L = $E9  ;__
+            !MOD_OUT_INDEX_L = $EA
+            !MOD_OUT_INDEX_H = $EB
+            !MOD_MOD_INDEX_L = $EC
+            !MOD_MOD_INDEX_H = $ED
+            !MOD_MAIN_TEMP_L = $EE
+            !MOD_MAIN_TEMP_H = $EF
+        ;Set/clear DP bit
+            !CHG_BIT_ADDRESS = $D0
+        ;PCM to BRR conversion
+            !BRR_PCM_PAGE = $D0
+            !BRR_OUT_INDEX = $D1
+            !BRR_FLAGS = $D2
 
-        !BRR_BUFF1_PTR_L = $20
-        !BRR_BUFF1_PTR_H = $21
-        !BRR_MAXM0_L = $F8  ;These registers are so unused
-        !BRR_MAXM0_H = $F9  ;they're practically RAM!
-        !BRR_TEMP_FLAGS = $E5
-        !BRR_SMPPT_L = $E6
-        !BRR_SMPPT_H = $E7
-        !BRR_CSMPT_L = $E8
-        !BRR_CSMPT_H = $E9
-        !BRR_LSMPT_L = $EA  ;Last sample point of previous block for filter 1 adjustment
-        !BRR_LSMPT_H = $EB  ;
-        !BRR_IN0_PTR_L = $EC
-        !BRR_IN0_PTR_H = $ED
-        !BRR_OUT_PTR_L = $EE
-        !BRR_OUT_PTR_H = $EF
-
-
-;For channel updates, first 2 blocks of 8 bytes are stored in $C0-$CF, while the last one is stored in $D8-$DF
-    !CH1_SONG_POINTER_L = $0800
-    !CH1_SONG_POINTER_H = $0801
-    !CH1_EFFECT_POINTER_L = $0802
-    !CH1_EFFECT_POINTER_H = $0803
-    !CH1_INSTRUMENT_INDEX = $0804
-    !CH1_INSTRUMENT_TYPE = $0805
-    !CH1_SAMPLE_POINTER_L = $0806
-    !CH1_SAMPLE_POINTER_H = $0807
-
-    !CH1_SONG_COUNTER = $0840
-    !CH1_EFFECT_COUNTER = $0841
-    !CH1_EFFECT_AMOUNT = $0842
-    ;$43 and $44 will be used by pitchbend
-    !CH1_ARPEGGIO = $0845
-    !CH1_NOTE = $0846
-    !CH1_FLAGS = $0847
-
-    !CH1_INSTRUMENT_TYPE_COUNTER = $0880
-    !CH1_ENVELOPE_COUNTER = $0881
-    !CH1_SAMPLE_POINTER_COUNTER = $0882
-    !CH1_ARPEGGIO_COUNTER = $0883
-    !CH1_PITCHBEND_COUNTER = $0884
-    !CH1_COUNTERS_HALT = $0887
-
-    !CH1_INSTRUMENT_TYPE_POINTER = $08C0
-    !CH1_ENVELOPE_POINTER = $08C1
-    !CH1_SAMPLE_POINTER_POINTER = $08C2
-    !CH1_ARPEGGIO_POINTER = $08C3
-    !CH1_PITCHBEND_POINTER = $08C4
-    !CH1_COUNTERS_DIRECTION = $08C7
-
-    CHTEMP_POINTER_0 = $20
-    CHTEMP_POINTER_1 = $28
-    CHTEMP_POINTER_2 = $30
-    CHTEMP_POINTER_3 = $38
-
-    CH1_POINTER_0 = $0800
-    CH1_POINTER_1 = $0840
-    CH1_POINTER_2 = $0880
-    CH1_POINTER_3 = $08C0
-
-    CHTEMP_SONG_POINTER_L = $20
-    CHTEMP_SONG_POINTER_H = $21
-    CHTEMP_EFFECT_POINTER_L = $22
-    CHTEMP_EFFECT_POINTER_H = $23
-    CHTEMP_INSTRUMENT_INDEX = $24
-    CHTEMP_INSTRUMENT_TYPE = $25
-    CHTEMP_SAMPLE_POINTER_L = $26
-    CHTEMP_SAMPLE_POINTER_H = $27
-
-    CHTEMP_SONG_COUNTER = $28
-    CHTEMP_EFFECT_COUNTER = $29
-    CHTEMP_EFFECT_AMOUNT = $2A
-    ;$2B and $2C will be used by pitchbend
-    CHTEMP_ARPEGGIO = $2D
-    CHTEMP_NOTE = $2E
-    CHTEMP_FLAGS = $2F
-
-    CHTEMP_MACRO_COUNTERS = $30
-    CHTEMP_INSTRUMENT_TYPE_COUNTER = $30
-    CHTEMP_ENVELOPE_COUNTER = $31
-    CHTEMP_SAMPLE_POINTER_COUNTER = $32
-    CHTEMP_ARPEGGIO_COUNTER = $33
-    CHTEMP_PITCHBEND_COUNTER = $34
-    CHTEMP_COUNTERS_HALT = $37     ;000paset
-
-    CHTEMP_MACRO_POINTERS = $38
-    CHTEMP_INSTRUMENT_TYPE_POINTER = $38
-    CHTEMP_ENVELOPE_POINTER = $39
-    CHTEMP_SAMPLE_POINTER_POINTER = $3A
-    CHTEMP_ARPEGGIO_POINTER = $3B
-    CHTEMP_PITCHBEND_POINTER = $3C
-    CHTEMP_COUNTERS_DIRECTION = $3F   ;000paset
-
-;Just global variables used in song playback
-    !TEMP_VALUE = $00
-    !TIMER_VALUE = $01
-    !CHANNEL_REGISTER_INDEX = $02
-    !CHANNEL_BITMASK = $03
-    !PATTERN_POINTER_L = $04
-    !PATTERN_POINTER_H = $05
-    !TEMP_VALUE2 = $06
-    !PATTERN_END_FLAGS = $07
-    !TEMP_POINTER0_L = $0C
-    !TEMP_POINTER0_H = $0D
-    !TEMP_POINTER1_L = $0E
-    !TEMP_POINTER1_H = $0F
+            !BRR_BUFF1_PTR_L = $20
+            !BRR_BUFF1_PTR_H = $21
+            !BRR_MAXM0_L = $F8  ;These registers are so unused
+            !BRR_MAXM0_H = $F9  ;they're practically RAM!
+            !BRR_TEMP_FLAGS = $E5
+            !BRR_SMPPT_L = $E6
+            !BRR_SMPPT_H = $E7
+            !BRR_CSMPT_L = $E8
+            !BRR_CSMPT_H = $E9
+            !BRR_LSMPT_L = $EA  ;Last sample point of previous block for filter 1 adjustment
+            !BRR_LSMPT_H = $EB  ;
+            !BRR_IN0_PTR_L = $EC
+            !BRR_IN0_PTR_H = $ED
+            !BRR_OUT_PTR_L = $EE
+            !BRR_OUT_PTR_H = $EF
 
 
-    !SNESFM_CFG_SAMPLE_GENERATE ?= 0
+    ;For channel updates, first 2 blocks of 8 bytes are stored in $C0-$CF, while the last one is stored in $D8-$DF
+        !CH1_SONG_POINTER_L = $0800
+        !CH1_SONG_POINTER_H = $0801
+        !CH1_EFFECT_POINTER_L = $0802
+        !CH1_EFFECT_POINTER_H = $0803
+        !CH1_INSTRUMENT_INDEX = $0804
+        !CH1_INSTRUMENT_TYPE = $0805
+        !CH1_SAMPLE_POINTER_L = $0806
+        !CH1_SAMPLE_POINTER_H = $0807
 
-    !SNESFM_CFG_PHASEMOD ?= 0
-    !SNESFM_CFG_PULSEGEN ?= 0
+        !CH1_SONG_COUNTER = $0840
+        !CH1_EFFECT_COUNTER = $0841
+        !CH1_EFFECT_AMOUNT = $0842
+        ;$43 and $44 will be used by pitchbend
+        !CH1_ARPEGGIO = $0845
+        !CH1_NOTE = $0846
+        !CH1_FLAGS = $0847
 
-    !SNESFM_CFG_LONG_SMP_GEN ?= 0
-    !SNESFM_CFG_SHORTSMP_GEN ?= (!SNESFM_CFG_SAMPLE_GENERATE)&~(!SNESFM_CFG_LONG_SMP_GEN)
+        !CH1_INSTRUMENT_TYPE_COUNTER = $0880
+        !CH1_ENVELOPE_COUNTER = $0881
+        !CH1_SAMPLE_POINTER_COUNTER = $0882
+        !CH1_ARPEGGIO_COUNTER = $0883
+        !CH1_PITCHBEND_COUNTER = $0884
+        !CH1_COUNTERS_HALT = $0887
 
-    ; if !SNESFM_CFG_SAMPLE_GENERATE&&((!SNESFM_CFG_LONG_SMP_GEN+!SNESFM_CFG_SHORTSMP_GEN) == 0)
-    ;     error "You have specified to generate samples, but have specified to not generate short nor long samples. Pick one"
-    ; endif
+        !CH1_INSTRUMENT_TYPE_POINTER = $08C0
+        !CH1_ENVELOPE_POINTER = $08C1
+        !CH1_SAMPLE_POINTER_POINTER = $08C2
+        !CH1_ARPEGGIO_POINTER = $08C3
+        !CH1_PITCHBEND_POINTER = $08C4
+        !CH1_COUNTERS_DIRECTION = $08C7
+
+        CHTEMP_POINTER_0 = $20
+        CHTEMP_POINTER_1 = $28
+        CHTEMP_POINTER_2 = $30
+        CHTEMP_POINTER_3 = $38
+
+        CH1_POINTER_0 = $0800
+        CH1_POINTER_1 = $0840
+        CH1_POINTER_2 = $0880
+        CH1_POINTER_3 = $08C0
+
+        CHTEMP_SONG_POINTER_L = $20
+        CHTEMP_SONG_POINTER_H = $21
+        CHTEMP_EFFECT_POINTER_L = $22
+        CHTEMP_EFFECT_POINTER_H = $23
+        CHTEMP_INSTRUMENT_INDEX = $24
+        CHTEMP_INSTRUMENT_TYPE = $25
+        CHTEMP_SAMPLE_POINTER_L = $26
+        CHTEMP_SAMPLE_POINTER_H = $27
+
+        CHTEMP_SONG_COUNTER = $28
+        CHTEMP_EFFECT_COUNTER = $29
+        CHTEMP_EFFECT_AMOUNT = $2A
+        ;$2B and $2C will be used by pitchbend
+        CHTEMP_ARPEGGIO = $2D
+        CHTEMP_NOTE = $2E
+        CHTEMP_FLAGS = $2F
+
+        CHTEMP_MACRO_COUNTERS = $30
+        CHTEMP_INSTRUMENT_TYPE_COUNTER = $30
+        CHTEMP_ENVELOPE_COUNTER = $31
+        CHTEMP_SAMPLE_POINTER_COUNTER = $32
+        CHTEMP_ARPEGGIO_COUNTER = $33
+        CHTEMP_PITCHBEND_COUNTER = $34
+        CHTEMP_COUNTERS_HALT = $37     ;000paset
+
+        CHTEMP_MACRO_POINTERS = $38
+        CHTEMP_INSTRUMENT_TYPE_POINTER = $38
+        CHTEMP_ENVELOPE_POINTER = $39
+        CHTEMP_SAMPLE_POINTER_POINTER = $3A
+        CHTEMP_ARPEGGIO_POINTER = $3B
+        CHTEMP_PITCHBEND_POINTER = $3C
+        CHTEMP_COUNTERS_DIRECTION = $3F   ;000paset
+
+    ;Just global variables used in song playback
+        !TEMP_VALUE = $00
+        !TIMER_VALUE = $01
+        !CHANNEL_REGISTER_INDEX = $02
+        !CHANNEL_BITMASK = $03
+        !PATTERN_POINTER_L = $04
+        !PATTERN_POINTER_H = $05
+        !TEMP_VALUE2 = $06
+        !PATTERN_END_FLAGS = $07
+        !TEMP_POINTER0_L = $0C
+        !TEMP_POINTER0_H = $0D
+        !TEMP_POINTER1_L = $0E
+        !TEMP_POINTER1_H = $0F
+
+    ;Internal configuration
+
+        !SNESFM_CFG_SAMPLE_GENERATE ?= 0
+
+        !SNESFM_CFG_PHASEMOD ?= 0
+        !SNESFM_CFG_PULSEGEN ?= 0
+
+        !SNESFM_CFG_LONG_SMP_GEN ?= 0
+        !SNESFM_CFG_SHORTSMP_GEN ?= (!SNESFM_CFG_SAMPLE_GENERATE)&~(!SNESFM_CFG_LONG_SMP_GEN)
+
+        !SNESFM_CFG_PITCHTABLE_GEN ?= 0
+
+        ; if !SNESFM_CFG_SAMPLE_GENERATE&&((!SNESFM_CFG_LONG_SMP_GEN+!SNESFM_CFG_SHORTSMP_GEN) == 0)
+        ;     error "You have specified to generate samples, but have specified to not generate short nor long samples. Pick one"
+        ; endif
 
 warnings enable W1008
 ;
@@ -291,6 +294,12 @@ Init:       ;init routine, totally not grabbed from tales of phantasia
     ;'MOV $FA, #$85   ;   Set Timer 0 to 16.625 ms (~60 Hz)
     MOV $FA, #$50   ;   Set Timer 0 to 10 ms     (100 Hz)
     MOV $F1, #$07   ;__
+
+if !SNESFM_CFG_PITCHTABLE_GEN >= 1
+    MOV A, #$7D
+    MOV Y, #$21
+    CALL GeneratePitchTable_Start
+endif
 
 SineSetup:
 
@@ -639,278 +648,274 @@ mainLoop:
         JMP mainLoop_00
 
 namespace ParseInstrumentData
-Start:
-    BBC1 CHTEMP_FLAGS, Load
-    RET
+    Start:
+        BBC1 CHTEMP_FLAGS, Load
+        RET
 
-Load:
-    MOV Y, CHTEMP_INSTRUMENT_INDEX
-    MOV A, InstrumentPtrLo+Y
-    MOV !TEMP_POINTER0_L, A
-    MOV A, InstrumentPtrHi+Y
-    MOV !TEMP_POINTER0_H, A
-    MOV Y, #$00
+    Load:
+        MOV Y, CHTEMP_INSTRUMENT_INDEX
+        MOV A, InstrumentPtrLo+Y
+        MOV !TEMP_POINTER0_L, A
+        MOV A, InstrumentPtrHi+Y
+        MOV !TEMP_POINTER0_H, A
+        MOV Y, #$00
 
-    INCW !TEMP_POINTER0_L
-    INCW !TEMP_POINTER0_L
-
-    PUSH X
-    MOV X, #$00
-
-    BBS3 CHTEMP_FLAGS, +
-    JMP NotFirstTime
-    +:
-    MOV CHTEMP_ARPEGGIO, X
-    MOV $E0, #$05
-    
-    MOV CHTEMP_INSTRUMENT_TYPE_POINTER, X
-    MOV CHTEMP_ENVELOPE_POINTER, X
-    MOV CHTEMP_SAMPLE_POINTER_POINTER, X
-    MOV CHTEMP_ARPEGGIO_POINTER, X
-    MOV CHTEMP_PITCHBEND_POINTER, X
-    
-    MOV !TEMP_VALUE, #$01
-    MOV !TEMP_VALUE2, #$04
-    
-    -:
-        CALL UpdateMacro
-        INC X
-        ASL !TEMP_VALUE
-        DBNZ !TEMP_VALUE2, -
-
-    CLR3 CHTEMP_FLAGS
-    POP X
-    RET
-NotFirstTime:
-
-    MOV !TEMP_VALUE, #$01
-    MOV !TEMP_VALUE2, #$04
-
-    -:
-        MOV A, CHTEMP_COUNTERS_HALT
-        AND A, !TEMP_VALUE
-        BNE +
-            SETC
-			MOV A, CHTEMP_INSTRUMENT_TYPE_COUNTER+X
-            SBC A, !TIMER_VALUE
-			MOV CHTEMP_INSTRUMENT_TYPE_COUNTER+X, A
-            BPL +
-                CALL UpdateMacro
-                JMP ++
-        +
-            CLRC    
-            ADC !TEMP_POINTER0_L, #$04
-            ADC !TEMP_POINTER0_H, #$00
-        ++
-        INC X
-        ASL !TEMP_VALUE
-        DBNZ !TEMP_VALUE2, -
-    
-    POP X
-    RET
-
-UpdateMacro:
-    PUSH X
-    MOV Y, #$00
-    MOV A, (!TEMP_POINTER0_L)+Y             ;
-    MOV !TEMP_POINTER1_L, A                 ;
-    INCW !TEMP_POINTER0_L                   ;   Get base 
-    MOV A, (!TEMP_POINTER0_L)+Y             ;   macro pointer
-    MOV !TEMP_POINTER1_H, A                 ;
-    INCW !TEMP_POINTER0_L                   ;__
-
-    MOV A, UpdateMacro_InsTypeMaskTable+X
-    AND A, CHTEMP_INSTRUMENT_TYPE
-    BEQ +
-        MOV A, CHTEMP_MACRO_POINTERS+X      ; 
-        ASL A                               ;   Get the current
-        BCC ++                              ;   macro pointer (double)
-            INC Y                           ;
-        JMP ++                              ;__
-    +:
-        MOV A, CHTEMP_MACRO_POINTERS+X		;   Get the current macro pointer (single)
-    ++:
-    ADDW YA, !TEMP_POINTER1_L               ;   Get the current
-    MOVW !TEMP_POINTER1_L, YA               ;__ macro pointer
-
-	MOV Y, #$00
-    MOV A, (!TEMP_POINTER0_L)+Y             ;   Get the amount of steps
-    INCW !TEMP_POINTER0_L                   ;__
-    CMP A, CHTEMP_MACRO_POINTERS+X
-    BNE ++
-        MOV A, !TEMP_VALUE
-        TSET CHTEMP_COUNTERS_HALT, A
         INCW !TEMP_POINTER0_L
-        JMP +
-    ++  INC CHTEMP_MACRO_POINTERS+X			;TODO: More looping types
-        MOV A, (!TEMP_POINTER0_L)+Y			;   Get the counter value
-        INCW !TEMP_POINTER0_L				;__
-        MOV CHTEMP_MACRO_COUNTERS+X, A		;__ Store counter value
-    +
-    MOV A, X
-    ASL A
-    MOV X, A
-    JMP (UpdateMacro_ActualUpdateTable+X)
+        INCW !TEMP_POINTER0_L
 
-    .ActualUpdateTable:
-        dw UpdateInstrumentType
-        dw UpdateEnvelope
-        dw UpdateSamplePointer
-		dw UpdateArpeggio
-    .InsTypeMaskTable:     ; Doubles the actual pointer if the bit is set in instrument type
-        db $00, !ENVELOPE_TYPE_ADSR, !SAMPLE_USE_ADDRESS, $00, $00
+        PUSH X
+        MOV X, #$00
 
-UpdateInstrumentType:
-    POP X
-    MOV A, (!TEMP_POINTER1_L)+Y         ;   Get the current value
-    MOV CHTEMP_INSTRUMENT_TYPE, A      	;__
-    MOV $F2, #$3D                       ;
-    MOV A, !CHANNEL_BITMASK             ;
-    BBC0 CHTEMP_INSTRUMENT_TYPE, +		;
-        TCLR $F3, A                     ;   Update the noise enable flag
-        JMP ++                          ;
-    +:                                  ;
-        TSET $F3, A                     ;__ 
-++  AND !CHANNEL_REGISTER_INDEX, #$70	; 
-    OR !CHANNEL_REGISTER_INDEX, #$05	;
-    MOV $F2, !CHANNEL_REGISTER_INDEX	;
-    MOV A, $F3                          ;
-    XCN A                               ;   If the envelope mode isn't changed, 
-    LSR A                               ;   don't clear the envelope
-    LSR A                               ;
-    EOR A, CHTEMP_INSTRUMENT_TYPE		;
-    AND A, #$02                         ;
-    BEQ RET_                            ;__
-    AND !CHANNEL_REGISTER_INDEX, #$70	; 
-    BBC1 CHTEMP_INSTRUMENT_TYPE, +		;
-        OR !CHANNEL_REGISTER_INDEX, #$05;   Write address to DSP (ADSR1)
-        MOV $F2, !CHANNEL_REGISTER_INDEX;__
-        MOV $F3, #$80                   ;   If ADSR is used,
-        INC $F2                         ;   Clear out the ADSR envelope
-        MOV $F3, #$00                   ;__
-    #RET_ RET
-    +:                                  ;
-        OR !CHANNEL_REGISTER_INDEX, #$08;
-        MOV $F2, !CHANNEL_REGISTER_INDEX;
-        MOV A, $F3                      ;   If GAIN is used,
-        DEC $F2                         ;   set the GAIN envelope to the current value
-        MOV $F3, A                      ;
-        DEC $F2                         ;
-        DEC $F2                         ;
-        MOV $F3, #$00                   ;__
-    RET
-;
-
-
-UpdateEnvelope:
-    POP X
-    AND !CHANNEL_REGISTER_INDEX, #$70           ;
-    BBC1 CHTEMP_INSTRUMENT_TYPE, +             	;
-        OR !CHANNEL_REGISTER_INDEX, #$05        ;
-        MOV $F2, !CHANNEL_REGISTER_INDEX        ;
-        MOV A, (!TEMP_POINTER1_L)+Y             ;   Update Attack, Decay
-        INCW !TEMP_POINTER1_L                   ;
-        OR A, #$80                              ;
-        MOV $F3, A                              ;__
-        INC $F2                                 ;
-        MOV A, (!TEMP_POINTER1_L)+Y             ;   Update Sustain, Release
-        MOV $F3, A                              ;__
-        RET
-    +:
-        OR !CHANNEL_REGISTER_INDEX, #$07        ;
-        MOV $F2, !CHANNEL_REGISTER_INDEX        ;   Update GAIN envelope
-        MOV A, (!TEMP_POINTER1_L)+Y             ;
-        MOV $F3, A                              ;__
-        RET
-;
-
-UpdateSamplePointer:
-
-    BBS3 CHTEMP_INSTRUMENT_TYPE, +			;__ If sample index is used,
-        MOV A, (!TEMP_POINTER1_L)+Y         ;
-        MOV Y, A                            ;
-        MOV A, CHTEMP_INSTRUMENT_TYPE		;
-        AND A, #$30                         ;
-        XCN A                               ;
-        MOV $EF, A                          ;  Get pointer from sample index
-        MOV A, CHTEMP_INSTRUMENT_TYPE		;
-        AND A, #$40                         ;
-        OR A, $EF                           ;
-        TCALL 13                            ;
-        MOVW CHTEMP_SAMPLE_POINTER_L, YA	;
-        MOV Y, #$00                         ;
-        JMP ++			                    ;__
-    +   MOV A, (!TEMP_POINTER1_L)+Y         ;
-        MOV CHTEMP_SAMPLE_POINTER_L, A		;   If no, just blatantly
-        INCW !TEMP_POINTER1_L               ;   Load sample pointer into memory
-        MOV A, (!TEMP_POINTER1_L)+Y         ;
-        MOV CHTEMP_SAMPLE_POINTER_H, A     	;__
-++:
-		MOV A, !CHANNEL_REGISTER_INDEX		;
-		LSR A								;	Get current channel's X
-		AND A, #$38							;	(cheaper than getting it from stack)
-		MOV X, A							;__
-updatePointer:       
-        BBS7 CHTEMP_FLAGS, updatePointer_1  ;	If the currently playing sample is 1, update sample 0
-    .0:
-        MOV A, CHTEMP_SAMPLE_POINTER_H		;   Check if the high byte is the same
-        CMP A, $0203+X                      ;__
-        BNE updatePointer_0_withRestart		;
-        MOV A, CHTEMP_SAMPLE_POINTER_L		;	If yes, update only the low byte of the sample pointer
-        MOV $0202+X, A                      ;__ 
-		POP X
-        RET
+        BBS3 CHTEMP_FLAGS, +
+        JMP NotFirstTime
+        +:
+        MOV CHTEMP_ARPEGGIO, X
+        MOV $E0, #$05
         
-    ..withRestart:
-        MOV $0207+X, A						;   If high byte is different,
-        MOV A, CHTEMP_SAMPLE_POINTER_L		;   Update sample 1 loop pointer
-        MOV $0206+X, A                      ;__
-        MOV A, #$C0                         ;
-        MOV $0204+X, A                      ;   Reset sample 1 start pointer to blank sample
-        MOV A, #$0E                         ;
-        MOV $0205+X, A                      ;__
-        AND !CHANNEL_REGISTER_INDEX, #$70	;   
-        OR !CHANNEL_REGISTER_INDEX, #$04	;   Write address to DSP
-        MOV $F2, !CHANNEL_REGISTER_INDEX	;__
-        MOV A, X		                    ;
-        LSR A                               ;   Write Source Number to DSP
-        LSR A                               ;
-        OR A, #$01                          ;
-        MOV $F3, A                          ;__
-        SET7 CHTEMP_FLAGS					;__ Next time update sample 0
-        POP X
-        RET
-
-
-    .1:
-        MOV A, CHTEMP_SAMPLE_POINTER_H		;	Check if high byte is the same
-        CMP A, $0207+X						;__
-        BNE updatePointer_1_withRestart		;
-        MOV A, CHTEMP_SAMPLE_POINTER_L		;	If yes, update only the low byte of the sample pointer
-        MOV $0206+X, A                      ;__
-        POP X
-        RET
+        MOV CHTEMP_INSTRUMENT_TYPE_POINTER, X
+        MOV CHTEMP_ENVELOPE_POINTER, X
+        MOV CHTEMP_SAMPLE_POINTER_POINTER, X
+        MOV CHTEMP_ARPEGGIO_POINTER, X
+        MOV CHTEMP_PITCHBEND_POINTER, X
         
-    ..withRestart:
-        MOV $0203+X, A                      ;   If high byte is different,
-        MOV A, CHTEMP_SAMPLE_POINTER_L		;   Update sample 1 loop pointer
-        MOV $0202+X, A                      ;__
-        MOV A, #$C0                         ;
-        MOV $0200+X, A                      ;   Reset sample 1 start pointer to blank sample
-        MOV A, #$0E                         ;
-        MOV $0201+X, A                      ;__
-        AND !CHANNEL_REGISTER_INDEX, #$70	;   
-        OR !CHANNEL_REGISTER_INDEX, #$04	;   Write address to DSP
-        MOV $F2, !CHANNEL_REGISTER_INDEX	;__
-        MOV A, X		                    ;
-        LSR A                               ;   Write Source Number to DSP
-        LSR A                               ;
-		MOV $F3, A                          ;__
-        CLR7 CHTEMP_FLAGS					;__ Next time sample 1 is updated
-        POP X
-        RET		
+        MOV !TEMP_VALUE, #$01
+        MOV !TEMP_VALUE2, #$04
+        
+        -:
+            CALL UpdateMacro
+            INC X
+            ASL !TEMP_VALUE
+            DBNZ !TEMP_VALUE2, -
 
-UpdateArpeggio:
+        CLR3 CHTEMP_FLAGS
+        POP X
+        RET
+    NotFirstTime:
+
+        MOV !TEMP_VALUE, #$01
+        MOV !TEMP_VALUE2, #$04
+
+        -:
+            MOV A, CHTEMP_COUNTERS_HALT
+            AND A, !TEMP_VALUE
+            BNE +
+                SETC
+                MOV A, CHTEMP_INSTRUMENT_TYPE_COUNTER+X
+                SBC A, !TIMER_VALUE
+                MOV CHTEMP_INSTRUMENT_TYPE_COUNTER+X, A
+                BPL +
+                    CALL UpdateMacro
+                    JMP ++
+            +
+                CLRC    
+                ADC !TEMP_POINTER0_L, #$04
+                ADC !TEMP_POINTER0_H, #$00
+            ++
+            INC X
+            ASL !TEMP_VALUE
+            DBNZ !TEMP_VALUE2, -
+        
+        POP X
+        RET
+
+    UpdateMacro:
+        PUSH X
+        MOV Y, #$00
+        MOV A, (!TEMP_POINTER0_L)+Y             ;
+        MOV !TEMP_POINTER1_L, A                 ;
+        INCW !TEMP_POINTER0_L                   ;   Get base 
+        MOV A, (!TEMP_POINTER0_L)+Y             ;   macro pointer
+        MOV !TEMP_POINTER1_H, A                 ;
+        INCW !TEMP_POINTER0_L                   ;__
+
+        MOV A, UpdateMacro_InsTypeMaskTable+X
+        AND A, CHTEMP_INSTRUMENT_TYPE
+        BEQ +
+            MOV A, CHTEMP_MACRO_POINTERS+X      ; 
+            ASL A                               ;   Get the current
+            BCC ++                              ;   macro pointer (double)
+                INC Y                           ;
+            JMP ++                              ;__
+        +:
+            MOV A, CHTEMP_MACRO_POINTERS+X		;   Get the current macro pointer (single)
+        ++:
+        ADDW YA, !TEMP_POINTER1_L               ;   Get the current
+        MOVW !TEMP_POINTER1_L, YA               ;__ macro pointer
+
+        MOV Y, #$00
+        MOV A, (!TEMP_POINTER0_L)+Y             ;   Get the amount of steps
+        INCW !TEMP_POINTER0_L                   ;__
+        CMP A, CHTEMP_MACRO_POINTERS+X
+        BNE ++
+            MOV A, !TEMP_VALUE
+            TSET CHTEMP_COUNTERS_HALT, A
+            INCW !TEMP_POINTER0_L
+            JMP +
+        ++  INC CHTEMP_MACRO_POINTERS+X			;TODO: More looping types
+            MOV A, (!TEMP_POINTER0_L)+Y			;   Get the counter value
+            INCW !TEMP_POINTER0_L				;__
+            MOV CHTEMP_MACRO_COUNTERS+X, A		;__ Store counter value
+        +
+        MOV A, X
+        ASL A
+        MOV X, A
+        JMP (UpdateMacro_ActualUpdateTable+X)
+
+        .ActualUpdateTable:
+            dw UpdateInstrumentType
+            dw UpdateEnvelope
+            dw UpdateSamplePointer
+            dw UpdateArpeggio
+        .InsTypeMaskTable:     ; Doubles the actual pointer if the bit is set in instrument type
+            db $00, !ENVELOPE_TYPE_ADSR, !SAMPLE_USE_ADDRESS, $00, $00
+
+    UpdateInstrumentType:
+        POP X
+        MOV A, (!TEMP_POINTER1_L)+Y         ;   Get the current value
+        MOV CHTEMP_INSTRUMENT_TYPE, A      	;__
+        MOV $F2, #$3D                       ;
+        MOV A, !CHANNEL_BITMASK             ;
+        BBC0 CHTEMP_INSTRUMENT_TYPE, +		;
+            TCLR $F3, A                     ;   Update the noise enable flag
+            JMP ++                          ;
+        +:                                  ;
+            TSET $F3, A                     ;__ 
+    ++  AND !CHANNEL_REGISTER_INDEX, #$70	; 
+        OR !CHANNEL_REGISTER_INDEX, #$05	;
+        MOV $F2, !CHANNEL_REGISTER_INDEX	;
+        MOV A, $F3                          ;
+        XCN A                               ;   If the envelope mode isn't changed, 
+        LSR A                               ;   don't clear the envelope
+        LSR A                               ;
+        EOR A, CHTEMP_INSTRUMENT_TYPE		;
+        AND A, #$02                         ;
+        BEQ RET_                            ;__
+        AND !CHANNEL_REGISTER_INDEX, #$70	; 
+        BBC1 CHTEMP_INSTRUMENT_TYPE, +		;
+            OR !CHANNEL_REGISTER_INDEX, #$05;   Write address to DSP (ADSR1)
+            MOV $F2, !CHANNEL_REGISTER_INDEX;__
+            MOV $F3, #$80                   ;   If ADSR is used,
+            INC $F2                         ;   Clear out the ADSR envelope
+            MOV $F3, #$00                   ;__
+        #RET_ RET
+        +:                                  ;
+            OR !CHANNEL_REGISTER_INDEX, #$08;
+            MOV $F2, !CHANNEL_REGISTER_INDEX;
+            MOV A, $F3                      ;   If GAIN is used,
+            DEC $F2                         ;   set the GAIN envelope to the current value
+            MOV $F3, A                      ;
+            DEC $F2                         ;
+            DEC $F2                         ;
+            MOV $F3, #$00                   ;__
+        RET
+
+    UpdateEnvelope:
+        POP X
+        AND !CHANNEL_REGISTER_INDEX, #$70           ;
+        BBC1 CHTEMP_INSTRUMENT_TYPE, +             	;
+            OR !CHANNEL_REGISTER_INDEX, #$05        ;
+            MOV $F2, !CHANNEL_REGISTER_INDEX        ;
+            MOV A, (!TEMP_POINTER1_L)+Y             ;   Update Attack, Decay
+            INCW !TEMP_POINTER1_L                   ;
+            OR A, #$80                              ;
+            MOV $F3, A                              ;__
+            INC $F2                                 ;
+            MOV A, (!TEMP_POINTER1_L)+Y             ;   Update Sustain, Release
+            MOV $F3, A                              ;__
+            RET
+        +:
+            OR !CHANNEL_REGISTER_INDEX, #$07        ;
+            MOV $F2, !CHANNEL_REGISTER_INDEX        ;   Update GAIN envelope
+            MOV A, (!TEMP_POINTER1_L)+Y             ;
+            MOV $F3, A                              ;__
+            RET
+    UpdateSamplePointer:
+
+        BBS3 CHTEMP_INSTRUMENT_TYPE, +			;__ If sample index is used,
+            MOV A, (!TEMP_POINTER1_L)+Y         ;
+            MOV Y, A                            ;
+            MOV A, CHTEMP_INSTRUMENT_TYPE		;
+            AND A, #$30                         ;
+            XCN A                               ;
+            MOV $EF, A                          ;  Get pointer from sample index
+            MOV A, CHTEMP_INSTRUMENT_TYPE		;
+            AND A, #$40                         ;
+            OR A, $EF                           ;
+            TCALL 13                            ;
+            MOVW CHTEMP_SAMPLE_POINTER_L, YA	;
+            MOV Y, #$00                         ;
+            JMP ++			                    ;__
+        +   MOV A, (!TEMP_POINTER1_L)+Y         ;
+            MOV CHTEMP_SAMPLE_POINTER_L, A		;   If no, just blatantly
+            INCW !TEMP_POINTER1_L               ;   Load sample pointer into memory
+            MOV A, (!TEMP_POINTER1_L)+Y         ;
+            MOV CHTEMP_SAMPLE_POINTER_H, A     	;__
+    ++:
+            MOV A, !CHANNEL_REGISTER_INDEX		;
+            LSR A								;	Get current channel's X
+            AND A, #$38							;	(cheaper than getting it from stack)
+            MOV X, A							;__
+    updatePointer:       
+            BBS7 CHTEMP_FLAGS, updatePointer_1  ;	If the currently playing sample is 1, update sample 0
+        .0:
+            MOV A, CHTEMP_SAMPLE_POINTER_H		;   Check if the high byte is the same
+            CMP A, $0203+X                      ;__
+            BNE updatePointer_0_withRestart		;
+            MOV A, CHTEMP_SAMPLE_POINTER_L		;	If yes, update only the low byte of the sample pointer
+            MOV $0202+X, A                      ;__ 
+            POP X
+            RET
+            
+        ..withRestart:
+            MOV $0207+X, A						;   If high byte is different,
+            MOV A, CHTEMP_SAMPLE_POINTER_L		;   Update sample 1 loop pointer
+            MOV $0206+X, A                      ;__
+            MOV A, #$C0                         ;
+            MOV $0204+X, A                      ;   Reset sample 1 start pointer to blank sample
+            MOV A, #$0E                         ;
+            MOV $0205+X, A                      ;__
+            AND !CHANNEL_REGISTER_INDEX, #$70	;   
+            OR !CHANNEL_REGISTER_INDEX, #$04	;   Write address to DSP
+            MOV $F2, !CHANNEL_REGISTER_INDEX	;__
+            MOV A, X		                    ;
+            LSR A                               ;   Write Source Number to DSP
+            LSR A                               ;
+            OR A, #$01                          ;
+            MOV $F3, A                          ;__
+            SET7 CHTEMP_FLAGS					;__ Next time update sample 0
+            POP X
+            RET
+
+
+        .1:
+            MOV A, CHTEMP_SAMPLE_POINTER_H		;	Check if high byte is the same
+            CMP A, $0207+X						;__
+            BNE updatePointer_1_withRestart		;
+            MOV A, CHTEMP_SAMPLE_POINTER_L		;	If yes, update only the low byte of the sample pointer
+            MOV $0206+X, A                      ;__
+            POP X
+            RET
+            
+        ..withRestart:
+            MOV $0203+X, A                      ;   If high byte is different,
+            MOV A, CHTEMP_SAMPLE_POINTER_L		;   Update sample 1 loop pointer
+            MOV $0202+X, A                      ;__
+            MOV A, #$C0                         ;
+            MOV $0200+X, A                      ;   Reset sample 1 start pointer to blank sample
+            MOV A, #$0E                         ;
+            MOV $0201+X, A                      ;__
+            AND !CHANNEL_REGISTER_INDEX, #$70	;   
+            OR !CHANNEL_REGISTER_INDEX, #$04	;   Write address to DSP
+            MOV $F2, !CHANNEL_REGISTER_INDEX	;__
+            MOV A, X		                    ;
+            LSR A                               ;   Write Source Number to DSP
+            LSR A                               ;
+            MOV $F3, A                          ;__
+            CLR7 CHTEMP_FLAGS					;__ Next time sample 1 is updated
+            POP X
+            RET		
+
+    UpdateArpeggio:
 	POP X
 	MOV A, (!TEMP_POINTER1_L)+Y 			;   Update arpeggio 
 	MOV CHTEMP_ARPEGGIO, A                 	;__
@@ -1084,11 +1089,11 @@ set_echoFIR:
 
     .FIRTable:
         db #$7f, #$00, #$00, #$00, #$00, #$00, #$00, #$00
+;
 
 if !SNESFM_CFG_SAMPLE_GENERATE >= 1
 
 if !SNESFM_CFG_PULSEGEN >= 1
-
 PulseGenTables:    ;In order:
     ;Highbyte with sz = 00 (8000),
     ;Lowbyte with s=0 (8000/0000) / Highbyte with sz = 01 (0000), 
@@ -1098,9 +1103,8 @@ PulseGenTables:    ;In order:
     db $80, $00, $FF, $FF
     ;Inversion values for fractional value
     db $7F, $FE, $00, $80
-
+;
 if !SNESFM_CFG_LONG_SMP_GEN >= 1
-
 GeneratePulse_128:
     ;   Memory allocation:
     ;   Inputs:
@@ -1210,7 +1214,6 @@ GeneratePulse_128:
 endif   ; !SNESFM_CFG_LONG_SMP_GEN
 
 if !SNESFM_CFG_SHORTSMP_GEN >= 1
-
 GeneratePulse_32:
     ;   Memory allocation:
     ;   Inputs:
@@ -1329,7 +1332,6 @@ endif   ; !SNESFM_CFG_PULSEGEN
 if !SNESFM_CFG_PHASEMOD >= 1
 
 if !SNESFM_CFG_LONG_SMP_GEN >= 1
-
 PhaseModulation_128:
     ;   Memory allocation:
     ;   Inputs:
@@ -1419,7 +1421,6 @@ PhaseModulation_128:
 endif   ; !SNESFM_CFG_LONG_SMP_GEN
 
 if !SNESFM_CFG_SHORTSMP_GEN >= 1
-
 PhaseModulation_32:
     ;   Memory allocation:
     ;   Inputs:
@@ -1911,6 +1912,118 @@ ConvertToBRR:
 
 endif   ; !SNESFM_CFG_SAMPLE_GENERATE
 
+if !SNESFM_CFG_PITCHTABLE_GEN >= 1
+GeneratePitchTable:
+    ; Inputs:
+    ; YA = base pitch value of C7
+    .Defines:
+        GenPitch_CounterA      = $EA
+        GenPitch_NewPitch_Lo   = $EC
+        GenPitch_NewPitch_Hi   = $ED
+        GenPitch_PrevPitch_Lo  = $EE
+        GenPitch_PrevPitch_Hi  = $EF
+        !GenPitch_RatioMult = 196   ;   196/185 ≈ 2^(1/12) - the ratio for 1 semitone
+        !GenPitch_RatioDiv = 185    ;__
+    
+    .Start:
+        MOV PitchTableLo+(7*12), A
+        MOV PitchTableHi+(7*12), Y
+        MOV GenPitch_PrevPitch_Lo, A
+        MOV GenPitch_PrevPitch_Hi, Y
+        MOV X, #$00
+    
+    .SemitoneUpLoop:
+        MOV GenPitch_CounterA, X
+
+        MOV Y, GenPitch_PrevPitch_Lo    ;
+        MOV A, #!GenPitch_RatioMult     ;
+        MUL YA                          ;   Multiply low byte
+        MOV GenPitch_NewPitch_Lo, A     ;
+        MOV GenPitch_NewPitch_Hi, Y     ;__
+
+        MOV GenPitch_PrevPitch_Lo, #$00 ;
+        MOV Y, GenPitch_PrevPitch_Hi    ;
+        MOV A, #!GenPitch_RatioMult     ;   Multiply high byte
+        MUL YA                          ;__
+        ADDW YA, GenPitch_NewPitch_Hi   ; The next byte is 0, so it adds only the high byte as the mid byte
+
+        MOV X, #!GenPitch_RatioDiv      ;   YA very conveniently stores the high and mid bytes
+        DIV YA, X                       ;   Divide mid and high bytes
+        MOV GenPitch_NewPitch_Hi, A     ;__
+
+        MOV A, GenPitch_NewPitch_Lo     ;   Y very conveniently stores the remainder as the high byte
+        MOV X, #!GenPitch_RatioDiv      ;   Divide low byte with remainder as high byte
+        DIV YA, X                       ;__
+        CMP Y, #!GenPitch_RatioDiv/2    ;   Round the number
+        ADC A, #$00                     ;__
+
+        MOV X, GenPitch_CounterA        ;
+        MOV PitchTableLo+(7*12)+1+X, A  ;   Store low byte
+        MOV GenPitch_PrevPitch_Lo, A    ;__
+        MOV A, GenPitch_NewPitch_Hi     ;
+        MOV PitchTableHi+(7*12)+1+X, A  ;   Store high byte
+        MOV GenPitch_PrevPitch_Hi, A    ;__
+
+        INC X
+        CMP X, #11
+        BNE GeneratePitchTable_SemitoneUpLoop
+
+    .BitShiftStart:
+        MOV GenPitch_CounterA, #12
+
+    .BitShiftBigLoop:
+        CLRC
+        MOV A, #6*12
+        ADC A, GenPitch_CounterA
+        MOV X, A
+        MOV A, PitchTableHi+12-1+X
+        MOV GenPitch_NewPitch_Hi, A
+        MOV A, PitchTableLo+12-1+X
+        
+
+        ..BitShiftLoop:
+            LSR GenPitch_NewPitch_Hi        ;
+            ROR A                           ;
+            ADC A, #$00                     ;
+            ADC GenPitch_NewPitch_Hi, #$00  ;__
+            MOV Y, A
+
+            MOV PitchTableLo-1+X, A
+            MOV A, GenPitch_NewPitch_Hi
+            MOV PitchTableHi-1+X, A
+
+            MOV A, X
+            SETC
+            SBC A, #12
+            BMI +
+            MOV X, A
+
+            MOV A, Y
+            JMP GeneratePitchTable_BitShiftBigLoop_BitShiftLoop
+        +:
+        DBNZ GenPitch_CounterA, GeneratePitchTable_BitShiftBigLoop
+    
+    .OverflowCorrection:
+        MOV X, #7*12+11
+
+        ..Loop:
+            MOV A, PitchTableHi+X       ;
+            CMP A, #$40                 ;   If the value isn't overflowing, exit
+            BMI GeneratePitchTable_End  ;__
+
+            MOV A, #$3F                 ;
+            MOV PitchTableHi+X, A       ;   Cap the pitch value
+            MOV A, #$FF                 ;
+            MOV PitchTableLo+X, A       ;__
+
+            DEC X
+            BPL GeneratePitchTable_OverflowCorrection_Loop
+
+    .End:
+        RET
+
+endif
+
 transferChToTemp:       ;TCALL 15
     PUSH A
     PUSH X
@@ -2008,35 +2121,28 @@ Includes:
     org $0C00
 		LookupTables:
         incbin "multTables.bin"
-    org $0E00
-		PitchTableLo:
-        ParseInstrumentData_PitchTableLo:
-        incbin "pitchLo.bin"
-        PitchTableHi:
-        ParseInstrumentData_PitchTableHi:
-        incbin "pitchHi.bin"
-    org $0EC0   ;Dummy empty sample
-        db $03, $00, $00, $00, $00, $00, $00, $00, $00
+    if !SNESFM_CFG_PITCHTABLE_GEN
+        PitchTableLo = $0E00
+        ParseInstrumentData_PitchTableLo = $0E00
+        PitchTableHi = $0E60
+        ParseInstrumentData_PitchTableHi = $0E60
+        org $0EC0
+    else
+        org $0E00
+            PitchTableLo:
+            ParseInstrumentData_PitchTableLo:
+            incbin "pitchLo.bin"
+            PitchTableHi:
+            ParseInstrumentData_PitchTableHi:
+            incbin "pitchHi.bin"
+    endif
+        db $03, $00, $00, $00, $00, $00, $00, $00, $00 ;Dummy empty sample
         dw PatternData
     org $0F00
 		SineTable:
         incbin "quartersinetable.bin"
 
-    ; Only still here because asar is a bit borked
-
-    org $1000
-        ; Song data
-        incsrc "songData.asm"
-    org $0A00
-		ParseInstrumentData_InstrumentPtrLo:
-        ;instrument data pointers
-        db Instr00Data&$FF, Instr01Data&$FF, Instr02Data&$FF, Instr03Data&$FF
-    org $0B00
-		ParseInstrumentData_InstrumentPtrHi:
-        db (Instr00Data>>8)&$FF, (Instr01Data>>8)&$FF, (Instr02Data>>8)&$FF, (Instr03Data>>8)&$FF
-
     org $FFC0   ;For TCALLs
         dw transferChToTemp, transferTempToCh, IndexToSamplePointer
-startpos Init
 
 namespace off
