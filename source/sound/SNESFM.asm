@@ -4,6 +4,59 @@ namespace nested on
 namespace SPC
 
 warnings disable W1008
+Configuration:
+    ; SNESFM can be configured in 2 different ways:
+        ;
+        ; 1. Right here, in the configuration section - just 
+        ; comment/uncomment the defines below to disable/enable features.
+        ;
+        ; 2. Externally, by specifying the defines somewhere else
+        ; in your project. To use it, define !SNESFM_CFG_EXTERNAL=1
+        ; and specify the defines before including SNESFM. The demo
+        ; ROM uses this.
+        ;__
+        ;
+    ; There are several configuration sections:
+        ; 1. Features ran before song playback
+        ;__
+
+    !SNESFM_CFG_EXTERNAL ?= 0
+
+    if !SNESFM_CFG_EXTERNAL == 0
+
+    ;========== 1. Features ran before song playback ==========
+
+        ; Whether to generate samples at all - the main gimmick of
+        ; this sound driver. Disabling this will disable all sample
+        ; generation capabilities. You will be responsible for
+        ; supplying all of the samples.
+        !SNESFM_CFG_SAMPLE_GENERATE = 1
+
+        ; Whether to generate phase modulated instruments - just
+        ; like on Yamaha chips. Not to be confused with hardware
+        ; pitch modulation.
+        !SNESFM_CFG_PHASEMOD = 1
+
+        ; Whether to generate pulse wave samples.
+        !SNESFM_CFG_PULSEGEN = 1
+
+        ; Whether to generate long samples (128 samples long, good
+        ; for bass).
+        !SNESFM_CFG_LONG_SMP_GEN = 1
+
+        ; Whether to generate short samples (32 samples long, the
+        ; only way to get high pitched instruments).
+        !SNESFM_CFG_SHORTSMP_GEN = 1
+
+        ; Whether to generate pitch tables on the SPC700 itself.
+        ; If disabled, you will be responsible for supplying the
+        ; pitch table yourself (at location $0E00 - $0EBF, the
+        ; first 96 bytes being low bytes and the last 96 being
+        ; high bytes, the topmost note is a B7, close to the max
+        ; pitch on the SNES).
+        !SNESFM_CFG_PITCHTABLE_GEN = 1
+
+    endif
 Documentation:
 	;   ==== Code/data distribution table: ====
 		;   Page		Purpose
@@ -61,68 +114,7 @@ IntenalDefines:
             ;   Instrument types
                 !SAMPLE_USE_ADDRESS = %00001000
                 !ENVELOPE_TYPE_ADSR = %00000010
-
-    ;Temporary variables, basically a shitton of names for the same thing
-        ;$D0-DF are usually inputs while $E0-EF are just temporary variables used by routines
-        ;Echo FIR set
-            !ECH_FIR_FIRSTBYTE = $D0
-        ;Pulse generation
-            !PUL_OUT_PAGE = $D0
-            !PUL_DUTY = $D1
-            !PUL_FLAGS = $D2
-
-            !PUL_OUT_PTR_L = $EE
-            !PUL_OUT_PTR_H = $EF
-        ;Long to short sample conversion
-            !LTS_IN_PAGE = $D0
-            !LTS_OUT_PAGE = $D1
-            !LTS_OUT_SUBPAGE = $D2
-
-            !LTS_IN_PTR_L = $EC
-            !LTS_IN_PTR_H = $ED
-            !LTS_OUT_PTR_L = $EE
-            !LTS_OUT_PTR_H = $EF
-        ;Phase modulation
-            !MOD_CAR_PAGE = $D0
-            !MOD_MOD_PAGE = $D1
-            !MOD_OUT_PAGE = $D2
-            !MOD_MOD_STRENGTH = $D3
-            !MOD_MOD_PHASE_SHIFT = $D4
-            !MOD_SUBPAGE = $D5  ;Only in short version (obviously)
-
-            !MOD_CAR_INDEX_L = $E8  ;   Only in short phase modulation
-            !MOD_END_INDEX_L = $E9  ;__
-            !MOD_OUT_INDEX_L = $EA
-            !MOD_OUT_INDEX_H = $EB
-            !MOD_MOD_INDEX_L = $EC
-            !MOD_MOD_INDEX_H = $ED
-            !MOD_MAIN_TEMP_L = $EE
-            !MOD_MAIN_TEMP_H = $EF
-        ;Set/clear DP bit
-            !CHG_BIT_ADDRESS = $D0
-        ;PCM to BRR conversion
-            !BRR_PCM_PAGE = $D0
-            !BRR_OUT_INDEX = $D1
-            !BRR_FLAGS = $D2
-
-            !BRR_BUFF1_PTR_L = $20
-            !BRR_BUFF1_PTR_H = $21
-            !BRR_MAXM0_L = $F8  ;These registers are so unused
-            !BRR_MAXM0_H = $F9  ;they're practically RAM!
-            !BRR_TEMP_FLAGS = $E5
-            !BRR_SMPPT_L = $E6
-            !BRR_SMPPT_H = $E7
-            !BRR_CSMPT_L = $E8
-            !BRR_CSMPT_H = $E9
-            !BRR_LSMPT_L = $EA  ;Last sample point of previous block for filter 1 adjustment
-            !BRR_LSMPT_H = $EB  ;
-            !BRR_IN0_PTR_L = $EC
-            !BRR_IN0_PTR_H = $ED
-            !BRR_OUT_PTR_L = $EE
-            !BRR_OUT_PTR_H = $EF
-
-
-    ;For channel updates, first 2 blocks of 8 bytes are stored in $C0-$CF, while the last one is stored in $D8-$DF
+    ;Pointers to channel 1's variables (permanent storage during song playback)
         !CH1_SONG_POINTER_L = $0800
         !CH1_SONG_POINTER_H = $0801
         !CH1_EFFECT_POINTER_L = $0802
@@ -153,7 +145,7 @@ IntenalDefines:
         !CH1_ARPEGGIO_POINTER = $08C3
         !CH1_PITCHBEND_POINTER = $08C4
         !CH1_COUNTERS_DIRECTION = $08C7
-
+    ;Pointers for temporary <-> permanent storage transfers
         CHTEMP_POINTER_0 = $20
         CHTEMP_POINTER_1 = $28
         CHTEMP_POINTER_2 = $30
@@ -163,7 +155,7 @@ IntenalDefines:
         CH1_POINTER_1 = $0840
         CH1_POINTER_2 = $0880
         CH1_POINTER_3 = $08C0
-
+    ;Temporary channel pointers during song playback
         CHTEMP_SONG_POINTER_L = $20
         CHTEMP_SONG_POINTER_H = $21
         CHTEMP_EFFECT_POINTER_L = $22
@@ -357,147 +349,147 @@ SetVolume:
         DBNZ Y, SetVolume_loopVolumeSetup
 
 CompileInstruments:
-    MOV !LTS_IN_PAGE, #$0F
-    MOV !LTS_OUT_PAGE, #$20
-    MOV !LTS_OUT_SUBPAGE, #$00
-    CALL LongToShort
-    MOV !MOD_CAR_PAGE, #$20
-    MOV !MOD_MOD_PAGE, #$20
-    MOV !MOD_OUT_PAGE, #$20
-    MOV !MOD_MOD_STRENGTH, #$20
-    MOV !MOD_MOD_PHASE_SHIFT, #$00
-    MOV !MOD_SUBPAGE, #$04
+    MOV LTS_IN_PAGE, #$0F
+    MOV LTS_OUT_PAGE, #$20
+    MOV LTS_OUT_SUBPAGE, #$00
+    CALL LongToShort_Start
+    MOV MOD_CAR_PAGE, #$20
+    MOV MOD_MOD_PAGE, #$20
+    MOV MOD_OUT_PAGE, #$20
+    MOV MOD_MOD_STRENGTH, #$20
+    MOV MOD_MOD_PHASE_SHIFT, #$00
+    MOV MOD_SUBPAGE, #$04
     CALL PhaseModulation_32
-    MOV !MOD_MOD_STRENGTH, #$1E
-    MOV !MOD_MOD_PHASE_SHIFT, #$02
-    MOV !MOD_SUBPAGE, #$08
+    MOV MOD_MOD_STRENGTH, #$1E
+    MOV MOD_MOD_PHASE_SHIFT, #$02
+    MOV MOD_SUBPAGE, #$08
     CALL PhaseModulation_32
-    MOV !MOD_MOD_STRENGTH, #$1C
-    MOV !MOD_MOD_PHASE_SHIFT, #$04
-    MOV !MOD_SUBPAGE, #$0C
-    CALL PhaseModulation_32
-
-    MOV !MOD_OUT_PAGE, #$21
-
-    MOV !MOD_MOD_STRENGTH, #$1A
-    MOV !MOD_MOD_PHASE_SHIFT, #$06
-    MOV !MOD_SUBPAGE, #$00
-    CALL PhaseModulation_32
-    MOV !MOD_MOD_STRENGTH, #$18
-    MOV !MOD_MOD_PHASE_SHIFT, #$08
-    MOV !MOD_SUBPAGE, #$04
-    CALL PhaseModulation_32
-    MOV !MOD_MOD_STRENGTH, #$16
-    MOV !MOD_MOD_PHASE_SHIFT, #$0A
-    MOV !MOD_SUBPAGE, #$08
-    CALL PhaseModulation_32
-    MOV !MOD_MOD_STRENGTH, #$14
-    MOV !MOD_MOD_PHASE_SHIFT, #$0C
-    MOV !MOD_SUBPAGE, #$0C
+    MOV MOD_MOD_STRENGTH, #$1C
+    MOV MOD_MOD_PHASE_SHIFT, #$04
+    MOV MOD_SUBPAGE, #$0C
     CALL PhaseModulation_32
 
-    MOV !MOD_OUT_PAGE, #$22
+    MOV MOD_OUT_PAGE, #$21
 
-    MOV !MOD_MOD_STRENGTH, #$12
-    MOV !MOD_MOD_PHASE_SHIFT, #$0E
-    MOV !MOD_SUBPAGE, #$00
+    MOV MOD_MOD_STRENGTH, #$1A
+    MOV MOD_MOD_PHASE_SHIFT, #$06
+    MOV MOD_SUBPAGE, #$00
     CALL PhaseModulation_32
-    MOV !MOD_MOD_STRENGTH, #$10
-    MOV !MOD_MOD_PHASE_SHIFT, #$10
-    MOV !MOD_SUBPAGE, #$04
+    MOV MOD_MOD_STRENGTH, #$18
+    MOV MOD_MOD_PHASE_SHIFT, #$08
+    MOV MOD_SUBPAGE, #$04
     CALL PhaseModulation_32
-    MOV !MOD_MOD_STRENGTH, #$0E
-    MOV !MOD_MOD_PHASE_SHIFT, #$12
-    MOV !MOD_SUBPAGE, #$08
+    MOV MOD_MOD_STRENGTH, #$16
+    MOV MOD_MOD_PHASE_SHIFT, #$0A
+    MOV MOD_SUBPAGE, #$08
     CALL PhaseModulation_32
-    MOV !MOD_MOD_STRENGTH, #$0C
-    MOV !MOD_MOD_PHASE_SHIFT, #$14
-    MOV !MOD_SUBPAGE, #$0C
-    CALL PhaseModulation_32
-
-    MOV !MOD_OUT_PAGE, #$23
-
-    MOV !MOD_MOD_STRENGTH, #$0A
-    MOV !MOD_MOD_PHASE_SHIFT, #$16
-    MOV !MOD_SUBPAGE, #$00
-    CALL PhaseModulation_32
-    MOV !MOD_MOD_STRENGTH, #$08
-    MOV !MOD_MOD_PHASE_SHIFT, #$18
-    MOV !MOD_SUBPAGE, #$04
-    CALL PhaseModulation_32
-    MOV !MOD_MOD_STRENGTH, #$06
-    MOV !MOD_MOD_PHASE_SHIFT, #$1A
-    MOV !MOD_SUBPAGE, #$08
-    CALL PhaseModulation_32
-    MOV !MOD_MOD_STRENGTH, #$04
-    MOV !MOD_MOD_PHASE_SHIFT, #$1C
-    MOV !MOD_SUBPAGE, #$0C
+    MOV MOD_MOD_STRENGTH, #$14
+    MOV MOD_MOD_PHASE_SHIFT, #$0C
+    MOV MOD_SUBPAGE, #$0C
     CALL PhaseModulation_32
 
-    MOV !BRR_PCM_PAGE, #$20
-    MOV !BRR_OUT_INDEX, #$00
-    MOV !BRR_FLAGS, #%11000100
-    CALL ConvertToBRR
-    MOV !BRR_OUT_INDEX, #$01
-    MOV !BRR_FLAGS, #%11001000
-    CALL ConvertToBRR
-    MOV !BRR_OUT_INDEX, #$02
-    MOV !BRR_FLAGS, #%11001100
-    CALL ConvertToBRR
+    MOV MOD_OUT_PAGE, #$22
 
-    MOV !BRR_PCM_PAGE, #$21
+    MOV MOD_MOD_STRENGTH, #$12
+    MOV MOD_MOD_PHASE_SHIFT, #$0E
+    MOV MOD_SUBPAGE, #$00
+    CALL PhaseModulation_32
+    MOV MOD_MOD_STRENGTH, #$10
+    MOV MOD_MOD_PHASE_SHIFT, #$10
+    MOV MOD_SUBPAGE, #$04
+    CALL PhaseModulation_32
+    MOV MOD_MOD_STRENGTH, #$0E
+    MOV MOD_MOD_PHASE_SHIFT, #$12
+    MOV MOD_SUBPAGE, #$08
+    CALL PhaseModulation_32
+    MOV MOD_MOD_STRENGTH, #$0C
+    MOV MOD_MOD_PHASE_SHIFT, #$14
+    MOV MOD_SUBPAGE, #$0C
+    CALL PhaseModulation_32
 
-    MOV !BRR_OUT_INDEX, #$03
-    MOV !BRR_FLAGS, #%11000000
-    CALL ConvertToBRR
-    MOV !BRR_OUT_INDEX, #$04
-    MOV !BRR_FLAGS, #%11000100
-    CALL ConvertToBRR
-    MOV !BRR_OUT_INDEX, #$05
-    MOV !BRR_FLAGS, #%11001000
-    CALL ConvertToBRR
-    MOV !BRR_OUT_INDEX, #$06
-    MOV !BRR_FLAGS, #%11001100
-    CALL ConvertToBRR
+    MOV MOD_OUT_PAGE, #$23
 
-    MOV !BRR_PCM_PAGE, #$22
+    MOV MOD_MOD_STRENGTH, #$0A
+    MOV MOD_MOD_PHASE_SHIFT, #$16
+    MOV MOD_SUBPAGE, #$00
+    CALL PhaseModulation_32
+    MOV MOD_MOD_STRENGTH, #$08
+    MOV MOD_MOD_PHASE_SHIFT, #$18
+    MOV MOD_SUBPAGE, #$04
+    CALL PhaseModulation_32
+    MOV MOD_MOD_STRENGTH, #$06
+    MOV MOD_MOD_PHASE_SHIFT, #$1A
+    MOV MOD_SUBPAGE, #$08
+    CALL PhaseModulation_32
+    MOV MOD_MOD_STRENGTH, #$04
+    MOV MOD_MOD_PHASE_SHIFT, #$1C
+    MOV MOD_SUBPAGE, #$0C
+    CALL PhaseModulation_32
+
+    MOV BRR_PCM_PAGE, #$20
+    MOV BRR_OUT_INDEX, #$00
+    MOV BRR_FLAGS, #%11000100
+    CALL ConvertToBRR_Start
+    MOV BRR_OUT_INDEX, #$01
+    MOV BRR_FLAGS, #%11001000
+    CALL ConvertToBRR_Start
+    MOV BRR_OUT_INDEX, #$02
+    MOV BRR_FLAGS, #%11001100
+    CALL ConvertToBRR_Start
+
+    MOV BRR_PCM_PAGE, #$21
+
+    MOV BRR_OUT_INDEX, #$03
+    MOV BRR_FLAGS, #%11000000
+    CALL ConvertToBRR_Start
+    MOV BRR_OUT_INDEX, #$04
+    MOV BRR_FLAGS, #%11000100
+    CALL ConvertToBRR_Start
+    MOV BRR_OUT_INDEX, #$05
+    MOV BRR_FLAGS, #%11001000
+    CALL ConvertToBRR_Start
+    MOV BRR_OUT_INDEX, #$06
+    MOV BRR_FLAGS, #%11001100
+    CALL ConvertToBRR_Start
+
+    MOV BRR_PCM_PAGE, #$22
     
-    MOV !BRR_OUT_INDEX, #$07
-    MOV !BRR_FLAGS, #%11000000
-    CALL ConvertToBRR
-    MOV !BRR_OUT_INDEX, #$08
-    MOV !BRR_FLAGS, #%11000100
-    CALL ConvertToBRR
-    MOV !BRR_OUT_INDEX, #$09
-    MOV !BRR_FLAGS, #%11001000
-    CALL ConvertToBRR
-    MOV !BRR_OUT_INDEX, #$0A
-    MOV !BRR_FLAGS, #%11001100
-    CALL ConvertToBRR
+    MOV BRR_OUT_INDEX, #$07
+    MOV BRR_FLAGS, #%11000000
+    CALL ConvertToBRR_Start
+    MOV BRR_OUT_INDEX, #$08
+    MOV BRR_FLAGS, #%11000100
+    CALL ConvertToBRR_Start
+    MOV BRR_OUT_INDEX, #$09
+    MOV BRR_FLAGS, #%11001000
+    CALL ConvertToBRR_Start
+    MOV BRR_OUT_INDEX, #$0A
+    MOV BRR_FLAGS, #%11001100
+    CALL ConvertToBRR_Start
 
-    MOV !BRR_PCM_PAGE, #$23
+    MOV BRR_PCM_PAGE, #$23
     
-    MOV !BRR_OUT_INDEX, #$0B
-    MOV !BRR_FLAGS, #%11000000
-    CALL ConvertToBRR
-    MOV !BRR_OUT_INDEX, #$0C
-    MOV !BRR_FLAGS, #%11000100
-    CALL ConvertToBRR
-    MOV !BRR_OUT_INDEX, #$0D
-    MOV !BRR_FLAGS, #%11001000
-    CALL ConvertToBRR
-    MOV !BRR_OUT_INDEX, #$0E
-    MOV !BRR_FLAGS, #%11001100
-    CALL ConvertToBRR
+    MOV BRR_OUT_INDEX, #$0B
+    MOV BRR_FLAGS, #%11000000
+    CALL ConvertToBRR_Start
+    MOV BRR_OUT_INDEX, #$0C
+    MOV BRR_FLAGS, #%11000100
+    CALL ConvertToBRR_Start
+    MOV BRR_OUT_INDEX, #$0D
+    MOV BRR_FLAGS, #%11001000
+    CALL ConvertToBRR_Start
+    MOV BRR_OUT_INDEX, #$0E
+    MOV BRR_FLAGS, #%11001100
+    CALL ConvertToBRR_Start
 
-    MOV !PUL_FLAGS, #$03
-    MOV !PUL_OUT_PAGE, #$28
-    MOV !PUL_DUTY, #$20
+    MOV PUL_FLAGS, #$03
+    MOV PUL_OUT_PAGE, #$28
+    MOV PUL_DUTY, #$20
     CALL GeneratePulse_32
-    MOV !BRR_PCM_PAGE, #$28
-    MOV !BRR_OUT_INDEX, #$FF
-    MOV !BRR_FLAGS, #%11000000
-    CALL ConvertToBRR
+    MOV BRR_PCM_PAGE, #$28
+    MOV BRR_OUT_INDEX, #$FF
+    MOV BRR_FLAGS, #%11000000
+    CALL ConvertToBRR_Start
 
     MOV $F2, #$5C
     MOV $F3, #$00
@@ -1103,41 +1095,50 @@ PulseGenTables:    ;In order:
     db $80, $00, $FF, $FF
     ;Inversion values for fractional value
     db $7F, $FE, $00, $80
+PulseGenLabels:
+    PUL_OUT_PAGE    = $D0
+    PUL_DUTY        = $D1
+    PUL_FLAGS       = $D2
+
+    PUL_OUT_PTR_L   = $EE
+    PUL_OUT_PTR_H   = $EF
 ;
 if !SNESFM_CFG_LONG_SMP_GEN >= 1
 GeneratePulse_128:
-    ;   Memory allocation:
-    ;   Inputs:
-    ;       $D0 - Output page
-    ;       $D1 - Duty cycle
-    ;       $D2 - Flags: ddddddsz
-    ;           dddddd - Duty cycle (fractional part, highest bit of fractional part in $D1)
-    ;           s - starting value (0 - 0/-1, 1 - 1)
-    ;           z - the low value is -1 instead of 0 (for not ringmod)
-    ;   Temp variables:
-    ;       $EE-EF - Output pointer
+    .Documentation:
+        ;   Memory allocation:
+        ;   Inputs:
+        ;       $D0 - Output page
+        ;       $D1 - Duty cycle
+        ;       $D2 - Flags: ddddddsz
+        ;           dddddd - Duty cycle (fractional part, highest bit of fractional part in $D1)
+        ;           s - starting value (0 - 0/-1, 1 - 1)
+        ;           z - the low value is -1 instead of 0 (for not ringmod)
+        ;   Temp variables:
+        ;       $EE-EF - Output pointer
+    .Start:
     ;Low byte of first part
-        MOV !PUL_OUT_PTR_H, !PUL_OUT_PAGE
-        MOV !PUL_OUT_PTR_L, #$00
-        MOV A, !PUL_DUTY        ;   Get finishing low byte
+        MOV PUL_OUT_PTR_H, PUL_OUT_PAGE
+        MOV PUL_OUT_PTR_L, #$00
+        MOV A, PUL_DUTY         ;   Get finishing low byte
         AND A, #$FE             ;__
         MOV Y, A                ;   If there are no bytes in the first part, skip the part
         BEQ +                   ;__
-        MOV A, !PUL_FLAGS
+        MOV A, PUL_FLAGS
         AND A, #$02
         MOV X, A
         MOV A, PulseGenTables+1+X
         -:
             DEC Y
             DEC Y
-            MOV (!PUL_OUT_PTR_L)+Y, A
+            MOV (PUL_OUT_PTR_L)+Y, A
             CMP Y, #$00
             BNE -
     ;High byte of first part
-        MOV A, !PUL_DUTY        ;   Get finishing high byte
+        MOV A, PUL_DUTY         ;   Get finishing high byte
         OR A, #$01              ;__
         MOV Y, A
-        MOV A, !PUL_FLAGS
+        MOV A, PUL_FLAGS
         AND A, #$03
         MOV X, A
         MOV A, PulseGenTables+X
@@ -1145,42 +1146,42 @@ GeneratePulse_128:
         -:
             DEC Y
             DEC Y
-            MOV (!PUL_OUT_PTR_L)+Y, A
+            MOV (PUL_OUT_PTR_L)+Y, A
             CMP Y, #$01
             BNE -
     +:
     ;Second part, the fractional value
-        MOV A, !PUL_FLAGS           ;
+        MOV A, PUL_FLAGS            ;
         AND A, #$03                 ;
         MOV X, A                    ;   Get the inversion value into "temp variable"
         MOV A, PulseGenTables+4+X
-        MOV !PUL_OUT_PTR_L, A		;__
-        MOV A, !PUL_DUTY            ;
+        MOV PUL_OUT_PTR_L, A		;__
+        MOV A, PUL_DUTY             ;
         LSR A                       ;   Get the actual fraction,
-        MOV A, !PUL_FLAGS           ;   while also getting 
+        MOV A, PUL_FLAGS            ;   while also getting 
         ROR A                       ;   z flag into carry
         AND A, #$FE                 ;__
         BCC +                       ;   If z flag is set, 
         LSR A                       ;__ halve the fraction
-    +   EOR A, !PUL_OUT_PTR_L		;__ Invert the fraction as needed
+    +   EOR A, PUL_OUT_PTR_L		;__ Invert the fraction as needed
         MOV Y, A
-        MOV A, !PUL_DUTY            ;   Get index for the fraction
+        MOV A, PUL_DUTY             ;   Get index for the fraction
         AND A, #$FE                 ;
-        MOV !PUL_OUT_PTR_L, A		;__
+        MOV PUL_OUT_PTR_L, A		;__
         MOV A, Y
         MOV Y, #$01
-        MOV (!PUL_OUT_PTR_L)+Y, A
+        MOV (PUL_OUT_PTR_L)+Y, A
         MOV A, #$00
         DEC Y
-        MOV (!PUL_OUT_PTR_L)+Y, A
-        INC !PUL_OUT_PTR_L
-        INC !PUL_OUT_PTR_L
+        MOV (PUL_OUT_PTR_L)+Y, A
+        INC PUL_OUT_PTR_L
+        INC PUL_OUT_PTR_L
     ;Third part
-        MOV A, !PUL_DUTY
+        MOV A, PUL_DUTY
         EOR A, #$FE
         AND A, #$FE
         MOV Y, A
-        MOV A, !PUL_FLAGS
+        MOV A, PUL_FLAGS
         AND A, #$02
         EOR A, #$02
         MOV X, A
@@ -1188,15 +1189,15 @@ GeneratePulse_128:
         -:
             DEC Y
             DEC Y
-            MOV (!PUL_OUT_PTR_L)+Y, A
+            MOV (PUL_OUT_PTR_L)+Y, A
             CMP Y, #$00
             BNE -
     ;High byte of first part
-        MOV A, !PUL_DUTY        ;   Get finishing high byte
+        MOV A, PUL_DUTY         ;   Get finishing high byte
         EOR A, #$FE             ;
         OR A, #$01              ;__
         MOV Y, A
-        MOV A, !PUL_FLAGS
+        MOV A, PUL_FLAGS
         AND A, #$03
         EOR A, #$02
         MOV X, A
@@ -1205,7 +1206,7 @@ GeneratePulse_128:
         -:
             DEC Y
             DEC Y
-            MOV (!PUL_OUT_PTR_L)+Y, A
+            MOV (PUL_OUT_PTR_L)+Y, A
             CMP Y, #$01
             BNE -
     +:
@@ -1229,29 +1230,29 @@ GeneratePulse_32:
     ;       $EE-EF - Output pointer
 
     ;Low byte of first part
-    MOV !PUL_OUT_PTR_H, !PUL_OUT_PAGE
-    MOV !PUL_OUT_PTR_L, !PUL_DUTY
-    AND !PUL_OUT_PTR_L, #$C0
-    MOV A, !PUL_DUTY        ;   Get finishing low index
+    MOV PUL_OUT_PTR_H, PUL_OUT_PAGE
+    MOV PUL_OUT_PTR_L, PUL_DUTY
+    AND PUL_OUT_PTR_L, #$C0
+    MOV A, PUL_DUTY         ;   Get finishing low index
     AND A, #$3E             ;__
     MOV Y, A                ;   If there are no bytes in the first part, skip the part
     BEQ +                   ;__
-    MOV A, !PUL_FLAGS
+    MOV A, PUL_FLAGS
     AND A, #$02
     MOV X, A
     MOV A, PulseGenTables+1+X
     -:
         DEC Y
         DEC Y
-        MOV (!PUL_OUT_PTR_L)+Y, A
+        MOV (PUL_OUT_PTR_L)+Y, A
         CMP Y, #$00
         BNE -
     ;High byte of first part
-    MOV A, !PUL_DUTY        ;
+    MOV A, PUL_DUTY         ;
     AND A, #$3E             ;   Get finishing high index
     OR A, #$01              ;__
     MOV Y, A
-    MOV A, !PUL_FLAGS
+    MOV A, PUL_FLAGS
     AND A, #$03
     MOV X, A
     MOV A, PulseGenTables+X
@@ -1259,42 +1260,42 @@ GeneratePulse_32:
     -:
         DEC Y
         DEC Y
-        MOV (!PUL_OUT_PTR_L)+Y, A
+        MOV (PUL_OUT_PTR_L)+Y, A
         CMP Y, #$01
         BNE -
     +:
     ;Second part, the fractional value
-    MOV A, !PUL_FLAGS           ;
+    MOV A, PUL_FLAGS            ;
     AND A, #$03                 ;
     MOV X, A                    ;   Get the inversion value into "temp variable"
     MOV A, PulseGenTables+4+X
-    MOV !PUL_OUT_PTR_L, A		;__
-    MOV A, !PUL_DUTY            ;
+    MOV PUL_OUT_PTR_L, A		;__
+    MOV A, PUL_DUTY             ;
     LSR A                       ;   Get the actual fraction,
-    MOV A, !PUL_FLAGS           ;   while also getting 
+    MOV A, PUL_FLAGS            ;   while also getting 
     ROR A                       ;   z flag into carry
     AND A, #$FE                 ;__
     BCC +                       ;   If z flag is set, 
     LSR A                       ;__ halve the fraction
-    +   EOR A, !PUL_OUT_PTR_L   ;__ Invert the fraction as needed
+    +   EOR A, PUL_OUT_PTR_L    ;__ Invert the fraction as needed
     MOV Y, A
-    MOV A, !PUL_DUTY            ;   Get index for the fraction
+    MOV A, PUL_DUTY             ;   Get index for the fraction
     AND A, #$FE                 ;
-    MOV !PUL_OUT_PTR_L, A		;__
+    MOV PUL_OUT_PTR_L, A		;__
     MOV A, Y
     MOV Y, #$01
-    MOV (!PUL_OUT_PTR_L)+Y, A
+    MOV (PUL_OUT_PTR_L)+Y, A
     MOV A, #$00
     DEC Y
-    MOV (!PUL_OUT_PTR_L)+Y, A
-    INC !PUL_OUT_PTR_L
-    INC !PUL_OUT_PTR_L
+    MOV (PUL_OUT_PTR_L)+Y, A
+    INC PUL_OUT_PTR_L
+    INC PUL_OUT_PTR_L
     ;Third part
-    MOV A, !PUL_DUTY
+    MOV A, PUL_DUTY
     EOR A, #$FE
     AND A, #$3E
     MOV Y, A
-    MOV A, !PUL_FLAGS
+    MOV A, PUL_FLAGS
     AND A, #$02
     EOR A, #$02
     MOV X, A
@@ -1302,16 +1303,16 @@ GeneratePulse_32:
     -:
         DEC Y
         DEC Y
-        MOV (!PUL_OUT_PTR_L)+Y, A
+        MOV (PUL_OUT_PTR_L)+Y, A
         CMP Y, #$00
         BNE -
     ;High byte of first part
-    MOV A, !PUL_DUTY        ;   Get finishing high byte
+    MOV A, PUL_DUTY         ;   Get finishing high byte
     EOR A, #$3E             ;
     AND A, #$3E             ;
     OR A, #$01              ;__
     MOV Y, A
-    MOV A, !PUL_FLAGS
+    MOV A, PUL_FLAGS
     AND A, #$03
     EOR A, #$02
     MOV X, A
@@ -1320,7 +1321,7 @@ GeneratePulse_32:
     -:
         DEC Y
         DEC Y
-        MOV (!PUL_OUT_PTR_L)+Y, A
+        MOV (PUL_OUT_PTR_L)+Y, A
         CMP Y, #$01
         BNE -
     RET
@@ -1330,91 +1331,105 @@ endif   ; !SNESFM_CFG_SHORTSMP_GEN
 endif   ; !SNESFM_CFG_PULSEGEN 
 
 if !SNESFM_CFG_PHASEMOD >= 1
+PhaseModulation_Labels:
+    MOD_CAR_PAGE        = $D0
+    MOD_MOD_PAGE        = $D1
+    MOD_OUT_PAGE        = $D2
+    MOD_MOD_STRENGTH    = $D3
+    MOD_MOD_PHASE_SHIFT = $D4
 
+    MOD_OUT_INDEX_L     = $EA
+    MOD_OUT_INDEX_H     = $EB
+    MOD_MOD_INDEX_L     = $EC
+    MOD_MOD_INDEX_H     = $ED
+    MOD_MAIN_TEMP_L     = $EE
+    MOD_MAIN_TEMP_H     = $EF
+;
 if !SNESFM_CFG_LONG_SMP_GEN >= 1
 PhaseModulation_128:
-    ;   Memory allocation:
-    ;   Inputs:
-    ;       $D0 - Carrier page
-    ;       $D1 - Modulator page
-    ;       $D2 - Output page
-    ;       $D3 - Modulation strength
-    ;       $D4 - Modulator phase shift (for "detune")
-    ;   Temp variables:
-    ;       $EA-EB - Output pointer
-    ;       $EC-ED - Modulator pointer
-    ;       $EE-EF - Main temp variable
+    .Documentation:
+        ;   Memory allocation:
+        ;   Inputs:
+        ;       $D0 - Carrier page
+        ;       $D1 - Modulator page
+        ;       $D2 - Output page
+        ;       $D3 - Modulation strength
+        ;       $D4 - Modulator phase shift (for "detune")
+        ;   Temp variables:
+        ;       $EA-EB - Output pointer
+        ;       $EC-ED - Modulator pointer
+        ;       $EE-EF - Main temp variable
     .Setup:
         MOV X, #$00
-        MOV !MOD_OUT_INDEX_H, !MOD_OUT_PAGE
-        MOV !MOD_MOD_INDEX_H, !MOD_MOD_PAGE
-        MOV !MOD_OUT_INDEX_L, X
-        MOV !MOD_MOD_INDEX_L, !MOD_MOD_PHASE_SHIFT
-        ASL !MOD_MOD_INDEX_L
+        MOV MOD_OUT_INDEX_H, MOD_OUT_PAGE
+        MOV MOD_MOD_INDEX_H, MOD_MOD_PAGE
+        MOV MOD_OUT_INDEX_L, X
+        MOV MOD_MOD_INDEX_L, MOD_MOD_PHASE_SHIFT
+        ASL MOD_MOD_INDEX_L
     .loop:
-        INC !MOD_MOD_INDEX_L            ;
-        MOV A, (!MOD_MOD_INDEX_L+X)     ;   Get high byte
-        MOV !MOD_MAIN_TEMP_H, A         ;
+        INC MOD_MOD_INDEX_L             ;
+        MOV A, (MOD_MOD_INDEX_L+X)      ;   Get high byte
+        MOV MOD_MAIN_TEMP_H, A          ;
         BMI PhaseModulation_128_loop_negative 
-        MOV Y, !MOD_MOD_STRENGTH        ;
+        MOV Y, MOD_MOD_STRENGTH         ;
         MUL YA                          ;   Multiply high byte by modulation strength
-        MOVW !MOD_MAIN_TEMP_L, YA       ;__
+        MOVW MOD_MAIN_TEMP_L, YA        ;__
 
-        DEC !MOD_MOD_INDEX_L
-        MOV A, (!MOD_MOD_INDEX_L+X)
-        MOV Y, !MOD_MOD_STRENGTH
+        DEC MOD_MOD_INDEX_L
+        MOV A, (MOD_MOD_INDEX_L+X)
+        MOV Y, MOD_MOD_STRENGTH
         MUL YA
         MOV A, Y
         CLRC
-        ADC A, !MOD_MAIN_TEMP_L
-        ADC !MOD_MAIN_TEMP_H, #$00
+        ADC A, MOD_MAIN_TEMP_L
+        ADC MOD_MAIN_TEMP_H, #$00
         JMP PhaseModulation_128_loop_afterMul
     .loop_negative:
         EOR A, #$FF
-        MOV Y, !MOD_MOD_STRENGTH
+        MOV Y, MOD_MOD_STRENGTH
         MUL YA
-        MOVW !MOD_MAIN_TEMP_L, YA
+        MOVW MOD_MAIN_TEMP_L, YA
 
-        DEC !MOD_MOD_INDEX_L
-        MOV A, (!MOD_MOD_INDEX_L+X)
+        DEC MOD_MOD_INDEX_L
+        MOV A, (MOD_MOD_INDEX_L+X)
         EOR A, #$FF
-        MOV Y, !MOD_MOD_STRENGTH
+        MOV Y, MOD_MOD_STRENGTH
         MUL YA
         MOV A, Y
         CLRC
-        ADC A, !MOD_MAIN_TEMP_L
-        ADC !MOD_MAIN_TEMP_H, #$00
+        ADC A, MOD_MAIN_TEMP_L
+        ADC MOD_MAIN_TEMP_H, #$00
         EOR A, #$FF
-        EOR !MOD_MAIN_TEMP_H, #$FF
+        EOR MOD_MAIN_TEMP_H, #$FF
     .loop_afterMul:
 
-        LSR !MOD_MAIN_TEMP_H
+        LSR MOD_MAIN_TEMP_H
         ROR A
-        LSR !MOD_MAIN_TEMP_H
+        LSR MOD_MAIN_TEMP_H
         ROR A
-        LSR !MOD_MAIN_TEMP_H
+        LSR MOD_MAIN_TEMP_H
         ROR A
-        LSR !MOD_MAIN_TEMP_H
+        LSR MOD_MAIN_TEMP_H
         ROR A
-        LSR !MOD_MAIN_TEMP_H
+        LSR MOD_MAIN_TEMP_H
         ROR A
         AND A, #$FE
         CLRC
-        ADC A, !MOD_OUT_INDEX_L 
+        ADC A, MOD_OUT_INDEX_L 
 
-        MOV !MOD_MAIN_TEMP_H, !MOD_CAR_PAGE
-        MOV !MOD_MAIN_TEMP_L, A
+        MOV MOD_MAIN_TEMP_H, MOD_CAR_PAGE
+        MOV MOD_MAIN_TEMP_L, A
         MOV Y, #$00
-        MOV A, (!MOD_MAIN_TEMP_L)+Y
-        MOV (!MOD_OUT_INDEX_L)+Y, A
+        MOV A, (MOD_MAIN_TEMP_L)+Y
+        MOV (MOD_OUT_INDEX_L)+Y, A
         INC Y
-        MOV A, (!MOD_MAIN_TEMP_L)+Y
-        MOV (!MOD_OUT_INDEX_L)+Y, A
+        MOV A, (MOD_MAIN_TEMP_L)+Y
+        MOV (MOD_OUT_INDEX_L)+Y, A
         CLRC
-        ADC !MOD_OUT_INDEX_L, #$02
+        ADC MOD_OUT_INDEX_L, #$02
         CLRC
-        ADC !MOD_MOD_INDEX_L, #$02
-        MOV A, !MOD_OUT_INDEX_L
+        ADC MOD_MOD_INDEX_L, #$02
+        MOV A, MOD_OUT_INDEX_L
         BNE PhaseModulation_128_loop
     RET
 
@@ -1422,109 +1437,114 @@ endif   ; !SNESFM_CFG_LONG_SMP_GEN
 
 if !SNESFM_CFG_SHORTSMP_GEN >= 1
 PhaseModulation_32:
-    ;   Memory allocation:
-    ;   Inputs:
-    ;       $D0 - Carrier page
-    ;       $D1 - Modulator page
-    ;       $D2 - Output page
-    ;       $D3 - Modulation strength
-    ;       $D4 - Modulation phase shift (for "detune")
-    ;       $D5 - Subpages: ccmmoo--
-    ;           cc - Carrier subpage
-    ;           mm - Modulator subpage
-    ;           oo - Output subpage
-    ;   Temp variables:
-    ;       $EA-EB - Output pointer
-    ;       $EC-ED - Modulator pointer
-    ;       $EE-EF - Main temp variable
+    .Documentation:
+        ;   Memory allocation:
+        ;   Inputs:
+        ;       $D0 - Carrier page
+        ;       $D1 - Modulator page
+        ;       $D2 - Output page
+        ;       $D3 - Modulation strength
+        ;       $D4 - Modulation phase shift (for "detune")
+        ;       $D5 - Subpages: ccmmoo--
+        ;           cc - Carrier subpage
+        ;           mm - Modulator subpage
+        ;           oo - Output subpage
+        ;   Temp variables:
+        ;       $EA-EB - Output pointer
+        ;       $EC-ED - Modulator pointer
+        ;       $EE-EF - Main temp variable
+    .Labels:
+        MOD_SUBPAGE     = $D5
+        MOD_CAR_INDEX_L = $E8
+        MOD_END_INDEX_L = $E9
     .Setup:
         MOV X, #$00
-        MOV !MOD_OUT_INDEX_H, !MOD_OUT_PAGE
-        MOV !MOD_MOD_INDEX_H, !MOD_MOD_PAGE
-        MOV A, !MOD_MOD_PHASE_SHIFT ;
+        MOV MOD_OUT_INDEX_H, MOD_OUT_PAGE
+        MOV MOD_MOD_INDEX_H, MOD_MOD_PAGE
+        MOV A, MOD_MOD_PHASE_SHIFT  ;
         ASL A                       ;
         AND A, #$3F                 ;
-        MOV !MOD_MOD_INDEX_L, A     ;
-        MOV A, !MOD_SUBPAGE         ;   Get low byte of modulator pointer
+        MOV MOD_MOD_INDEX_L, A      ;
+        MOV A, MOD_SUBPAGE          ;   Get low byte of modulator pointer
         ASL A                       ;
         ASL A                       ;
         AND A, #$C0                 ;
         PUSH A                      ;
-        TSET !MOD_MOD_INDEX_L, A    ;__
-        MOV A, !MOD_SUBPAGE         ;
+        TSET MOD_MOD_INDEX_L, A     ;__
+        MOV A, MOD_SUBPAGE          ;
         XCN A                       ;   Get low byte of output pointer
         AND A, #$C0                 ;
-        MOV !MOD_OUT_INDEX_L, A     ;__
+        MOV MOD_OUT_INDEX_L, A      ;__
         CLRC                        ;
         ADC A, #$40                 ;   Get low ending byte of output pointer
-        MOV !MOD_END_INDEX_L, A     ;__
-        MOV A, !MOD_SUBPAGE         ;
+        MOV MOD_END_INDEX_L, A      ;__
+        MOV A, MOD_SUBPAGE          ;
         AND A, #$C0                 ;   Get low byte of carrier pointer to add later
-        MOV !MOD_CAR_INDEX_L, A     ;__
+        MOV MOD_CAR_INDEX_L, A      ;__
     .loop:
-        INC !MOD_MOD_INDEX_L
-        MOV A, (!MOD_MOD_INDEX_L+X)
-        MOV !MOD_MAIN_TEMP_H, A
+        INC MOD_MOD_INDEX_L
+        MOV A, (MOD_MOD_INDEX_L+X)
+        MOV MOD_MAIN_TEMP_H, A
         BMI PhaseModulation_32_loop_negative 
-        MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
+        MOV Y, MOD_MOD_STRENGTH
         MUL YA
-        MOVW !MOD_MAIN_TEMP_L, YA
+        MOVW MOD_MAIN_TEMP_L, YA
 
-        DEC !MOD_MOD_INDEX_L
-        MOV A, (!MOD_MOD_INDEX_L+X)
-        MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
+        DEC MOD_MOD_INDEX_L
+        MOV A, (MOD_MOD_INDEX_L+X)
+        MOV Y, MOD_MOD_STRENGTH
         MUL YA
         MOV A, Y
         CLRC
-        ADC A, !MOD_MAIN_TEMP_L
-        ADC !MOD_MAIN_TEMP_H, #$00
+        ADC A, MOD_MAIN_TEMP_L
+        ADC MOD_MAIN_TEMP_H, #$00
         JMP PhaseModulation_32_loop_afterMul
     .loop_negative:
         EOR A, #$FF
-        MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
+        MOV Y, MOD_MOD_STRENGTH
         MUL YA
-        MOVW !MOD_MAIN_TEMP_L, YA
+        MOVW MOD_MAIN_TEMP_L, YA
 
-        DEC !MOD_MOD_INDEX_L
-        MOV A, (!MOD_MOD_INDEX_L+X)
+        DEC MOD_MOD_INDEX_L
+        MOV A, (MOD_MOD_INDEX_L+X)
         EOR A, #$FF
-        MOV Y, !MOD_MOD_STRENGTH      ;Mod strength
+        MOV Y, MOD_MOD_STRENGTH
         MUL YA
         MOV A, Y
         CLRC
-        ADC A, !MOD_MAIN_TEMP_L
-        ADC !MOD_MAIN_TEMP_H, #$00
+        ADC A, MOD_MAIN_TEMP_L
+        ADC MOD_MAIN_TEMP_H, #$00
         EOR A, #$FF
-        EOR !MOD_MAIN_TEMP_H, #$FF
+        EOR MOD_MAIN_TEMP_H, #$FF
     .loop_afterMul:
 
-        MOV A, !MOD_MAIN_TEMP_H
+        MOV A, MOD_MAIN_TEMP_H
         ASL A
         CLRC
-        ADC A, !MOD_OUT_INDEX_L 
+        ADC A, MOD_OUT_INDEX_L 
         AND A, #$3E
         CLRC
-        ADC A, !MOD_CAR_INDEX_L
+        ADC A, MOD_CAR_INDEX_L
 
-        MOV !MOD_MAIN_TEMP_H, !MOD_CAR_PAGE
-        MOV !MOD_MAIN_TEMP_L, A
+        MOV MOD_MAIN_TEMP_H, MOD_CAR_PAGE
+        MOV MOD_MAIN_TEMP_L, A
         MOV Y, #$00
-        MOV A, (!MOD_MAIN_TEMP_L)+Y
-        MOV (!MOD_OUT_INDEX_L)+Y, A
+        MOV A, (MOD_MAIN_TEMP_L)+Y
+        MOV (MOD_OUT_INDEX_L)+Y, A
         INC Y
-        MOV A, (!MOD_MAIN_TEMP_L)+Y
-        MOV (!MOD_OUT_INDEX_L)+Y, A
+        MOV A, (MOD_MAIN_TEMP_L)+Y
+        MOV (MOD_OUT_INDEX_L)+Y, A
         CLRC
-        ADC !MOD_OUT_INDEX_L, #$02
+        ADC MOD_OUT_INDEX_L, #$02
         CLRC
-        ADC !MOD_MOD_INDEX_L, #$02
-        AND !MOD_MOD_INDEX_L, #$3E
+        ADC MOD_MOD_INDEX_L, #$02
+        AND MOD_MOD_INDEX_L, #$3E
         POP A
         PUSH A
         CLRC 
-        ADC A, !MOD_MOD_INDEX_L
-        MOV !MOD_MOD_INDEX_L, A
-        CMP !MOD_OUT_INDEX_L, !MOD_END_INDEX_L
+        ADC A, MOD_MOD_INDEX_L
+        MOV MOD_MOD_INDEX_L, A
+        CMP MOD_OUT_INDEX_L, MOD_END_INDEX_L
         BNE PhaseModulation_32_loop
         POP A
     RET
@@ -1534,237 +1554,268 @@ endif   ; !SNESFM_CFG_SHORTSMP_GEN
 endif   ; !SNESFM_CFG_PHASEMOD
 
 if !SNESFM_CFG_LONG_SMP_GEN >= 1
-
 LongToShort:
-    ;   Memory allocation:
-    ;   Inputs:
-    ;       $D0 - Input page
-    ;       $D1 - Output page
-    ;       $D2 - Subpage number: ll------
-    ;           ll - subpage number
-    ;   Temp variables:
-    ;       $EC-ED - Input pointer
-    ;       $EE-EF - Output pointer
-    MOV X, #$00
-    MOV Y, #$20
-    MOV !LTS_IN_PTR_H, !LTS_IN_PAGE
-    MOV !LTS_OUT_PTR_H, !LTS_OUT_PAGE
-    MOV !LTS_IN_PTR_L, #$F9
-    MOV A, !LTS_OUT_SUBPAGE
-    CLRC
-    ADC A, #$3F
-    MOV !LTS_OUT_PTR_L, A
-    -:
-        MOV A, (!LTS_IN_PTR_L+X)    ;   Copy high byte
-        MOV (!LTS_OUT_PTR_L+X), A   ;__
-        DEC !LTS_IN_PTR_L
-        DEC !LTS_OUT_PTR_L
-        MOV A, (!LTS_IN_PTR_L+X)    ;   Copy low byte
-        MOV (!LTS_OUT_PTR_L+X), A   ;__
-        DEC !LTS_OUT_PTR_L
-        MOV A, !LTS_IN_PTR_L
-        SETC
-        SBC A, #$07
-        MOV !LTS_IN_PTR_L, A
-        DBNZ Y, -
-    RET
+    .Documentation:
+        ;   Memory allocation:
+        ;   Inputs:
+        ;       $D0 - Input page
+        ;       $D1 - Output page
+        ;       $D2 - Subpage number: ll------
+        ;           ll - subpage number
+        ;   Temp variables:
+        ;       $EC-ED - Input pointer
+        ;       $EE-EF - Output pointer
+    .Labels:
+        LTS_IN_PAGE     = $D0
+        LTS_OUT_PAGE    = $D1
+        LTS_OUT_SUBPAGE = $D2
+
+        LTS_IN_PTR_L    = $EC
+        LTS_IN_PTR_H    = $ED
+        LTS_OUT_PTR_L   = $EE
+        LTS_OUT_PTR_H   = $EF
+    .Start:
+        MOV X, #$00
+        MOV Y, #$20
+        MOV LTS_IN_PTR_H, LTS_IN_PAGE
+        MOV LTS_OUT_PTR_H, LTS_OUT_PAGE
+        MOV LTS_IN_PTR_L, #$F9
+        MOV A, LTS_OUT_SUBPAGE
+        CLRC
+        ADC A, #$3F
+        MOV LTS_OUT_PTR_L, A
+        -:
+            MOV A, (LTS_IN_PTR_L+X)     ;   Copy high byte
+            MOV (LTS_OUT_PTR_L+X), A    ;__
+            DEC LTS_IN_PTR_L
+            DEC LTS_OUT_PTR_L
+            MOV A, (LTS_IN_PTR_L+X)     ;   Copy low byte
+            MOV (LTS_OUT_PTR_L+X), A    ;__
+            DEC LTS_OUT_PTR_L
+            MOV A, LTS_IN_PTR_L
+            SETC
+            SBC A, #$07
+            MOV LTS_IN_PTR_L, A
+            DBNZ Y, -
+        RET
 
 endif   ; !SNESFM_CFG_LONG_SMP_GEN
 
 ConvertToBRR:
-    ;   Memory allocation:
-    ;   Inputs:
-    ;       $D0 - PCM sample page
-    ;       $D1 - BRR output index
-    ;       $D2 - Flags: fsi-ppbb 
-    ;               f - whether to use filter mode 1
-    ;               s - short sample mode (32 samples instead of 128)
-    ;               i - high bit of output index 
-    ;               pp - PCM sample subpage number (0-3, if s is set)
-    ;               bb - BRR output subpage number (0-3, if s is set)
-    ;   Temp variables:
-    ;       $E5 - Temporary flags: bf-n----
-    ;               b - whether it is the first block
-    ;               f - whether to use filter mode 1
-    ;               n - negative flag
-    ;       $E6-$EB - 3 sample points
-    ;       $F8-$F9 - Temporary space for 1 sample point
-    ;       $EC-$ED - Input pointer
-    ;       $EE-$EF - Output pointer
-    .SetupFirstTime:
-        SET7 !BRR_TEMP_FLAGS
-        MOV !BRR_IN0_PTR_H, !BRR_PCM_PAGE;   Set up the PCM sample page
-        MOV A, !BRR_FLAGS               ;__
+    .Documentation:
+        ;   Memory allocation:
+        ;   Inputs:
+        ;       $D0 - PCM sample page
+        ;       $D1 - BRR output index
+        ;       $D2 - Flags: fsi-ppbb 
+        ;               f - whether to use filter mode 1
+        ;               s - short sample mode (32 samples instead of 128)
+        ;               i - high bit of output index 
+        ;               pp - PCM sample subpage number (0-3, if s is set)
+        ;               bb - BRR output subpage number (0-3, if s is set)
+        ;   Temp variables:
+        ;       $E5 - Temporary flags: bf-n----
+        ;               b - whether it is the first block
+        ;               f - whether to use filter mode 1
+        ;               n - negative flag
+        ;       $E6-$EB - 3 sample points
+        ;       $F8-$F9 - Temporary space for 1 sample point
+        ;       $EC-$ED - Input pointer
+        ;       $EE-$EF - Output pointer
+    .Labels:
+        BRR_PCM_PAGE    = $D0
+        BRR_OUT_INDEX   = $D1
+        BRR_FLAGS       = $D2
+
+        BRR_BUFF1_PTR_L = $20
+        BRR_BUFF1_PTR_H = $21
+        BRR_MAXM0_L     = $F8  ;These registers are so unused
+        BRR_MAXM0_H     = $F9  ;they're practically RAM!
+        BRR_TEMP_FLAGS  = $E5
+        BRR_SMPPT_L     = $E6
+        BRR_SMPPT_H     = $E7
+        BRR_CSMPT_L     = $E8
+        BRR_CSMPT_H     = $E9
+        BRR_LSMPT_L     = $EA  ;Last sample point of previous block for filter 1 adjustment
+        BRR_LSMPT_H     = $EB  ;
+        BRR_IN0_PTR_L   = $EC
+        BRR_IN0_PTR_H   = $ED
+        BRR_OUT_PTR_L   = $EE
+        BRR_OUT_PTR_H   = $EF
+    .Start:
+        SET7 BRR_TEMP_FLAGS
+        MOV BRR_IN0_PTR_H, BRR_PCM_PAGE ;   Set up the PCM sample page
+        MOV A, BRR_FLAGS                ;__
         XCN A                           ;
         AND A, #$C0                     ;   Set up the PCM sample subpage 
-        MOV !BRR_IN0_PTR_L, A           ;__
-        MOV A, !BRR_FLAGS               ;
+        MOV BRR_IN0_PTR_L, A            ;__
+        MOV A, BRR_FLAGS                ;
         AND A, #$40                     ;   Set up the ending low byte of the address
         CLRC                            ;
-        ADC A, !BRR_IN0_PTR_L           ;__
-        MOV !BRR_LSMPT_L, #$00          ;   
-        MOV !BRR_LSMPT_H, #$00          ;__ smppoint = 0
+        ADC A, BRR_IN0_PTR_L            ;__
+        MOV BRR_LSMPT_L, #$00           ;   
+        MOV BRR_LSMPT_H, #$00           ;__ smppoint = 0
         PUSH A
         PUSH A
-        MOV Y, !BRR_OUT_INDEX           ;
-        MOV A, !BRR_FLAGS               ;
+        MOV Y, BRR_OUT_INDEX            ;
+        MOV A, BRR_FLAGS                ;
         AND A, #$23                     ;   Get the sample pointer from index
         TCALL 13                        ;
-        MOVW !BRR_OUT_PTR_L, YA         ;__
+        MOVW BRR_OUT_PTR_L, YA          ;__
 
     .SetupCopy:
         MOV X, #$20                     ;__ Set up the destination address (it's (X+))
         MOV Y, #$00
     .CopyLoop:  ;Copy the PCM sample to the PCM buffer while halving it #
-        MOV A, (!BRR_IN0_PTR_L)+Y       ;                               #
-        MOV !BRR_CSMPT_L, A             ;                               #
-        INCW !BRR_IN0_PTR_L             ;   Python code:                #
-        MOV A, (!BRR_IN0_PTR_L)+Y       ;   currentsmppoint = array[i]  #
-        MOV !BRR_CSMPT_H, A             ;                               #
+        MOV A, (BRR_IN0_PTR_L)+Y        ;                               #
+        MOV BRR_CSMPT_L, A              ;                               #
+        INCW BRR_IN0_PTR_L              ;   Python code:                #
+        MOV A, (BRR_IN0_PTR_L)+Y        ;   currentsmppoint = array[i]  #
+        MOV BRR_CSMPT_H, A              ;                               #
         BPL +                           ;                               #
             EOR A, #$FF                 ;   Invert negative numbers     #
-            EOR !BRR_CSMPT_L, #$FF      ;__                             #
+            EOR BRR_CSMPT_L, #$FF       ;__                             #
         +:                              ;                               #
-        INCW !BRR_IN0_PTR_L             ;__                             #
+        INCW BRR_IN0_PTR_L              ;__                             #
         CLRC                            ;   Python code:                #
         LSR A                           ;   currentsmppoint /= 2        #   OG Python code:
-        ROR !BRR_CSMPT_L                ;__                             #   for i in range(len(BRRBuffer)):
-        BBC7 !BRR_CSMPT_H, +            ;                               #       BRRBuffer[i] = (array[i&(length-1)])/2
+        ROR BRR_CSMPT_L                 ;__                             #   for i in range(len(BRRBuffer)):
+        BBC7 BRR_CSMPT_H, +             ;                               #       BRRBuffer[i] = (array[i&(length-1)])/2
             EOR A, #$FF                 ;   Invert negative numbers     #
-            EOR !BRR_CSMPT_L, #$FF      ;__                             #
+            EOR BRR_CSMPT_L, #$FF       ;__                             #
         +:                              ;                               #
-        MOV !BRR_CSMPT_H, A             ;                               #
-        MOV A, !BRR_CSMPT_L             ;                               #
+        MOV BRR_CSMPT_H, A              ;                               #
+        MOV A, BRR_CSMPT_L              ;                               #
         MOV (X+), A                     ;   Python code:                #
-        MOV A, !BRR_CSMPT_H             ;   BRRBuffer[i]=currentsmppoint#
+        MOV A, BRR_CSMPT_H              ;   BRRBuffer[i]=currentsmppoint#
         MOV (X+), A                     ;                               #
         CMP X, #$40                     ;   Loop                        #
         BNE ConvertToBRR_CopyLoop   	;__                             #
     .SetupFilter
-        BBS7 !BRR_TEMP_FLAGS, ConvertToBRR_FirstBlock;   If this is the first block, Or filter 0 is forced,
-        BBS7 !BRR_FLAGS, ConvertToBRR_FirstBlock     ;Skip doing filter 1 entirely   
+        BBS7 BRR_TEMP_FLAGS, ConvertToBRR_FirstBlock    ;   If this is the first block, Or filter 0 is forced,
+        BBS7 BRR_FLAGS, ConvertToBRR_FirstBlock         ;__ Skip doing filter 1 entirely   
         MOV X, #$00
 
 
-        CLR4 !BRR_TEMP_FLAGS
-        MOV !BRR_SMPPT_L, !BRR_LSMPT_L  ;   OG Python code:
-        MOV !BRR_SMPPT_H, !BRR_LSMPT_H  ;__ currentsmppoint = 0
-        BBC7 !BRR_SMPPT_H, +        	;
-            SET4 !BRR_TEMP_FLAGS        ;   Inverting negative numbers
-            EOR !BRR_SMPPT_L, #$FF      ;
-            EOR !BRR_SMPPT_H, #$FF      ;__     
+        CLR4 BRR_TEMP_FLAGS
+        MOV BRR_SMPPT_L, BRR_LSMPT_L    ;   OG Python code:
+        MOV BRR_SMPPT_H, BRR_LSMPT_H    ;__ currentsmppoint = 0
+        BBC7 BRR_SMPPT_H, +        	    ;
+            SET4 BRR_TEMP_FLAGS         ;   Inverting negative numbers
+            EOR BRR_SMPPT_L, #$FF       ;
+            EOR BRR_SMPPT_H, #$FF       ;__     
         +:
         POP A
-        MOV !BRR_CSMPT_H, A
+        MOV BRR_CSMPT_H, A
         POP A
-        MOV !BRR_CSMPT_L, A
+        MOV BRR_CSMPT_L, A
         JMP ConvertToBRR_FilterLoop
     .FirstBlock:
 
-        MOV !BRR_MAXM0_L, #$FF
-        MOV !BRR_MAXM0_H, #$7F
+        MOV BRR_MAXM0_L, #$FF
+        MOV BRR_MAXM0_H, #$7F
         MOV X, #$20
         JMP ConvertToBRR_BRREncoding_OuterLoop
     .FilterLoop:
-        MOV Y, !BRR_SMPPT_L         ;                                       #
+        MOV Y, BRR_SMPPT_L          ;                                       #
         MOV A, $0D00+Y              ;                                       #
-        BBS4 !BRR_TEMP_FLAGS, +     ;                                       #                        
+        BBS4 BRR_TEMP_FLAGS, +      ;                                       #                        
             CLRC                    ;   Python code:                        #
-            ADC A, !BRR_CSMPT_L     ;   currentsmppoint += smppoint_L*15/16 #
-            MOV !BRR_CSMPT_L, A     ;   (for positive numbers)              #
-            ADC !BRR_CSMPT_H, #$00  ;                                       #
+            ADC A, BRR_CSMPT_L      ;   currentsmppoint += smppoint_L*15/16 #
+            MOV BRR_CSMPT_L, A      ;   (for positive numbers)              #
+            ADC BRR_CSMPT_H, #$00   ;                                       #
             JMP ++                  ;__                                     #
         +:                          ;                                       #
             EOR A, #$FF             ;                                       #
             SETC                    ;   Python code:                        #
-            ADC A, !BRR_CSMPT_L     ;   currentsmppoint += smppoint_L*15/16 #
-            MOV !BRR_CSMPT_L, A     ;   (for negative numbers)              #
-            SBC !BRR_CSMPT_H, #$00  ;__                                     #
+            ADC A, BRR_CSMPT_L      ;   currentsmppoint += smppoint_L*15/16 #
+            MOV BRR_CSMPT_L, A      ;   (for negative numbers)              #
+            SBC BRR_CSMPT_H, #$00   ;__                                     #
         ++:                         ;                                       #   OG Python code:
-        MOV A, !BRR_SMPPT_H         ;                                       #   smppoint *= 0.9375
+        MOV A, BRR_SMPPT_H          ;                                       #   smppoint *= 0.9375
         MOV Y, #$F0                 ;   Python code:                        #   smppoint += BRRBuffer[i]
         MUL YA                      ;__ smpppoint_H *=15                    #
-        BBC4 !BRR_TEMP_FLAGS, +     ;                                       #
-            MOV !BRR_SMPPT_H, Y     ;   Invert negative                     #
+        BBC4 BRR_TEMP_FLAGS, +      ;                                       #
+            MOV BRR_SMPPT_H, Y      ;   Invert negative                     #
             EOR A, #$FF             ;                                       #
-            EOR !BRR_SMPPT_H, #$FF  ;__                                     #
-            MOV Y, !BRR_SMPPT_H     ;                                       #
+            EOR BRR_SMPPT_H, #$FF   ;__                                     #
+            MOV Y, BRR_SMPPT_H      ;                                       #
         +:                          ;   Python code:                        #
-        ADDW YA, !BRR_CSMPT_L       ;   smppoint_H<<8 += currentsmppoint    #
-        MOVW !BRR_SMPPT_L, YA       ;__                                     #__
+        ADDW YA, BRR_CSMPT_L        ;   smppoint_H<<8 += currentsmppoint    #
+        MOVW BRR_SMPPT_L, YA        ;__                                     #__
 
 
 
-        CLR4 !BRR_TEMP_FLAGS
-        MOV A, !BRR_BUFF1_PTR_L+X   ;                                       #
-        MOV !BRR_CSMPT_L, A         ;                                       #
-        MOV A, !BRR_BUFF1_PTR_H+X   ;   currentsmppoint = BRRBuffer[i]      #
-        MOV !BRR_CSMPT_H, A         ;                                       #
-        MOVW YA, !BRR_CSMPT_L       ;   Python code:                        #   OG Python code:
-        SUBW YA, !BRR_SMPPT_L       ;   currentsmppoint -= smppoint         #   BRRBuffer[i] -= smppoint
-        MOVW !BRR_CSMPT_L, YA       ;__                                     #
+        CLR4 BRR_TEMP_FLAGS         ;                                       #
+        MOV A, BRR_BUFF1_PTR_L+X    ;                                       #
+        MOV BRR_CSMPT_L, A          ;                                       #
+        MOV A, BRR_BUFF1_PTR_H+X    ;   currentsmppoint = BRRBuffer[i]      #
+        MOV BRR_CSMPT_H, A          ;                                       #
+        MOVW YA, BRR_CSMPT_L        ;   Python code:                        #   OG Python code:
+        SUBW YA, BRR_SMPPT_L        ;   currentsmppoint -= smppoint         #   BRRBuffer[i] -= smppoint
+        MOVW BRR_CSMPT_L, YA        ;__                                     #
         MOV (X+), A   				;                                       #
-        MOV A, !BRR_CSMPT_H         ;   BRRBuffer[i] = currentsmppoint      #
+        MOV A, BRR_CSMPT_H          ;   BRRBuffer[i] = currentsmppoint      #
         MOV (X+), A   				;__                                     #
-        BBC7 !BRR_SMPPT_H, +        ;                                       #
-        SET4 !BRR_TEMP_FLAGS        ;   Inverting negative numbers          #
-        EOR !BRR_SMPPT_L, #$FF      ;                                       #
-        EOR !BRR_SMPPT_H, #$FF      ;__                                     #
+        BBC7 BRR_SMPPT_H, +         ;                                       #
+        SET4 BRR_TEMP_FLAGS         ;   Inverting negative numbers          #
+        EOR BRR_SMPPT_L, #$FF       ;                                       #
+        EOR BRR_SMPPT_H, #$FF       ;__                                     #
         +   CMP X, #$20             ;   Loop                                #
-        BNE ConvertToBRR_FilterLoop;__ 
-        MOV !BRR_LSMPT_L, !BRR_SMPPT_L
-        MOV !BRR_LSMPT_H, !BRR_SMPPT_H
-        BBC4 !BRR_TEMP_FLAGS, ConvertToBRR_BRREncoding
-        EOR !BRR_LSMPT_L, #$FF
-        EOR !BRR_LSMPT_H, #$FF
-        CLR4 !BRR_TEMP_FLAGS
+        BNE ConvertToBRR_FilterLoop ;__ 
+        MOV BRR_LSMPT_L, BRR_SMPPT_L
+        MOV BRR_LSMPT_H, BRR_SMPPT_H
+        BBC4 BRR_TEMP_FLAGS, ConvertToBRR_BRREncoding
+        EOR BRR_LSMPT_L, #$FF
+        EOR BRR_LSMPT_H, #$FF
+        CLR4 BRR_TEMP_FLAGS
 
     .BRREncoding:
-        SET6 !BRR_TEMP_FLAGS
+        SET6 BRR_TEMP_FLAGS
         MOV X, #$00
         ..OuterLoop:
             MOV A, (X+)   
-            MOV !BRR_SMPPT_L, A         
+            MOV BRR_SMPPT_L, A         
             MOV A, (X+)
             BPL +
-                EOR !BRR_SMPPT_L, #$FF
+                EOR BRR_SMPPT_L, #$FF
                 EOR A, #$FF
             +:
-            MOV !BRR_SMPPT_H, A         
+            MOV BRR_SMPPT_H, A         
         ..MaximumFilter1:
             MOV A, (X+)  
-            MOV !BRR_CSMPT_L, A         
+            MOV BRR_CSMPT_L, A         
             MOV A, (X+)  
             BPL +
-                EOR !BRR_CSMPT_L, #$FF
+                EOR BRR_CSMPT_L, #$FF
                 EOR A, #$FF
             +:
             MOV Y, A
-            MOV A, !BRR_CSMPT_L
-            CMPW YA, !BRR_SMPPT_L
+            MOV A, BRR_CSMPT_L
+            CMPW YA, BRR_SMPPT_L
             BMI +
-                MOVW !BRR_SMPPT_L, YA
+                MOVW BRR_SMPPT_L, YA
             +:
             MOV A, X
             AND A, #$1F
             BNE ConvertToBRR_BRREncoding_MaximumFilter1
             CMP X, #$40
             BEQ +
-                MOVW YA, !BRR_SMPPT_L
-                MOVW !BRR_MAXM0_L, YA
+                MOVW YA, BRR_SMPPT_L
+                MOVW BRR_MAXM0_L, YA
                 ;Set up the routine for maximum in the OG PCM buffer
                 JMP  ConvertToBRR_BRREncoding_OuterLoop
             +:
                 MOV X, #$00
-                MOVW YA, !BRR_SMPPT_L
-                CMPW YA, !BRR_MAXM0_L
+                MOVW YA, BRR_SMPPT_L
+                CMPW YA, BRR_MAXM0_L
                 BPL ConvertToBRR_BRREncoding_ShiftValuePart1
-                MOVW !BRR_MAXM0_L, YA
+                MOVW BRR_MAXM0_L, YA
                 MOV X, #$20
-                CLR6 !BRR_TEMP_FLAGS
+                CLR6 BRR_TEMP_FLAGS
         ..ShiftValuePart1:
             MOV Y, #12
-            MOV A, !BRR_MAXM0_H
+            MOV A, BRR_MAXM0_H
             BEQ +
             -:
                 ASL A
@@ -1775,7 +1826,7 @@ ConvertToBRR:
             +
                 MOV Y, #$04
         ..ShiftValuePart2:
-            MOV A, !BRR_MAXM0_L
+            MOV A, BRR_MAXM0_L
             CLRC
             -:
                 ASL A
@@ -1789,10 +1840,10 @@ ConvertToBRR:
             CMP Y, #$06
             BNE ConvertToBRR_BRREncoding_Check8
             ; Executed if Y = 6, aka the high bit to check is in the high byte and the low bit is in low byte
-            BBS0 !BRR_MAXM0_H, ConvertToBRR_FormHeader
-            BBS7 !BRR_MAXM0_L, ConvertToBRR_FormHeader
+            BBS0 BRR_MAXM0_H, ConvertToBRR_FormHeader
+            BBS7 BRR_MAXM0_L, ConvertToBRR_FormHeader
             JMP ++
-            +   MOV A, !BRR_MAXM0_L ;Executed if Y = 5, aka both bits to check are in the low byte
+            +   MOV A, BRR_MAXM0_L ;Executed if Y = 5, aka both bits to check are in the low byte
             ..Check8:   ;Executed if Y = 1..4 or Y = 7..12 - aka the bits to check are in the same byte
             ASL A
             BCS ConvertToBRR_FormHeader
@@ -1801,56 +1852,56 @@ ConvertToBRR:
     .FormHeader:
             INC Y
         ++:
-            MOV !BRR_MAXM0_L, Y ;
+            MOV BRR_MAXM0_L, Y  ;
             MOV A, Y            ;   Get the shift value
             OR A, #%00100000    ;   Set the loop flag
             POP Y               ;   Get the ending low byte
-            CMP Y, !BRR_IN0_PTR_L
+            CMP Y, BRR_IN0_PTR_L;
             BNE +               ;   Set the end flag if it's the last block
             OR A, #%00010000    ;__
         +:
-            MOV !BRR_MAXM0_H, !BRR_TEMP_FLAGS;	Set the filter to 1
-            AND !BRR_MAXM0_H, #%01000000    ;   if appropriate
-            OR A, !BRR_MAXM0_H              ;__
+            MOV BRR_MAXM0_H, BRR_TEMP_FLAGS ;	Set the filter to 1
+            AND BRR_MAXM0_H, #%01000000     ;   if appropriate
+            OR A, BRR_MAXM0_H               ;__
             XCN A                           ;__ Swap the nybbles to make a valid header
             MOV Y, #$00                     ;
-            MOV (!BRR_OUT_PTR_L)+Y, A       ;   Write the header out
-            INCW !BRR_OUT_PTR_L             ;__
+            MOV (BRR_OUT_PTR_L)+Y, A        ;   Write the header out
+            INCW BRR_OUT_PTR_L              ;__
     .FormData:
-        CLR4 !BRR_TEMP_FLAGS
+        CLR4 BRR_TEMP_FLAGS
         MOV A, (X+)
-        MOV !BRR_CSMPT_L, A
+        MOV BRR_CSMPT_L, A
         MOV A, (X+)
         BPL +
             EOR A, #$FF
-            EOR !BRR_CSMPT_L, #$FF
-            SET4 !BRR_TEMP_FLAGS
+            EOR BRR_CSMPT_L, #$FF
+            SET4 BRR_TEMP_FLAGS
         +:
-        MOV !BRR_CSMPT_H, A ;
-        MOV Y, !BRR_CSMPT_L ;
+        MOV BRR_CSMPT_H, A  ;
+        MOV Y, BRR_CSMPT_L  ;
         MOV A, $0C00+Y      ;
-        MOV !BRR_CSMPT_L, A ;
-        MOV Y, !BRR_CSMPT_H ;
+        MOV BRR_CSMPT_L, A  ;
+        MOV Y, BRR_CSMPT_H  ;
         MOV A, #$E0         ;   7/8 multiplication
         MUL YA              ;
-        MOV !BRR_CSMPT_H, Y ;
+        MOV BRR_CSMPT_H, Y  ;
         CLRC                ;
-        ADC A, !BRR_CSMPT_L ;
-        MOV !BRR_CSMPT_L, A ;__
-        MOV A, !BRR_CSMPT_H
+        ADC A, BRR_CSMPT_L  ;
+        MOV BRR_CSMPT_L, A  ;__
+        MOV A, BRR_CSMPT_H
         AND A, #$7F
-        MOV Y, !BRR_MAXM0_L
+        MOV Y, BRR_MAXM0_L
         CMP Y, #$05
         BMI +
             -:
                 CLRC
                 LSR A
-                ROR !BRR_CSMPT_L
+                ROR BRR_CSMPT_L
                 DEC Y
                 CMP Y, #$04
                 BNE -
         +:
-            MOV A, !BRR_CSMPT_L
+            MOV A, BRR_CSMPT_L
             CMP Y, #$00
             BEQ +
             -:
@@ -1864,7 +1915,7 @@ ConvertToBRR:
             CMP A, #$08
             BMI +
             MOV A, #$07
-        +   BBC4 !BRR_TEMP_FLAGS, +
+        +   BBC4 BRR_TEMP_FLAGS, +
             EOR A, #$0F
             INC A
             CMP A, #$10
@@ -1876,23 +1927,23 @@ ConvertToBRR:
         BNE ConvertToBRR_FormData
         .SecondNybble:
             POP A
-            MOV !BRR_CSMPT_L, A
+            MOV BRR_CSMPT_L, A
             POP A
             XCN A
-            OR A, !BRR_CSMPT_L
-            MOV (!BRR_OUT_PTR_L)+Y, A       ;   Write the data out
-            INCW !BRR_OUT_PTR_L             ;__
+            OR A, BRR_CSMPT_L
+            MOV (BRR_OUT_PTR_L)+Y, A        ;   Write the data out
+            INCW BRR_OUT_PTR_L              ;__
             MOV A, X
             AND A, #$1F
             BNE ConvertToBRR_FormData
     .AfterEncoding:
-        CLR7 !BRR_TEMP_FLAGS
+        CLR7 BRR_TEMP_FLAGS
         POP A                           ;
-        CMP A, !BRR_IN0_PTR_L           ;   If this is the last block, end
+        CMP A, BRR_IN0_PTR_L            ;   If this is the last block, end
         BEQ ConvertToBRR_End        	;__
         PUSH A                          ;   If it ain't, push the finishing low byte back
         PUSH A                          ;__      
-        BBS7 !BRR_FLAGS, ++             ;
+        BBS7 BRR_FLAGS, ++              ;
         +   CMP X, #$20                     ;   
             BNE +                           ;   If we just used filter mode 1, 
             MOV A, $1E                      ;
@@ -1901,8 +1952,8 @@ ConvertToBRR:
             PUSH A                          ;__
         ++  JMP ConvertToBRR_SetupCopy
         +:                                  ;   If we just used filter mode 0,   
-            MOV !BRR_LSMPT_L, $3E           ;   smppoint = BRRBuffer[last]
-            MOV !BRR_LSMPT_H, $3F           ;__
+            MOV BRR_LSMPT_L, $3E            ;   smppoint = BRRBuffer[last]
+            MOV BRR_LSMPT_H, $3F            ;__
             MOV A, #$00                     ;
             PUSH A                          ;   currentsmppoint = 0
             PUSH A                          ;__
@@ -1914,8 +1965,9 @@ endif   ; !SNESFM_CFG_SAMPLE_GENERATE
 
 if !SNESFM_CFG_PITCHTABLE_GEN >= 1
 GeneratePitchTable:
-    ; Inputs:
-    ; YA = base pitch value of C7
+    .Documentation:
+        ; Inputs:
+        ; YA = base pitch value of C7
     .Defines:
         GenPitch_CounterA      = $EA
         GenPitch_NewPitch_Lo   = $EC
@@ -2022,7 +2074,7 @@ GeneratePitchTable:
     .End:
         RET
 
-endif
+endif   ; !SNESFM_CFG_PITCHTABLE_GEN
 
 transferChToTemp:       ;TCALL 15
     PUSH A
@@ -2115,7 +2167,9 @@ IndexToSamplePointer:   ;TCALL 13
         MOVW YA, $EE                ;   Return with pointer in YA
     RET                             ;__
     .LookuptableMul18:
-    db $00, $12, $24, $36
+        db $00, $12, $24, $36
+
+warnpc $5FFF
 
 Includes:
     org $0C00
