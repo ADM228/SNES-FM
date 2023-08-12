@@ -1,7 +1,7 @@
 [![Build status](https://github.com/ADM228/SNES-FM/actions/workflows/main.yml/badge.svg)](https://github.com/ADM228/SNES-FM/actions/workflows/main.yml)
 
 # SNES-FM
-SNES-FM is a frequency modulation synthesis engine/sound driver for the SNES (or specifically, the SPC700). The main gimmick of it is its ability to generate instruments before playback.
+SNES-FM is a frequency modulation synthesis engine/sound driver for the SNES (or specifically, the SPC700). The main gimmick of it is its ability to generate instruments before playback.  
 It currently has the following features:
 - On 65816 (main CPU, controls visuals and SPC700):
   - Uploading data to the SPC700
