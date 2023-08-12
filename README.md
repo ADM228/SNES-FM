@@ -2,7 +2,7 @@
 
 # SNES-FM
 SNES-FM is a frequency modulation synthesis engine/sound driver for the SNES (or specifically, the SPC700). The main gimmick of it is its ability to generate instruments before playback.
-The following features are already implemented:
+It currently has the following features:
 - On 65816 (main CPU, controls visuals and SPC700):
   - Uploading data to the SPC700
   - Phase modulation on the 65816 (for testing purposes)
@@ -18,6 +18,9 @@ The following features will be implemented in the future:
 - On SPC700:
   - Tilted saw/triangle generation
   - Effects other than volume changes
+  - Communication with the main CPU, therefore
+   - Streaming samples
+   - Sound effects
 - On 65816 in the FAAAAAAAAAAR future (check out [Genecyzer](https://github.com/ADM228/Genecyzer) for a PC implementation in the meantime):
   - A whole-ass tracker and a DAW (design of the latter will be completely stolen from [FamiStudio](https://github.com/BleuBleu/FamiStudio)) 
   - Saving tracker data to SRAM and sharing .srm files of songs
