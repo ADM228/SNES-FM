@@ -1,39 +1,82 @@
 ;Song format description (in development):
     ;1. Instrument data
-    ;======================== irrelevant old ===============================
-    ;   t {f ([s s]/[s]) ([v v]/[v]) [a] [p p] t}
-    ;   t - Instrument type change command
-    ;       100hiret
+    ;   1. Header:
+    ;           == legacy ==
+    ;       2 bytes for looping
+    ;           == for future ==
+    ;       1 byte: amount of sections (0-3)
+    ;       {amount of sections} times:
+    ;           5 start indexes for the section
+    ;           5 start of loop indexes for the section
+    ;           5 end of loop indexes for the section
+    ;           1 byte:
+    ;               tteessaa
+    ;               tt - looping type for Instrument Type macro,
+    ;               ee -    Envelope macro,
+    ;               ss -    Sample Pointer macro,
+    ;               aa -    Arpeggio macro
+    ;       1 byte describing looping type for pitchbend macro
+    ;           == end of for future ==
+    ;       5 times:
+    ;           Pointer to {macro} macro,
+    ;           Total Length (legacy), Speed
+    ;       for Instrument Type,
+    ;           Envelope,
+    ;           Sample Pointer,
+    ;           Arpeggio,
+    ;           Pitchbend (currently unimplemented)
+    ;   2. Instrument Type macro:
+    ;       0hssiret
     ;       h - Sample index "page" number
+    ;       ss - Subpage of sample index
     ;       i - Choose sample by index, not absolute position
     ;       r - Relative pitchbends (not done yet)
-    ;       e - Envelope type (if 0 - ADSR, if 1 - GAIN) (basically reverse x5.7)
-    ;       t - Instrument type (0 - Noise, 1 - sample)
-    ;   f - Flags
-    ;       0sllrvap
-    ;       s - Update sample
-    ;       ll - Subpage of sample index
-    ;       r - Update sample position relative to current position (works independently of i) (not done yet)
-    ;       v - Update envelope 
-    ;       a - Arpeggio (always relative)
-    ;       p - Pitchbend (not done yet)
-    ;       OR
-    ;       1ccddddd [l]
-    ;       cc - Special command
-    ;       ddddd - Argument
-    ;       Command list:
-    ;           00 - Change instrument type to ddddd
-    ;           01 - Loop forever to 000ddddd [ l ] + $1000
-    ;           11 - End of instrument data
-    ;       Afterwards, another f byte is there
-    ;   [s s] - Raw sample position/offset in memory (if i is clear and s is set) / 
-    ;   [s] - Sample index position/offset (if i is set and s is set)
-    ;   [v] - New envelope value (if v is set)
-    ;   [a] - Arpeggio (if a is set)
-    ;   [p p] - Pitchbend (if p is set)
-    ;   t - Time to wait until next updates
-    ;============================================================================
-    ;2. Song data
+    ;       e - Envelope type (if 0 - GAIN, if 1 - ADSR) (same as DSP register x5.7)
+    ;       t - Instrument type (0 - Noise, 1 - Sample)
+    ;   3. The rest of the macros are straightforward
+    ;2. New song data
+    ;   Is opcode-based.
+    ;   Opcodes:
+    ;       $60     - Set the instrument number high bits to 00,
+    ;       $61     -                                        01,
+    ;       $62     -                                        10,
+    ;       $63     -                                        11
+    ;       $64     - FS's set reference opcode
+    ;       $65     - FS's loop opcode
+    ;       $66     - Disable attack
+    ;       $67 xx  - Set separate arpeggio table ($00 means none,
+    ;                   overrides the instruments arpeggio)
+    ;       $68 xx  - Same but with pitch 
+    ;       $69 xx  - Fine pitch (center not yet determined,
+    ;                   possibly will be multiplication based)
+    ;
+    ;       $6A-$6B - Not filled yet       
+    ;
+    ;       $6C-$6F - Set instrument section to (opcode - $6C)
+    ;       $70 xx  - Set left volume
+    ;       $71 xx  - Set right volume
+    ;       $72 xx  - Set both volumes
+    ;       $73 X Y Z - Left volume slide
+    ;       $74 X Y Z - Right volume slide
+    ;       $75 X Y Z - Both volume slide
+    ;           (X - Step size whole part & sign,
+    ;            Y - Step size fractional part,
+    ;            Z - Target volume,
+    ;            1 byte each)
+    ;
+    ;       $76-$7C - Not filled yet
+    ;
+    ;       $7E     - Key off
+    ;       $7F     - End of pattern data
+    
+    ;       $80-$BF - Set instrument to (high bits) | (opcode - $80)
+    ;       $C0-$FF - Wait opcode - $C0 frames
+    ;       
+    ;       with
+
+
+
+    ;2. Legacy song data
     ;   e e {n [i] t} $FF
     ;   n - Note
     ;       rnnnnnnn
@@ -45,7 +88,7 @@
     ;       $FF - End of song data for this pattern
     ;   [i] - Instrument number (if r is set)
     ;   t - Time to wait until next note
-    ;3. Effect data
+    ;3. Probably legacy Effect data
     ;   $00 v - Set main left volume
     ;   $01 v - Set main right volume
     ;   $02 v - Set main both left and right volume
