@@ -17,21 +17,21 @@ endif
 SYM_GUI=none
 SYM_SND=none
 
-debug: SYM_GUI=wla --symbols-path="bin/SNESFMTrackDAW.sym"
-debug: SYM_SND=wla --symbols-path="bin/SNESFMTrackDAW.smp.sym"
+debug: SYM_GUI=wla --symbols-path="bin/SNESFMDemo.sym"
+debug: SYM_SND=wla --symbols-path="bin/SNESFMDemo.smp.sym"
 
-build: asar SNESFM TDAW
-debug: asar SNESFM TDAW
+build: asar SNESFM Demo
+debug: asar SNESFM Demo
 
 asar: ${ASAR_DIR}/asar/${ASAR_EXECUTABLE}
 SNESFM: bin/SNESFM.bin
-TDAW: bin/SNESFMTrackDAW.sfc
+Demo: bin/SNESFMDemo.sfc
     
 bin/SNESFM.bin: asar bin source/sound/* tables/multTables.bin tables/pitch*.bin tables/quartersinetable.bin
 	${ASAR_DIR}/asar/${ASAR_EXECUTABLE} -v --symbols=${SYM_SND} -I"tables" -I"source/sound" "source/sound/demoConfig.asm" "bin/SNESFM.bin"
 
-bin/SNESFMTrackDAW.sfc: asar bin bin/SNESFM.bin source/gui/* graphics/palette.pal graphics/tilesetUnicode.chr tables/sinetable.bin
-	${ASAR_DIR}/asar/${ASAR_EXECUTABLE} -v --symbols=${SYM_GUI} -I"bin" -I"graphics" -I"tables" --fix-checksum=on "source/gui/SNESFMTrackDAW.asm" "bin/SNESFMTrackDAW.sfc"
+bin/SNESFMDemo.sfc: asar bin bin/SNESFM.bin source/gui/* graphics/palette.pal graphics/tilesetUnicode.chr tables/sinetable.bin
+	${ASAR_DIR}/asar/${ASAR_EXECUTABLE} -v --symbols=${SYM_GUI} -I"bin" -I"graphics" -I"tables" --fix-checksum=on "source/gui/SNESFMDemo.asm" "bin/SNESFMDemo.sfc"
 
 bin:
 	mkdir -p bin
@@ -50,5 +50,5 @@ ${ASAR_DIR}/src/asar/*:
 ${ASAR_DIR}/asar/${ASAR_EXECUTABLE}: ${ASAR_DIR}/src/asar/*
 	cd "${ASAR_DIR}" && cmake src > /dev/null && $(MAKE) > /dev/null
 
-.PHONY: SFML clean asar SNESFM TDAW build debug
+.PHONY: SFML clean asar SNESFM Demo build debug
 .SILENT: build
