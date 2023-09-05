@@ -9,6 +9,7 @@
     ;           5 start indexes for the section
     ;           5 start of loop indexes for the section
     ;           5 end of loop indexes for the section
+    ;           5 speed bytes
     ;           1 byte:
     ;               tteessaa
     ;               tt - looping type for Instrument Type macro,
@@ -19,7 +20,7 @@
     ;           == end of for future ==
     ;       5 times:
     ;           Pointer to {macro} macro,
-    ;           Total Length (legacy), Speed
+    ;           Total Length (legacy), Speed (legacy)
     ;       for Instrument Type,
     ;           Envelope,
     ;           Sample Pointer,
@@ -37,22 +38,23 @@
     ;2. New song data
     ;   Is opcode-based.
     ;   Opcodes:
+    ;       $00-$5F - Note (C0-B7)
     ;       $60     - Set the instrument number high bits to 00,
     ;       $61     -                                        01,
     ;       $62     -                                        10,
     ;       $63     -                                        11
-    ;       $64     - FS's set reference opcode
-    ;       $65     - FS's loop opcode
-    ;       $66     - Disable attack
-    ;       $67 xx  - Set separate arpeggio table ($00 means none,
+    ;       $64-$67 - Set instrument section to (opcode - $64)
+    ;       $68     - FS's set reference opcode
+    ;       $69     - FS's loop opcode
+    ;       $6A     - Disable attack
+    ;       $6B xx  - Set separate arpeggio table ($00 means none,
     ;                   overrides the instruments arpeggio)
-    ;       $68 xx  - Same but with pitch 
-    ;       $69 xx  - Fine pitch (center not yet determined,
-    ;                   possibly will be multiplication based)
+    ;       $6C xx  - Same but with pitch 
+    ;       $6D xx  - Fine pitch (center is $80,
+    ;                   formula - ($180 + xx) / $200 * pitch)
     ;
-    ;       $6A-$6B - Not filled yet       
+    ;       $6E-$6F - Not filled yet       
     ;
-    ;       $6C-$6F - Set instrument section to (opcode - $6C)
     ;       $70 xx  - Set left volume
     ;       $71 xx  - Set right volume
     ;       $72 xx  - Set both volumes
@@ -69,8 +71,8 @@
     ;       $7E     - Key off
     ;       $7F     - End of pattern data
     
-    ;       $80-$BF - Set instrument to (high bits) | (opcode - $80)
-    ;       $C0-$FF - Wait opcode - $C0 frames
+    ;       $80-$FE - Set instrument to (high bits) | (opcode >> 1)
+    ;       $81-$FF - Wait opcode >> 1 frames
     ;       
     ;       with
 
@@ -122,6 +124,27 @@
             !INSTRUMENT_TYPE_NOISE = %0000000
             !INSTRUMENT_TYPE_SAMPLE = %00000001 
     ;Song data
+        !SET_INST_HIGHBITS = $60
+        !SET_INST_SECTION = $64
+
+        !NO_ATTACK = $6A
+        !ARP_TABLE = $6B
+        !PITCH_TABLE = $6C
+        !FINE_PITCH = $6D
+
+        !VOL_SET_L = $70
+        !VOL_SET_R = $71
+        !VOL_SET_BOTH = $72
+        !VOL_SLIDE_L = $73
+        !VOL_SLIDE_R = $74
+        !VOL_SLIDE_BOTH = $75
+
+        !nKEY_OFF = $7E
+        !nEND_DATA = $7F
+        
+        !INSTRUMENT = $80
+        !nWAIT = $81
+
         !KEY_OFF = $FD
     ;Effect data
         !SET_VOLUME_LR_SAME = $00
@@ -142,17 +165,18 @@
 
 PatternData:
     db $01, $00, $00, $00, $00, $00, $00, $00
-    db $01, $02, $00, $00, $00, $00, $00, $00
-    db $01, $03, $00, $00, $00, $00, $00, $00
-    db $01, $02, $00, $00, $00, $00, $00, $00
-    db $01, $01, $02, $00, $00, $00, $00, $00
+;    db $01, $02, $00, $00, $00, $00, $00, $00
+;    db $01, $03, $00, $00, $00, $00, $00, $00
+;    db $01, $02, $00, $00, $00, $00, $00, $00
+;    db $01, $01, $02, $00, $00, $00, $00, $00
 
     ;db $01, $02, $00, $00, $00, $00, $00, $00
-    db $04, $00, $00, $00, $00, $00, $00, $00
+;    db $04, $00, $00, $00, $00, $00, $00, $00
     db !END_DATA
 PatternPointers:
     dw NoteDataNone
-    dw NoteDataBass1
+    ; dw NoteDataBass1
+    dw nNoteDataBass1
     dw NoteDataDrums1
     dw NoteDataDrums2
     dw NoteDataLong
@@ -276,6 +300,23 @@ db $00
 ;     db !UPD_ENVELOPE
 ;     db $8A, $03
 ;     db !END_DATA
+
+nNoteDataBass1:
+    dw EffectDataNone
+    db !INSTRUMENT|($00<<1)  ; Set instrument to 0
+    db $30, !nWAIT|($10<<1)
+    db $30, !nWAIT|($10<<1)
+    db $30, !nWAIT|($10<<1)
+    db $3C, !nWAIT|($10<<1)
+    db $30, !nWAIT|($10<<1)
+    db $33, !nWAIT|($10<<1)
+    db $3F, !nWAIT|($10<<1)
+    db $33, !nWAIT|($10<<1)
+    db $36, !nWAIT|($10<<1)
+    db $42, !nWAIT|($10<<1)
+    db $39, !nWAIT|($10<<1)
+
+    db !nEND_DATA
 
 NoteDataBass1:
     dw EffectDataBass
@@ -450,6 +491,7 @@ NoteDataCh4:
 
 NoteDataNone:
     dw EffectDataNone
+    db !nEND_DATA
 EffectDataNone:
     db !END_DATA
 

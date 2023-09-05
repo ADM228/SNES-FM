@@ -103,8 +103,10 @@ Documentation:
         ;   $8  |    | instrument|  note ID  |   Play just a note  
         ;   $F  |    |           |           |   What? 
     ;   Sound engine documentation:
-        ;   Channel flags: n0000eis
+        ;   Channel flags: n00afeis
         ;   n - sample number (0 or 1)
+        ;   a - whether to disable the attack
+        ;   f - whether to reset the instrument
         ;   e - whether to not parse effect data
         ;   i - whether to not parse instrument data
         ;   s - whether to not parse song data
@@ -188,6 +190,9 @@ IntenalDefines:
         CHTEMP_ARPEGGIO_POINTER = $3B
         CHTEMP_PITCHBEND_POINTER = $3C
         CHTEMP_COUNTERS_DIRECTION = $3F   ;000paset
+
+        CHTEMP_INSTRUMENT_SECTION_HIGHBITS = $35
+
 
     ;Just global variables used in song playback
         !TEMP_VALUE = $00
@@ -507,104 +512,178 @@ Begin:
     JMP mainLoop_00
 ;
 
-ParseSongData:
+namespace ParseSongData
+    Start:
 
-    BBC0 CHTEMP_FLAGS, +
-    RET
-    +:
+        BBC0 CHTEMP_FLAGS, ReadByte
+        RET
+    POPX_ReadByte:
+        POP X
+    ReadByte:
         MOV Y, #$00
         MOV A, (CHTEMP_SONG_POINTER_L)+Y 
-        BPL ParseSongData_NoRetrigger
-    ;Retrigger
-        PUSH A
-        AND A, #$7F
+        BMI Inst_Or_Wait
+
+        MOV !TEMP_VALUE, A
+        INCW CHTEMP_SONG_POINTER_L
         SETC
         SBC A, #$60
-        BMI +
+        BMI Note
+
+    ; Detect if the opcode is modified by its highest bits
+        CMP A, #$08
+        BMI Inst_Section_HighBits
+
+    ; Opcode:
         ASL A
-        SETC
-        SBC A, #$3A
         PUSH X
         MOV X, A
-        JMP (ParseSongData_routineTable+X)
-    +:
-        MOV CHTEMP_NOTE, $ED
-        MOV $F2, #$5C       		;   Key off the needed channel
-        MOV $F3, !CHANNEL_BITMASK	;__
-        MOV Y, #$00
+        JMP (OpcodeTable-$10+X)
+
+
+    Inst_Or_Wait:
         INCW CHTEMP_SONG_POINTER_L
-        MOV A, (CHTEMP_SONG_POINTER_L)+Y
+        AND A, #$7F
+        LSR A
+        BCS WaitCmd
         MOV CHTEMP_INSTRUMENT_INDEX, A
+        MOV A, CHTEMP_INSTRUMENT_SECTION_HIGHBITS
+        AND A, #$C0
+        TSET CHTEMP_INSTRUMENT_INDEX, A
+        CALL CallInstrumentParser
+        JMP ReadByte
+
+    WaitCmd:
+        CLRC
+        ADC A, CHTEMP_SONG_COUNTER
+        DEC A
+        MOV CHTEMP_SONG_COUNTER, A
+        RET
+
+    Note:
+        MOV CHTEMP_NOTE, !TEMP_VALUE
+        BBS4 CHTEMP_FLAGS, PitchUpdate
+            ; Retrigger
+            MOV $F2, #$5C       		;   Key off the needed channel
+            MOV $F3, !CHANNEL_BITMASK	;__
+            CALL CallInstrumentParser
+        PitchUpdate:
+            MOV A, CHTEMP_NOTE          ;
+            CLRC                    	;   Apply arpeggio
+            ADC A, CHTEMP_ARPEGGIO 		;__
+            BBC0 CHTEMP_INSTRUMENT_TYPE, NoisePitch
+                MOV Y, A                            ;   Get low pitch byte
+                MOV A, PitchTableLo+Y               ;__
+                AND !CHANNEL_REGISTER_INDEX, #$70   ;
+                OR !CHANNEL_REGISTER_INDEX, #$02    ;   DSP Address (low pitch)
+                MOV $F2, !CHANNEL_REGISTER_INDEX;   ;__
+                MOV $F3, A                          ;__ Write low pitch byte
+                MOV A, PitchTableHi+Y               ;__ Get high pitch byte
+                INC $F2                             ;__ DSP Address (high pitch)
+                MOV $F3, A                          ;__ Write high pitch byte
+                JMP KeyOn
+            NoisePitch:
+                AND A, #$1F  	;
+                MOV $F2, #$6C	;  Update noise clock
+                AND $F3, #$E0	;
+                TSET $F3, A  	;__
+        KeyOn:
+            EOR CHTEMP_FLAGS, #%00010000    ;__ Reduces branching
+            BBC4 CHTEMP_FLAGS, ReadByte     ;__ (Inverted)
+                MOV $F2, #$5C       		;   Key off nothing (so no overrides happen)
+                MOV $F3, #$00       		;__ 
+                MOV $F2, #$4C       		;   Key on the needed channel
+                MOV $F3, !CHANNEL_BITMASK	;__ 
+                CLR4 CHTEMP_FLAGS           ;__ Do attack
+                JMP ReadByte
+
+    Inst_Section_HighBits:
+        MOV !TEMP_VALUE, A
+        AND A, #$03
+        BBC2 !TEMP_VALUE, Inst_HighBits   ; If it is setting the high bits, call the right routine
+        AND CHTEMP_INSTRUMENT_SECTION_HIGHBITS, #$FC
+-       TSET CHTEMP_INSTRUMENT_SECTION_HIGHBITS, A
+        JMP ReadByte
+
+    Inst_HighBits:
+        XCN A
+        ASL A
+        ASL A
+        AND CHTEMP_INSTRUMENT_SECTION_HIGHBITS, #$3F
+        JMP -
+
+
+    NoAttack:
+        SET4 CHTEMP_FLAGS
+        JMP POPX_ReadByte
+
+
+    Keyoff:
+        SET1 CHTEMP_FLAGS
+        MOV $F2, #$5C
+        MOV $F3, !CHANNEL_BITMASK
+        JMP POPX_ReadByte
+
+    End:
+        SET0 CHTEMP_FLAGS
+        POP X
+        OR !PATTERN_END_FLAGS, !CHANNEL_BITMASK
+        CMP !PATTERN_END_FLAGS, #$FF
+        BNE RETJump
+        CALL SPC_ParsePatternData
+        POP A
+        POP A
+        JMP SPC_mainLoop_01
+
+    RETJump:
+        RET
+
+    CallInstrumentParser:
+
         CLR1 CHTEMP_FLAGS
         SET3 CHTEMP_FLAGS
         MOV CHTEMP_COUNTERS_HALT, Y
         MOV CHTEMP_COUNTERS_DIRECTION, Y
-        CALL ParseInstrumentData_Start
+        CALL SPC_ParseInstrumentData_Start
         CLRC
         ADC CHTEMP_INSTRUMENT_TYPE_COUNTER, !TIMER_VALUE
         ADC CHTEMP_ENVELOPE_COUNTER, !TIMER_VALUE
         ADC CHTEMP_SAMPLE_POINTER_COUNTER, !TIMER_VALUE
         ADC CHTEMP_ARPEGGIO_COUNTER, !TIMER_VALUE
         ADC CHTEMP_PITCHBEND_COUNTER, !TIMER_VALUE
-        MOV $F2, #$5C       		;
-        MOV $F3, #$00       		;   Key off nothing (so no overrides happen)
-        MOV $F2, #$4C       		;   
-        MOV $F3, !CHANNEL_BITMASK	;__ Key on the needed channel
-		POP A
-    .NoRetrigger:
-        MOV CHTEMP_NOTE, A     		;   Apply arpeggio
-        CLRC                    	;
-        ADC A, CHTEMP_ARPEGGIO 		;__
-        INCW CHTEMP_SONG_POINTER_L
-        BBC0 CHTEMP_INSTRUMENT_TYPE, ParseSongData_NoisePitch
-        AND A, #$7F
-        MOV Y, A             
-        MOV A, PitchTableLo+Y
-        AND !CHANNEL_REGISTER_INDEX, #$70
-        OR !CHANNEL_REGISTER_INDEX, #$02
-        MOV $F2, !CHANNEL_REGISTER_INDEX;
-        MOV $F3, A
-        MOV A, PitchTableHi+Y
-        OR !CHANNEL_REGISTER_INDEX, #$01    
-        MOV $F2, !CHANNEL_REGISTER_INDEX;
-        MOV $F3, A ;pitch
-        JMP +
-    .NoisePitch:
-        AND A, #$1F  	;
-        MOV $F2, #$6C	;  Update noise clock
-        AND $F3, #$E0	;
-        TSET $F3, A  	;__
-    +:
-    -:
-        MOV Y, #$00                         ;
-        MOV A, (CHTEMP_SONG_POINTER_L)+Y    ;
-        DEC A                               ;   Update song counter (time till next note)
-        MOV CHTEMP_SONG_COUNTER, A          ;
-        INCW CHTEMP_SONG_POINTER_L          ;__
+
         RET
-    .Keyoff:
-        SET1 CHTEMP_FLAGS
-        MOV $F2, #$5C
-        MOV $F3, !CHANNEL_BITMASK
-    .NoPitch:
-        INCW CHTEMP_SONG_POINTER_L
-        POP X
-        POP A
-        JMP -
-    .End:
-        SET0 CHTEMP_FLAGS
-        POP X
-        POP A
-        MOV A, !CHANNEL_BITMASK
-        TSET !PATTERN_END_FLAGS, A
-        CMP !PATTERN_END_FLAGS, #$FF
-        BNE -
-        CALL ParsePatternData
-        JMP mainLoop_01
-    .routineTable:
-        dw ParseSongData_Keyoff
-        dw ParseSongData_NoPitch
-        dw ParseSongData_End
+
+
+    OpcodeTable:
+        dw POPX_ReadByte    ; $68, Set reference
+        dw POPX_ReadByte    ; $69, Loop
+        dw NoAttack         ; $6A, Disable attack
+        dw POPX_ReadByte    ; $6B, Arp table
+        dw POPX_ReadByte    ; $6C, Pitch table
+        dw POPX_ReadByte    ; $6D, Fine pitch
+        dw POPX_ReadByte    ; $6E
+        dw POPX_ReadByte    ; $6F
+
+        dw POPX_ReadByte    ; $70, Set left volume
+        dw POPX_ReadByte    ; $71, Set right volume
+        dw POPX_ReadByte    ; $72, Set both volumes
+        dw POPX_ReadByte    ; $73, Left volume slide
+        dw POPX_ReadByte    ; $74, Right volume slide
+        dw POPX_ReadByte    ; $75, Both volume slide
+        dw POPX_ReadByte    ; $76
+        dw POPX_ReadByte    ; $77
+        dw POPX_ReadByte    ; $78
+        dw POPX_ReadByte    ; $79
+        dw POPX_ReadByte    ; $7A
+        dw POPX_ReadByte    ; $7B
+        dw POPX_ReadByte    ; $7C
+        dw POPX_ReadByte    ; $7D
+        dw Keyoff           ; $7E, Keyoff
+        dw End              ; $7F, End of pattern data
+
+namespace off
+
 mainLoop:
     .00:
         MOV !TIMER_VALUE, $FD
@@ -621,7 +700,7 @@ mainLoop:
         SETC
         SBC CHTEMP_SONG_COUNTER, !TIMER_VALUE
         BPL +
-        CALL ParseSongData
+        CALL ParseSongData_Start
     +:
         CALL ParseInstrumentData_Start
         TCALL 14    ;Transfer shit back
@@ -739,8 +818,7 @@ namespace ParseInstrumentData
         INCW !TEMP_POINTER0_L                   ;__
         CMP A, CHTEMP_MACRO_POINTERS+X
         BNE ++
-            MOV A, !TEMP_VALUE
-            TSET CHTEMP_COUNTERS_HALT, A
+            OR CHTEMP_COUNTERS_HALT, !TEMP_VALUE
             INCW !TEMP_POINTER0_L
             JMP +
         ++  INC CHTEMP_MACRO_POINTERS+X			;TODO: More looping types
@@ -766,12 +844,12 @@ namespace ParseInstrumentData
         MOV A, (!TEMP_POINTER1_L)+Y         ;   Get the current value
         MOV CHTEMP_INSTRUMENT_TYPE, A      	;__
         MOV $F2, #$3D                       ;
-        MOV A, !CHANNEL_BITMASK             ;
         BBC0 CHTEMP_INSTRUMENT_TYPE, +		;
+            MOV A, !CHANNEL_BITMASK             ;
             TCLR $F3, A                     ;   Update the noise enable flag
             JMP ++                          ;
         +:                                  ;
-            TSET $F3, A                     ;__ 
+            OR $F3, !CHANNEL_BITMASK        ;__ 
     ++  AND !CHANNEL_REGISTER_INDEX, #$70	; 
         OR !CHANNEL_REGISTER_INDEX, #$05	;
         MOV $F2, !CHANNEL_REGISTER_INDEX	;
