@@ -699,12 +699,12 @@ namespace ParseSongData
         dw POPX_ReadByte    ; $7A
         dw POPX_ReadByte    ; $7B
         dw POPX_ReadByte    ; $7C
-        dw POPX_ReadByte    ; $7D, Keyoff
-        dw Keyoff           ; $7E, Set Reference
+        dw Keyoff           ; $7D, Keyoff
+        dw POPX_ReadByte    ; $7E, Set Reference
         dw End              ; $7F, Loop
 
 namespace off
-
+; old 650992
 mainLoop:
     .00:
         MOV !TIMER_VALUE, $FD
@@ -1432,16 +1432,13 @@ PhaseModulation_128:
         EOR MOD_MAIN_TEMP_H, #$FF
     .loop_afterMul:
 
-        LSR MOD_MAIN_TEMP_H
-        ROR A
-        LSR MOD_MAIN_TEMP_H
-        ROR A
-        LSR MOD_MAIN_TEMP_H
-        ROR A
-        LSR MOD_MAIN_TEMP_H
-        ROR A
-        LSR MOD_MAIN_TEMP_H
-        ROR A
+        ASL A
+        ROL MOD_MAIN_TEMP_H
+        ASL A
+        ROL MOD_MAIN_TEMP_H
+        ASL A
+        ROL MOD_MAIN_TEMP_H
+        MOV A, MOD_MAIN_TEMP_H
         AND A, #$FE
         CLRC
         ADC A, MOD_OUT_INDEX_L 
@@ -1777,9 +1774,7 @@ ConvertToBRR:
         +:                          ;   Python code:                        #
         ADDW YA, BRR_CSMPT_L        ;   smppoint_H<<8 += currentsmppoint    #
         MOVW BRR_SMPPT_L, YA        ;__                                     #__
-
-
-
+; Inversions here might not be needed, but that's for another time
         CLR4 BRR_TEMP_FLAGS         ;                                       #
         MOV A, BRR_BUFF1_PTR_L+X    ;                                       #
         MOV BRR_CSMPT_L, A          ;                                       #
@@ -1792,11 +1787,12 @@ ConvertToBRR:
         MOV A, BRR_CSMPT_H          ;   BRRBuffer[i] = currentsmppoint      #
         MOV (X+), A   				;__                                     #
         BBC7 BRR_SMPPT_H, +         ;                                       #
-        SET4 BRR_TEMP_FLAGS         ;   Inverting negative numbers          #
-        EOR BRR_SMPPT_L, #$FF       ;                                       #
-        EOR BRR_SMPPT_H, #$FF       ;__                                     #
-        +   CMP X, #$20             ;   Loop                                #
+            SET4 BRR_TEMP_FLAGS     ;   Inverting negative numbers          #
+            EOR BRR_SMPPT_L, #$FF   ;                                       #
+            EOR BRR_SMPPT_H, #$FF   ;__                                     #
+    +   CMP X, #$20                 ;   Loop                                #
         BNE ConvertToBRR_FilterLoop ;__ 
+    
         MOV BRR_LSMPT_L, BRR_SMPPT_L
         MOV BRR_LSMPT_H, BRR_SMPPT_H
         BBC4 BRR_TEMP_FLAGS, ConvertToBRR_BRREncoding

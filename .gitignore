@@ -4,7 +4,8 @@ session.M1
 
 *.spc
 *.srm
-
+*.bp
+*.bst
 *.sym
 
 *.sfc
