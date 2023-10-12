@@ -44,16 +44,14 @@
     ;       $62     -                                        10,
     ;       $63     -                                        11
     ;       $64-$67 - Set instrument section to (opcode - $64)
-    ;       $68     - FS's set reference opcode
-    ;       $69     - FS's loop opcode
-    ;       $6A     - Disable attack
-    ;       $6B xx  - Set separate arpeggio table ($00 means none,
+    ;       $68     - Disable attack
+    ;       $69 xx  - Set separate arpeggio table ($00 means none,
     ;                   overrides the instruments arpeggio)
-    ;       $6C xx  - Same but with pitch 
-    ;       $6D xx  - Fine pitch (center is $80,
-    ;                   formula - ($180 + xx) / $200 * pitch)
+    ;       $6A xx  - Same but with pitch 
+    ;       $6B xx  - Fine pitch (center is $80,
+    ;                   formula - Probably a lookup table or some shit
     ;
-    ;       $6E-$6F - Not filled yet       
+    ;       $6C-$6F - Not filled yet       
     ;
     ;       $70 xx  - Set left volume
     ;       $71 xx  - Set right volume
@@ -68,8 +66,9 @@
     ;
     ;       $76-$7C - Not filled yet
     ;
-    ;       $7E     - Key off
-    ;       $7F     - End of pattern data
+    ;       $7D     - Key off
+    ;       $7E     - Set reference
+    ;       $7F     - Loop
     
     ;       $80-$FE - Set instrument to (high bits) | (opcode >> 1)
     ;       $81-$FF - Wait opcode >> 1 frames
@@ -127,10 +126,10 @@
         !SET_INST_HIGHBITS = $60
         !SET_INST_SECTION = $64
 
-        !NO_ATTACK = $6A
-        !ARP_TABLE = $6B
-        !PITCH_TABLE = $6C
-        !FINE_PITCH = $6D
+        !NO_ATTACK = $68
+        !ARP_TABLE = $69
+        !PITCH_TABLE = $6A
+        !FINE_PITCH = $6B
 
         !VOL_SET_L = $70
         !VOL_SET_R = $71
@@ -139,13 +138,13 @@
         !VOL_SLIDE_R = $74
         !VOL_SLIDE_BOTH = $75
 
-        !nKEY_OFF = $7E
-        !nEND_DATA = $7F
+        !KEY_OFF = $7D
+        !SET_REF  = $7E
+        !LOOP = $7F
         
         !INSTRUMENT = $80
         !nWAIT = $81
 
-        !KEY_OFF = $FD
     ;Effect data
         !SET_VOLUME_LR_SAME = $00
         !SET_VOLUME_LR_DIFF = $01
@@ -302,11 +301,14 @@ db $00
 ;     db !END_DATA
 
 nNoteDataBass1:
-    dw EffectDataNone
     db !INSTRUMENT|($00<<1)  ; Set instrument to 0
+    db !VOL_SET_BOTH, $7F
     db $30, !nWAIT|($10<<1)
+    db !VOL_SET_BOTH, $40
     db $30, !nWAIT|($10<<1)
+    db !VOL_SET_BOTH, $20
     db $30, !nWAIT|($10<<1)
+    db !VOL_SET_BOTH, $7F
     db $3C, !nWAIT|($10<<1)
     db $30, !nWAIT|($10<<1)
     db $33, !nWAIT|($10<<1)
@@ -316,7 +318,7 @@ nNoteDataBass1:
     db $42, !nWAIT|($10<<1)
     db $39, !nWAIT|($10<<1)
 
-    db !nEND_DATA
+    db !END_DATA
 
 NoteDataBass1:
     dw EffectDataBass
@@ -490,8 +492,6 @@ NoteDataCh4:
     db $FE, $18
 
 NoteDataNone:
-    dw EffectDataNone
-    db !nEND_DATA
 EffectDataNone:
     db !END_DATA
 

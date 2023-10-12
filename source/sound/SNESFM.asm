@@ -110,7 +110,7 @@ Documentation:
         ;   e - whether to not parse effect data
         ;   i - whether to not parse instrument data
         ;   s - whether to not parse song data
-IntenalDefines:
+InternalDefines:
     ;Song data variables for more readability when assembling manually
         ;Instrument data
             ;   Instrument types
@@ -119,8 +119,7 @@ IntenalDefines:
     ;Pointers to channel 1's variables (permanent storage during song playback)
         !CH1_SONG_POINTER_L = $0800
         !CH1_SONG_POINTER_H = $0801
-        !CH1_EFFECT_POINTER_L = $0802
-        !CH1_EFFECT_POINTER_H = $0803
+
         !CH1_INSTRUMENT_INDEX = $0804
         !CH1_INSTRUMENT_TYPE = $0805
         !CH1_SAMPLE_POINTER_L = $0806
@@ -160,8 +159,8 @@ IntenalDefines:
     ;Temporary channel pointers during song playback
         CHTEMP_SONG_POINTER_L = $20
         CHTEMP_SONG_POINTER_H = $21
-        CHTEMP_EFFECT_POINTER_L = $22
-        CHTEMP_EFFECT_POINTER_H = $23
+
+
         CHTEMP_INSTRUMENT_INDEX = $24
         CHTEMP_INSTRUMENT_TYPE = $25
         CHTEMP_SAMPLE_POINTER_L = $26
@@ -496,12 +495,12 @@ CompileInstruments:
     MOV BRR_FLAGS, #%11000000
     CALL ConvertToBRR_Start
 
+Begin:
     MOV $F2, #$5C
     MOV $F3, #$00
     MOV $F2, #$6C
     MOV $F3, #$20
 
-Begin:
     MOV A, $0EC9
     MOV !PATTERN_POINTER_L, A
     MOV A, $0ECA
@@ -522,6 +521,8 @@ namespace ParseSongData
     ReadByte:
         MOV Y, #$00
         MOV A, (CHTEMP_SONG_POINTER_L)+Y 
+    
+    ; If the opcode >= $80, then it's either an instrument change or a waiting opcode
         BMI Inst_Or_Wait
 
         MOV !TEMP_VALUE, A
@@ -654,20 +655,40 @@ namespace ParseSongData
 
         RET
 
+    SetVolumeL_or_R:
+        MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y assumed to be 0 
+        INCW CHTEMP_SONG_POINTER_L 
+        AND !CHANNEL_REGISTER_INDEX, #$70
+        MOV $F2, !CHANNEL_REGISTER_INDEX
+        BBC0 $E0, +         ;   Store to right volume register if bit 0 set
+        INC $F2             ;__
+    ;+   MOV $F3, A         ;   These also exist in the next routine,
+    ;    JMP POPX_ReadByte  ;__ so they're just reused
+
+    SetVolumeBoth:
+        MOV A, (CHTEMP_SONG_POINTER_L)+Y
+        INCW CHTEMP_SONG_POINTER_L 
+        AND !CHANNEL_REGISTER_INDEX, #$70
+        MOV $F2, !CHANNEL_REGISTER_INDEX
+        MOV $F3, A
+        INC $F2                             
+    +   MOV $F3, A
+        JMP POPX_ReadByte
+
 
     OpcodeTable:
-        dw POPX_ReadByte    ; $68, Set reference
-        dw POPX_ReadByte    ; $69, Loop
-        dw NoAttack         ; $6A, Disable attack
-        dw POPX_ReadByte    ; $6B, Arp table
-        dw POPX_ReadByte    ; $6C, Pitch table
-        dw POPX_ReadByte    ; $6D, Fine pitch
+        dw NoAttack         ; $68, Disable attack
+        dw POPX_ReadByte    ; $69, Arp table
+        dw POPX_ReadByte    ; $6A, Pitch table
+        dw POPX_ReadByte    ; $6B, Fine pitch
+        dw POPX_ReadByte    ; $6C, 
+        dw POPX_ReadByte    ; $6D, 
         dw POPX_ReadByte    ; $6E
         dw POPX_ReadByte    ; $6F
 
-        dw POPX_ReadByte    ; $70, Set left volume
-        dw POPX_ReadByte    ; $71, Set right volume
-        dw POPX_ReadByte    ; $72, Set both volumes
+        dw SetVolumeL_or_R  ; $70, Set left volume
+        dw SetVolumeL_or_R  ; $71, Set right volume
+        dw SetVolumeBoth    ; $72, Set both volumes
         dw POPX_ReadByte    ; $73, Left volume slide
         dw POPX_ReadByte    ; $74, Right volume slide
         dw POPX_ReadByte    ; $75, Both volume slide
@@ -678,9 +699,9 @@ namespace ParseSongData
         dw POPX_ReadByte    ; $7A
         dw POPX_ReadByte    ; $7B
         dw POPX_ReadByte    ; $7C
-        dw POPX_ReadByte    ; $7D
-        dw Keyoff           ; $7E, Keyoff
-        dw End              ; $7F, End of pattern data
+        dw POPX_ReadByte    ; $7D, Keyoff
+        dw Keyoff           ; $7E, Set Reference
+        dw End              ; $7F, Loop
 
 namespace off
 
@@ -691,12 +712,12 @@ mainLoop:
         BEQ mainLoop_00
     .01:
         TCALL 15
-        CALL UpdateEffects
-        SETC
-        SBC CHTEMP_EFFECT_COUNTER, !TIMER_VALUE
-        BPL +
-        CALL ParseEffectData
-    +:
+        ; CALL UpdateEffects
+        ; SETC
+        ; SBC CHTEMP_EFFECT_COUNTER, !TIMER_VALUE
+        ; BPL +
+        ; CALL ParseEffectData
+    ; +:
         SETC
         SBC CHTEMP_SONG_COUNTER, !TIMER_VALUE
         BPL +
@@ -1016,76 +1037,6 @@ namespace ParseInstrumentData
 
 namespace off
 
-ParseEffectData:
-    BBC2 CHTEMP_FLAGS, ParseEffectData_Load
-    RET
-    .Load:
-        PUSH X
-        MOV Y, #$00
-        MOV A, (CHTEMP_EFFECT_POINTER_L)+Y
-        BMI +
-        INCW CHTEMP_EFFECT_POINTER_L
-        MOV $E0, A
-        AND $E0, #$01
-        AND A, #$FE
-        MOV X, A
-        JMP (ParseEffectData_EffectJumpTable+X)
-    +:
-        INCW CHTEMP_EFFECT_POINTER_L
-        SETC
-        SBC A, #$FE
-        ASL A
-        MOV X, A
-        JMP (ParseEffectData_EndingJumpTable+X)
-    .Wait:
-        POP X
-        MOV A, (CHTEMP_EFFECT_POINTER_L)+Y
-        INCW CHTEMP_EFFECT_POINTER_L
-        DEC A
-        MOV CHTEMP_EFFECT_COUNTER, A
-        RET
-    .EndEffectData:
-        POP X
-        SET2 CHTEMP_FLAGS
-        RET
-    .SetVolumeL_or_R:
-        POP X
-        MOV A, (CHTEMP_EFFECT_POINTER_L)+Y
-        INCW CHTEMP_EFFECT_POINTER_L 
-        AND !CHANNEL_REGISTER_INDEX, #$70
-        MOV $F2, !CHANNEL_REGISTER_INDEX
-        BBC0 $E0, +         ;   Store to right volume register if bit 0 set
-        INC $F2             ;__
-    +   MOV $F3, A
-        JMP ParseEffectData_Load
-
-    .SetVolumeLR:
-        POP X
-        MOV A, (CHTEMP_EFFECT_POINTER_L)+Y
-        INCW CHTEMP_EFFECT_POINTER_L 
-        AND !CHANNEL_REGISTER_INDEX, #$70
-        MOV $F2, !CHANNEL_REGISTER_INDEX
-        MOV $F3, A
-        BBC0 $E0, +                         ;
-        MOV A, (CHTEMP_EFFECT_POINTER_L)+Y ;   Load different value if bit 0 set
-        INCW CHTEMP_EFFECT_POINTER_L       ;__
-    +   INC $F2                             
-        MOV $F3, A
-        JMP ParseEffectData_Load
-
-    .VolumeSlideLR:
-        JMP ParseEffectData_Load
-    .EndingJumpTable:
-    dw ParseEffectData_Wait
-    dw ParseEffectData_EndEffectData
-    .EffectJumpTable:
-    dw ParseEffectData_SetVolumeLR
-    dw ParseEffectData_SetVolumeL_or_R
-    dw ParseEffectData_VolumeSlideLR
-
-UpdateEffects:
-    RET
-
 ParsePatternData:
     MOV X, #$01
     MOV !CHANNEL_BITMASK, X
@@ -1107,17 +1058,17 @@ ParsePatternData:
         MOV CHTEMP_SONG_POINTER_H, A
         MOV A, #$00
         MOV !CH1_SONG_COUNTER+X, A
-        MOV !CH1_EFFECT_COUNTER+X, A
+        ; MOV !CH1_EFFECT_COUNTER+X, A
         MOV A, !CH1_FLAGS+X
         AND A, #$FA
         MOV !CH1_FLAGS+X, A
-        MOV Y, #$00
-        MOV A, (CHTEMP_SONG_POINTER_L)+Y 
-        INCW CHTEMP_SONG_POINTER_L
-        MOV !CH1_EFFECT_POINTER_L+X, A
-        MOV A, (CHTEMP_SONG_POINTER_L)+Y 
-        INCW CHTEMP_SONG_POINTER_L
-        MOV !CH1_EFFECT_POINTER_H+X, A
+        ; MOV Y, #$00
+        ; MOV A, (CHTEMP_SONG_POINTER_L)+Y 
+        ; INCW CHTEMP_SONG_POINTER_L
+        ; MOV !CH1_EFFECT_POINTER_L+X, A
+        ; MOV A, (CHTEMP_SONG_POINTER_L)+Y 
+        ; INCW CHTEMP_SONG_POINTER_L
+        ; MOV !CH1_EFFECT_POINTER_H+X, A
         MOVW YA, CHTEMP_SONG_POINTER_L
         MOV !CH1_SONG_POINTER_L+X, A
         MOV A, Y
@@ -1685,17 +1636,20 @@ ConvertToBRR:
         ;   Inputs:
         ;       $D0 - PCM sample page
         ;       $D1 - BRR output index
-        ;       $D2 - Flags: fsi-ppbb 
+        ;       $D2 - Flags: fsixppbb 
         ;               f - whether to use filter mode 1
         ;               s - short sample mode (32 samples instead of 128)
         ;               i - high bit of output index 
+        ;               x - extended sample length mode (more than 1 sample)
         ;               pp - PCM sample subpage number (0-3, if s is set)
         ;               bb - BRR output subpage number (0-3, if s is set)
+        ;       $D3 - If x is set, sample length in loops (2 added)
         ;   Temp variables:
-        ;       $E5 - Temporary flags: bf-n----
+        ;       $E3 - Temporary flags: bf-n----
         ;               b - whether it is the first block
         ;               f - whether to use filter mode 1
         ;               n - negative flag
+        ;       $E4-$E5 - Ending pointer 
         ;       $E6-$EB - 3 sample points
         ;       $F8-$F9 - Temporary space for 1 sample point
         ;       $EC-$ED - Input pointer
@@ -1704,12 +1658,15 @@ ConvertToBRR:
         BRR_PCM_PAGE    = $D0
         BRR_OUT_INDEX   = $D1
         BRR_FLAGS       = $D2
+        BRR_XLEN        = $D3
 
         BRR_BUFF1_PTR_L = $20
         BRR_BUFF1_PTR_H = $21
         BRR_MAXM0_L     = $F8  ;These registers are so unused
         BRR_MAXM0_H     = $F9  ;they're practically RAM!
-        BRR_TEMP_FLAGS  = $E5
+        BRR_TEMP_FLAGS  = $E3
+        BRR_END_PTR_L   = $E4
+        BRR_END_PTR_H   = $E5
         BRR_SMPPT_L     = $E6
         BRR_SMPPT_H     = $E7
         BRR_CSMPT_L     = $E8
@@ -1730,11 +1687,10 @@ ConvertToBRR:
         MOV A, BRR_FLAGS                ;
         AND A, #$40                     ;   Set up the ending low byte of the address
         CLRC                            ;
-        ADC A, BRR_IN0_PTR_L            ;__
+        ADC A, BRR_IN0_PTR_L            ;
+        MOV BRR_END_PTR_L, A            ;__
         MOV BRR_LSMPT_L, #$00           ;   
         MOV BRR_LSMPT_H, #$00           ;__ smppoint = 0
-        PUSH A
-        PUSH A
         MOV Y, BRR_OUT_INDEX            ;
         MOV A, BRR_FLAGS                ;
         AND A, #$23                     ;   Get the sample pointer from index
@@ -1930,13 +1886,12 @@ ConvertToBRR:
     .FormHeader:
             INC Y
         ++:
-            MOV BRR_MAXM0_L, Y  ;
-            MOV A, Y            ;   Get the shift value
-            OR A, #%00100000    ;   Set the loop flag
-            POP Y               ;   Get the ending low byte
-            CMP Y, BRR_IN0_PTR_L;
-            BNE +               ;   Set the end flag if it's the last block
-            OR A, #%00010000    ;__
+            MOV BRR_MAXM0_L, Y              ;
+            MOV A, Y                        ;   Get the shift value
+            OR A, #%00100000                ;   Set the loop flag
+            CMP BRR_END_PTR_L, BRR_IN0_PTR_L;   Compare the ending low byte
+            BNE +                           ;   Set the end flag if it's the last block
+            OR A, #%00010000                ;__
         +:
             MOV BRR_MAXM0_H, BRR_TEMP_FLAGS ;	Set the filter to 1
             AND BRR_MAXM0_H, #%01000000     ;   if appropriate
@@ -2016,11 +1971,8 @@ ConvertToBRR:
             BNE ConvertToBRR_FormData
     .AfterEncoding:
         CLR7 BRR_TEMP_FLAGS
-        POP A                           ;
-        CMP A, BRR_IN0_PTR_L            ;   If this is the last block, end
-        BEQ ConvertToBRR_End        	;__
-        PUSH A                          ;   If it ain't, push the finishing low byte back
-        PUSH A                          ;__      
+        CMP BRR_END_PTR_L, BRR_IN0_PTR_L;   If this is the last block, end
+        BEQ ConvertToBRR_End        	;__   
         BBS7 BRR_FLAGS, ++              ;
         +   CMP X, #$20                     ;   
             BNE +                           ;   If we just used filter mode 1, 
@@ -2246,6 +2198,8 @@ IndexToSamplePointer:   ;TCALL 13
     RET                             ;__
     .LookuptableMul18:
         db $00, $12, $24, $36
+
+END_OF_CODE: ; Label to determine how much space i have left
 
 warnpc $5FFF
 
