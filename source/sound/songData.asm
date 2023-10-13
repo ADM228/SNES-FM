@@ -64,10 +64,11 @@
     ;            Z - Target volume,
     ;            1 byte each)
     ;
-    ;       $76-$7C - Not filled yet
+    ;       $76-$7B - Not filled yet
     ;
-    ;       $7D     - Key off
-    ;       $7E     - Set reference
+    ;       $7C     - Key off
+    ;       $7D     - Repeat last reference
+    ;       $7E L ptr - Set reference (L = amount of waiting opcodes)
     ;       $7F     - Loop
     
     ;       $80-$FE - Set instrument to (high bits) | (opcode >> 1)
@@ -138,8 +139,9 @@
         !VOL_SLIDE_R = $74
         !VOL_SLIDE_BOTH = $75
 
-        !KEY_OFF = $7D
-        !SET_REF = $7E
+        !KEY_OFF = $7C
+        !REF_RPT = $7D
+        !REF_SET = $7E
         !JUMP = $7F
         
         !INSTRUMENT = $80
@@ -320,6 +322,9 @@ nNoteDataBass1:
     db $36, !nWAIT|($10<<1)
     db $42, !nWAIT|($10<<1)
     db $39, !nWAIT|($10<<1)
+
+    db !REF_SET, 11
+    dw nNoteDataBass1+1
 
     db !JUMP
     dw NoteDataNone

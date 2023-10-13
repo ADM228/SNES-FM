@@ -103,11 +103,12 @@ Documentation:
         ;   $8  |    | instrument|  note ID  |   Play just a note  
         ;   $F  |    |           |           |   What? 
     ;   Sound engine documentation:
-        ;   Channel flags: n00af0i0
+        ;   Channel flags: n00af0ir
         ;   n - sample number (0 or 1)
         ;   a - whether to disable the attack
         ;   f - whether to reset the instrument
         ;   i - whether to not parse instrument data
+        ;   r - whether a reference is in effect
 InternalDefines:
     ;Song data variables for more readability when assembling manually
         ;Instrument data
@@ -515,6 +516,7 @@ Begin:
         INCW !TEMP_POINTER0_L
         MOV A, #$00
         MOV !CH1_SONG_COUNTER+X, A
+        MOV !CH1_FLAGS+X, A
         ; MOV !CH1_EFFECT_COUNTER+X, A
 
 
@@ -581,6 +583,7 @@ namespace ParseSongData
         ADC A, CHTEMP_SONG_COUNTER
         DEC A
         MOV CHTEMP_SONG_COUNTER, A
+        BBS0 CHTEMP_FLAGS, DecrementReference
         RET
 
     Note:
@@ -627,6 +630,17 @@ namespace ParseSongData
         AND CHTEMP_INSTRUMENT_SECTION_HIGHBITS, #$FC
 -       TSET CHTEMP_INSTRUMENT_SECTION_HIGHBITS, A
         JMP ReadByte
+
+
+    DecrementReference:
+        DEC CHTEMP_REF0_COUNTER
+        BNE RETJump ; very vulnerable
+
+        ; Return from reference
+        CLR0 CHTEMP_FLAGS
+        MOV CHTEMP_SONG_POINTER_L, CHTEMP_REF0_POINTER_L
+        MOV CHTEMP_SONG_POINTER_H, CHTEMP_REF0_POINTER_H
+        RET
 
     Inst_HighBits:
         XCN A
@@ -695,8 +709,8 @@ namespace ParseSongData
         MOV $F2, !CHANNEL_REGISTER_INDEX
         BBC0 $E0, +         ;   Store to right volume register if bit 0 set
         INC $F2             ;__
-    ;+   MOV $F3, A         ;   These also exist in the next routine,
-    ;    JMP POPX_ReadByte  ;__ so they're just reused
+    +   MOV $F3, A
+        JMP POPX_ReadByte
 
     SetVolumeBoth:
         MOV A, (CHTEMP_SONG_POINTER_L)+Y
@@ -708,6 +722,24 @@ namespace ParseSongData
     +   MOV $F3, A
         JMP POPX_ReadByte
 
+    ReferenceSet:
+        MOV CHTEMP_REF0_POINTER_L, CHTEMP_SONG_POINTER_L
+        MOV CHTEMP_REF0_POINTER_H, CHTEMP_SONG_POINTER_H
+
+        MOV A, (CHTEMP_REF0_POINTER_L)+Y
+        INCW CHTEMP_REF0_POINTER_L
+        MOV CHTEMP_REF0_COUNTER, A
+        SET0 CHTEMP_FLAGS
+
+        MOV A, (CHTEMP_REF0_POINTER_L)+Y    ; Y assumed to be 0 
+        INCW CHTEMP_REF0_POINTER_L 
+        MOV CHTEMP_SONG_POINTER_L, A
+
+        MOV A, (CHTEMP_REF0_POINTER_L)+Y    ; Y still assumed to be 0 
+        INCW CHTEMP_REF0_POINTER_L 
+        MOV CHTEMP_SONG_POINTER_H, A
+
+        JMP POPX_ReadByte
 
     OpcodeTable:
         dw NoAttack         ; $68, Disable attack
@@ -731,9 +763,9 @@ namespace ParseSongData
         dw POPX_ReadByte    ; $79
         dw POPX_ReadByte    ; $7A
         dw POPX_ReadByte    ; $7B
-        dw POPX_ReadByte    ; $7C
-        dw Keyoff           ; $7D, Keyoff
-        dw POPX_ReadByte    ; $7E, Set Reference
+        dw Keyoff           ; $7C, Keyoff
+        dw POPX_ReadByte    ; $7D, Repeat last reference
+        dw ReferenceSet     ; $7E, Set reference
         dw Jump             ; $7F, Loop/Jump
 
 namespace off
@@ -766,7 +798,7 @@ mainLoop:
         MOV X, A
         ASL !CHANNEL_BITMASK
         BNE mainLoop_01
-        MOV X, !CHANNEL_BITMASK
+        MOV X, #$00
         INC !CHANNEL_BITMASK
         JMP mainLoop_00
 
