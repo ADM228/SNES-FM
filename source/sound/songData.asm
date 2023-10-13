@@ -139,8 +139,8 @@
         !VOL_SLIDE_BOTH = $75
 
         !KEY_OFF = $7D
-        !SET_REF  = $7E
-        !LOOP = $7F
+        !SET_REF = $7E
+        !JUMP = $7F
         
         !INSTRUMENT = $80
         !nWAIT = $81
@@ -162,25 +162,28 @@
         !WAIT = $FE
         !END_DATA = $FF
 
-PatternData:
-    db $01, $00, $00, $00, $00, $00, $00, $00
-;    db $01, $02, $00, $00, $00, $00, $00, $00
-;    db $01, $03, $00, $00, $00, $00, $00, $00
-;    db $01, $02, $00, $00, $00, $00, $00, $00
-;    db $01, $01, $02, $00, $00, $00, $00, $00
+; PatternData:
+;     db $01, $00, $00, $00, $00, $00, $00, $00
+; ;    db $01, $02, $00, $00, $00, $00, $00, $00
+; ;    db $01, $03, $00, $00, $00, $00, $00, $00
+; ;    db $01, $02, $00, $00, $00, $00, $00, $00
+; ;    db $01, $01, $02, $00, $00, $00, $00, $00
 
-    ;db $01, $02, $00, $00, $00, $00, $00, $00
-;    db $04, $00, $00, $00, $00, $00, $00, $00
-    db !END_DATA
-PatternPointers:
-    dw NoteDataNone
-    ; dw NoteDataBass1
-    dw nNoteDataBass1
-    dw NoteDataDrums1
-    dw NoteDataDrums2
-    dw NoteDataLong
-    dw NoteDataNone
+;     ;db $01, $02, $00, $00, $00, $00, $00, $00
+; ;    db $04, $00, $00, $00, $00, $00, $00, $00
+;     db !END_DATA
+; PatternPointers:
+;     dw NoteDataNone
+;     ; dw NoteDataBass1
+;     dw nNoteDataBass1
+;     dw NoteDataDrums1
+;     dw NoteDataDrums2
+;     dw NoteDataLong
+;     dw NoteDataNone
 
+SongHeader:
+dw nNoteDataBass1, NoteDataNone, NoteDataNone, NoteDataNone
+dw NoteDataNone, NoteDataNone, NoteDataNone, NoteDataNone
 
 Instr03Data:
 Instr00Data:
@@ -318,7 +321,9 @@ nNoteDataBass1:
     db $42, !nWAIT|($10<<1)
     db $39, !nWAIT|($10<<1)
 
-    db !END_DATA
+    db !JUMP
+    dw NoteDataNone
+
 
 NoteDataBass1:
     dw EffectDataBass
@@ -337,7 +342,7 @@ NoteDataBass1:
     db !END_DATA
 
 NoteDataDrums1:
-    dw EffectDataNone
+    ; dw EffectDataNone
     db $BC, $01, $10
     db !KEY_OFF, $40
     db $BC, $01, $10
@@ -348,7 +353,7 @@ NoteDataDrums1:
     db !END_DATA
 
 NoteDataDrums2:
-    dw EffectDataNone
+    ; dw EffectDataNone
     db $BC, $01, $10
     db !KEY_OFF, $10
 	db $BC, $01, $10
@@ -363,7 +368,7 @@ NoteDataDrums2:
     db !END_DATA
 
 NoteDataLong:
-    dw EffectDataNone
+    ; dw EffectDataNone
     db !WAIT, $80
     db !WAIT, $80
     db !WAIT, $80
@@ -492,11 +497,12 @@ NoteDataCh4:
     db $FE, $18
 
 NoteDataNone:
-EffectDataNone:
-    db !END_DATA
+    db !nWAIT|($40<<1)
+    db !JUMP
+    dw NoteDataNone
 
 NoteDataNoise:
-    dw EffectDataNone
+    ; dw EffectDataNone
     db $81, $03, $7F
     db $80, $03, $7F
     db $81, $03, $7F

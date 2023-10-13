@@ -103,13 +103,11 @@ Documentation:
         ;   $8  |    | instrument|  note ID  |   Play just a note  
         ;   $F  |    |           |           |   What? 
     ;   Sound engine documentation:
-        ;   Channel flags: n00afeis
+        ;   Channel flags: n00af0i0
         ;   n - sample number (0 or 1)
         ;   a - whether to disable the attack
         ;   f - whether to reset the instrument
-        ;   e - whether to not parse effect data
         ;   i - whether to not parse instrument data
-        ;   s - whether to not parse song data
 InternalDefines:
     ;Song data variables for more readability when assembling manually
         ;Instrument data
@@ -159,16 +157,16 @@ InternalDefines:
     ;Temporary channel pointers during song playback
         CHTEMP_SONG_POINTER_L = $20
         CHTEMP_SONG_POINTER_H = $21
-
-
+        CHTEMP_REF0_POINTER_L = $22
+        CHTEMP_REF0_POINTER_H = $23
         CHTEMP_INSTRUMENT_INDEX = $24
         CHTEMP_INSTRUMENT_TYPE = $25
         CHTEMP_SAMPLE_POINTER_L = $26
         CHTEMP_SAMPLE_POINTER_H = $27
 
         CHTEMP_SONG_COUNTER = $28
-        CHTEMP_EFFECT_COUNTER = $29
-        CHTEMP_EFFECT_AMOUNT = $2A
+        CHTEMP_REF0_COUNTER = $29
+        ;CHTEMP_EFFECT_AMOUNT = $2A
         ;$2B and $2C will be used by pitchbend
         CHTEMP_ARPEGGIO = $2D
         CHTEMP_NOTE = $2E
@@ -198,10 +196,7 @@ InternalDefines:
         !TIMER_VALUE = $01
         !CHANNEL_REGISTER_INDEX = $02
         !CHANNEL_BITMASK = $03
-        !PATTERN_POINTER_L = $04
-        !PATTERN_POINTER_H = $05
         !TEMP_VALUE2 = $06
-        !PATTERN_END_FLAGS = $07
         !TEMP_POINTER0_L = $0C
         !TEMP_POINTER0_H = $0D
         !TEMP_POINTER1_L = $0E
@@ -502,22 +497,49 @@ Begin:
     MOV $F3, #$20
 
     MOV A, $0EC9
-    MOV !PATTERN_POINTER_L, A
+    MOV !TEMP_POINTER0_L, A
     MOV A, $0ECA
-    MOV !PATTERN_POINTER_H, A
-    CALL ParsePatternData
-	MOV !CHANNEL_REGISTER_INDEX, #$00
+    MOV !TEMP_POINTER0_H, A
+
+    MOV X, #$01
+    MOV !CHANNEL_BITMASK, X
+    DEC X
+	MOV !CHANNEL_REGISTER_INDEX, X
+    -:
+        MOV Y, #$00
+        MOV A, (!TEMP_POINTER0_L)+Y
+        MOV !CH1_SONG_POINTER_L+X, A
+        INCW !TEMP_POINTER0_L
+        MOV A, (!TEMP_POINTER0_L)+Y
+        MOV !CH1_SONG_POINTER_H+X, A
+        INCW !TEMP_POINTER0_L
+        MOV A, #$00
+        MOV !CH1_SONG_COUNTER+X, A
+        ; MOV !CH1_EFFECT_COUNTER+X, A
+
+
+        ; MOV Y, #$00
+        ; MOV A, (CHTEMP_SONG_POINTER_L)+Y 
+        ; INCW CHTEMP_SONG_POINTER_L
+        ; MOV !CH1_EFFECT_POINTER_L+X, A
+        ; MOV A, (CHTEMP_SONG_POINTER_L)+Y 
+        ; INCW CHTEMP_SONG_POINTER_L
+        ; MOV !CH1_EFFECT_POINTER_H+X, A
+
+        MOV A, X
+        CLRC
+        ADC A, #$08
+        AND A, #$38
+        MOV X, A
+        BNE -
     MOV A, $FD
     JMP mainLoop_00
-;
+
 
 namespace ParseSongData
-    Start:
-
-        BBC0 CHTEMP_FLAGS, ReadByte
-        RET
     POPX_ReadByte:
         POP X
+    Start:
     ReadByte:
         MOV Y, #$00
         MOV A, (CHTEMP_SONG_POINTER_L)+Y 
@@ -625,16 +647,27 @@ namespace ParseSongData
         MOV $F3, !CHANNEL_BITMASK
         JMP POPX_ReadByte
 
-    End:
-        SET0 CHTEMP_FLAGS
-        POP X
-        OR !PATTERN_END_FLAGS, !CHANNEL_BITMASK
-        CMP !PATTERN_END_FLAGS, #$FF
-        BNE RETJump
-        CALL SPC_ParsePatternData
+    ; End:
+    ;     SET0 CHTEMP_FLAGS
+    ;     POP X
+    ;     OR !PATTERN_END_FLAGS, !CHANNEL_BITMASK
+    ;     CMP !PATTERN_END_FLAGS, #$FF
+    ;     BNE RETJump
+    ;     CALL SPC_ParsePatternData
+    ;     POP A
+    ;     POP A
+    ;     JMP SPC_mainLoop_01
+    Jump:
+        MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y assumed to be 0 
+        INCW CHTEMP_SONG_POINTER_L 
+        PUSH A
+        MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y still assumed to be 0 
+        INCW CHTEMP_SONG_POINTER_L 
+        MOV Y, A
         POP A
-        POP A
-        JMP SPC_mainLoop_01
+        MOVW CHTEMP_SONG_POINTER_L, YA
+        JMP POPX_ReadByte
+
 
     RETJump:
         RET
@@ -701,10 +734,10 @@ namespace ParseSongData
         dw POPX_ReadByte    ; $7C
         dw Keyoff           ; $7D, Keyoff
         dw POPX_ReadByte    ; $7E, Set Reference
-        dw End              ; $7F, Loop
+        dw Jump             ; $7F, Loop/Jump
 
 namespace off
-; old 650992
+
 mainLoop:
     .00:
         MOV !TIMER_VALUE, $FD
@@ -728,14 +761,12 @@ mainLoop:
         MOV A, X
         CLRC
         ADC A, #$08
-        MOV !CHANNEL_REGISTER_INDEX, A
-        ASL !CHANNEL_REGISTER_INDEX
+        ; There is no way in hell the carry should be set here
+        ADC !CHANNEL_REGISTER_INDEX, #$10
         MOV X, A
-        MOV A, !CHANNEL_BITMASK
-        ASL A
-        MOV !CHANNEL_BITMASK, A
+        ASL !CHANNEL_BITMASK
         BNE mainLoop_01
-        MOV X, A
+        MOV X, !CHANNEL_BITMASK
         INC !CHANNEL_BITMASK
         JMP mainLoop_00
 
@@ -1036,50 +1067,6 @@ namespace ParseInstrumentData
    		RET
 
 namespace off
-
-ParsePatternData:
-    MOV X, #$01
-    MOV !CHANNEL_BITMASK, X
-    DEC X
-    MOV !PATTERN_END_FLAGS, X
-	MOV !CHANNEL_REGISTER_INDEX, X
-    -:
-        MOV Y, #$00
-        MOV A, (!PATTERN_POINTER_L)+Y
-        CMP A, #$FF
-        BEQ End
-        INCW !PATTERN_POINTER_L
-        ASL A
-        MOV Y, A
-        MOV A, PatternPointers+Y
-        MOV CHTEMP_SONG_POINTER_L, A
-        INC Y
-        MOV A, PatternPointers+Y
-        MOV CHTEMP_SONG_POINTER_H, A
-        MOV A, #$00
-        MOV !CH1_SONG_COUNTER+X, A
-        ; MOV !CH1_EFFECT_COUNTER+X, A
-        MOV A, !CH1_FLAGS+X
-        AND A, #$FA
-        MOV !CH1_FLAGS+X, A
-        ; MOV Y, #$00
-        ; MOV A, (CHTEMP_SONG_POINTER_L)+Y 
-        ; INCW CHTEMP_SONG_POINTER_L
-        ; MOV !CH1_EFFECT_POINTER_L+X, A
-        ; MOV A, (CHTEMP_SONG_POINTER_L)+Y 
-        ; INCW CHTEMP_SONG_POINTER_L
-        ; MOV !CH1_EFFECT_POINTER_H+X, A
-        MOVW YA, CHTEMP_SONG_POINTER_L
-        MOV !CH1_SONG_POINTER_L+X, A
-        MOV A, Y
-        MOV !CH1_SONG_POINTER_H+X, A
-        MOV A, X
-        CLRC
-        ADC A, #$08
-        AND A, #$38
-        MOV X, A
-        BNE -
-    RET
 
 End:
     MOV $F2, #$6C   ;   Mute!
@@ -1398,7 +1385,6 @@ PhaseModulation_128:
     .loop:
         INC MOD_MOD_INDEX_L             ;
         MOV A, (MOD_MOD_INDEX_L+X)      ;   Get high byte
-        MOV MOD_MAIN_TEMP_H, A          ;
         BMI PhaseModulation_128_loop_negative 
         MOV Y, MOD_MOD_STRENGTH         ;
         MUL YA                          ;   Multiply high byte by modulation strength
@@ -1510,7 +1496,6 @@ PhaseModulation_32:
     .loop:
         INC MOD_MOD_INDEX_L
         MOV A, (MOD_MOD_INDEX_L+X)
-        MOV MOD_MAIN_TEMP_H, A
         BMI PhaseModulation_32_loop_negative 
         MOV Y, MOD_MOD_STRENGTH
         MUL YA
@@ -1520,10 +1505,10 @@ PhaseModulation_32:
         MOV A, (MOD_MOD_INDEX_L+X)
         MOV Y, MOD_MOD_STRENGTH
         MUL YA
+        MOV A, Y                    ; A = high byte
+        MOV Y, #$00
+        ADDW YA, MOD_MAIN_TEMP_L
         MOV A, Y
-        CLRC
-        ADC A, MOD_MAIN_TEMP_L
-        ADC MOD_MAIN_TEMP_H, #$00
         JMP PhaseModulation_32_loop_afterMul
     .loop_negative:
         EOR A, #$FF
@@ -1536,15 +1521,13 @@ PhaseModulation_32:
         EOR A, #$FF
         MOV Y, MOD_MOD_STRENGTH
         MUL YA
+        MOV A, Y                    ; A = high byte
+        MOV Y, #$00
+        ADDW YA, MOD_MAIN_TEMP_L
         MOV A, Y
-        CLRC
-        ADC A, MOD_MAIN_TEMP_L
-        ADC MOD_MAIN_TEMP_H, #$00
         EOR A, #$FF
-        EOR MOD_MAIN_TEMP_H, #$FF
     .loop_afterMul:
 
-        MOV A, MOD_MAIN_TEMP_H
         ASL A
         CLRC
         ADC A, MOD_OUT_INDEX_L 
@@ -2215,7 +2198,7 @@ Includes:
             incbin "pitchHi.bin"
     endif
         db $03, $00, $00, $00, $00, $00, $00, $00, $00 ;Dummy empty sample
-        dw PatternData
+        dw SongHeader
     org $0F00
 		SineTable:
         incbin "quartersinetable.bin"
