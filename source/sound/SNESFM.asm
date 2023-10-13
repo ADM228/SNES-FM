@@ -1436,19 +1436,17 @@ PhaseModulation_128:
         ROL MOD_MAIN_TEMP_H
         ASL A
         ROL MOD_MAIN_TEMP_H
-        ASL A
-        ROL MOD_MAIN_TEMP_H
-        MOV A, MOD_MAIN_TEMP_H
-        AND A, #$FE
+        MOV A, MOD_MAIN_TEMP_H  ;   Replaced a third ASL A : ROL MMTH, 
+        ASL A                   ;__ as well as MOV A, MMTH : AND A, #$FE
         CLRC
         ADC A, MOD_OUT_INDEX_L 
 
         MOV MOD_MAIN_TEMP_H, MOD_CAR_PAGE
         MOV MOD_MAIN_TEMP_L, A
-        MOV Y, #$00
-        MOV A, (MOD_MAIN_TEMP_L)+Y
-        MOV (MOD_OUT_INDEX_L)+Y, A
-        INC Y
+        ; X is permanently 0
+        MOV A, (MOD_MAIN_TEMP_L+X)
+        MOV (MOD_OUT_INDEX_L+X), A
+        MOV Y, #$01
         MOV A, (MOD_MAIN_TEMP_L)+Y
         MOV (MOD_OUT_INDEX_L)+Y, A
         CLRC
@@ -1476,11 +1474,13 @@ PhaseModulation_32:
         ;           mm - Modulator subpage
         ;           oo - Output subpage
         ;   Temp variables:
+        ;       $E7    - Modulator pointer offset
         ;       $EA-EB - Output pointer
         ;       $EC-ED - Modulator pointer
         ;       $EE-EF - Main temp variable
     .Labels:
         MOD_SUBPAGE     = $D5
+        MOD_MOD_PTR_OFF = $E7
         MOD_CAR_INDEX_L = $E8
         MOD_END_INDEX_L = $E9
     .Setup:
@@ -1495,7 +1495,7 @@ PhaseModulation_32:
         ASL A                       ;
         ASL A                       ;
         AND A, #$C0                 ;
-        PUSH A                      ;
+        MOV MOD_MOD_PTR_OFF, A      ;
         TSET MOD_MOD_INDEX_L, A     ;__
         MOV A, MOD_SUBPAGE          ;
         XCN A                       ;   Get low byte of output pointer
@@ -1554,10 +1554,10 @@ PhaseModulation_32:
 
         MOV MOD_MAIN_TEMP_H, MOD_CAR_PAGE
         MOV MOD_MAIN_TEMP_L, A
-        MOV Y, #$00
-        MOV A, (MOD_MAIN_TEMP_L)+Y
-        MOV (MOD_OUT_INDEX_L)+Y, A
-        INC Y
+        ; X is permanently 0
+        MOV A, (MOD_MAIN_TEMP_L+X)
+        MOV (MOD_OUT_INDEX_L+X), A
+        MOV Y, #$01
         MOV A, (MOD_MAIN_TEMP_L)+Y
         MOV (MOD_OUT_INDEX_L)+Y, A
         CLRC
@@ -1565,14 +1565,10 @@ PhaseModulation_32:
         CLRC
         ADC MOD_MOD_INDEX_L, #$02
         AND MOD_MOD_INDEX_L, #$3E
-        POP A
-        PUSH A
         CLRC 
-        ADC A, MOD_MOD_INDEX_L
-        MOV MOD_MOD_INDEX_L, A
+        ADC MOD_MOD_INDEX_L, MOD_MOD_PTR_OFF
         CMP MOD_OUT_INDEX_L, MOD_END_INDEX_L
         BNE PhaseModulation_32_loop
-        POP A
     RET
 
 endif   ; !SNESFM_CFG_SHORTSMP_GEN
