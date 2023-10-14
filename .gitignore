@@ -6,6 +6,8 @@ session.M1
 *.srm
 *.bp
 *.bst
+*.log
+
 *.sym
 
 *.sfc

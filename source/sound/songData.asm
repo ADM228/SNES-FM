@@ -181,6 +181,7 @@ SongHeader:
 dw nNoteDataBass1, NoteDataDrums, NoteDataNone, NoteDataNone
 dw NoteDataNone, NoteDataNone, NoteDataNone, NoteDataNone
 
+Instr03Data:
 Instr00Data:
 .Header:
 db %00000000, %00000000    ;Looping, everything one-shot for now
