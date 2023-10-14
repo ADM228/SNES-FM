@@ -67,7 +67,9 @@
     ;       $76-$7B - Not filled yet
     ;
     ;       $7C     - Key off
-    ;       $7D     - Repeat last reference
+    ;       $7D X   - Repeat reference from X bytes ago (difference between
+    ;                   before the opcode and after the parameters of the 
+    ;                   Set reference opcode)
     ;       $7E L ptr - Set reference (L = amount of waiting opcodes)
     ;       $7F     - Loop
     
@@ -323,8 +325,18 @@ nNoteDataBass1:
     db $42, !nWAIT|($10<<1)
     db $39, !nWAIT|($10<<1)
 
-    db !REF_SET, 11
+    db !REF_SET, 2
     dw nNoteDataBass1+1
+    db !REF_SET, 2
+    dw nNoteDataBass1+13
+    db !REF_RPT, 0
+    db !REF_RPT, 2
+
+    db !REF_RPT, 8
+    db !REF_RPT, 6
+    db !REF_RPT, 8
+    db !REF_RPT, 10
+    db !nWAIT|($10<<1)
 
     db !JUMP
     dw NoteDataNone

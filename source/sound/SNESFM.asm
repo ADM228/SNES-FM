@@ -741,6 +741,37 @@ namespace ParseSongData
 
         JMP POPX_ReadByte
 
+    ReferenceRepeat:
+        MOV A, (CHTEMP_SONG_POINTER_L)+Y
+        CLRC
+        ADC A, #$04                 ;__ 3 bytes of parameters + 1 byte for this opcode
+        MOV !TEMP_POINTER0_L, A     ;   Neither of these instructions
+        MOV !TEMP_POINTER0_H, Y     ;__ affect carry
+        ADC !TEMP_POINTER0_H, #$00
+        
+        MOVW YA, CHTEMP_SONG_POINTER_L
+        MOVW CHTEMP_REF0_POINTER_L, YA
+        INCW CHTEMP_REF0_POINTER_L
+
+        SUBW YA, !TEMP_POINTER0_L   ;   Get address of last
+        MOVW !TEMP_POINTER0_L, YA   ;__ reference opcode's parameters
+
+        MOV Y, #$00
+
+        MOV A, (!TEMP_POINTER0_L)+Y
+        MOV CHTEMP_REF0_COUNTER, A
+        INC Y
+        SET0 CHTEMP_FLAGS
+
+        MOV A, (!TEMP_POINTER0_L)+Y
+        MOV CHTEMP_SONG_POINTER_L, A
+        INC Y
+
+        MOV A, (!TEMP_POINTER0_L)+Y
+        MOV CHTEMP_SONG_POINTER_H, A
+
+        JMP POPX_ReadByte
+
     OpcodeTable:
         dw NoAttack         ; $68, Disable attack
         dw POPX_ReadByte    ; $69, Arp table
@@ -764,7 +795,7 @@ namespace ParseSongData
         dw POPX_ReadByte    ; $7A
         dw POPX_ReadByte    ; $7B
         dw Keyoff           ; $7C, Keyoff
-        dw POPX_ReadByte    ; $7D, Repeat last reference
+        dw ReferenceRepeat  ; $7D, Repeat last reference
         dw ReferenceSet     ; $7E, Set reference
         dw Jump             ; $7F, Loop/Jump
 
