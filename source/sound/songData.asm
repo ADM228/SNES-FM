@@ -73,8 +73,8 @@
     ;       $7E L ptr - Set reference (L = amount of waiting opcodes)
     ;       $7F     - Loop
     
-    ;       $80-$FE - Set instrument to (high bits) | (opcode >> 1)
-    ;       $81-$FF - Wait opcode >> 1 frames
+    ;       $80-$FE - Wait opcode >> 1 frames
+    ;       $81-$FF - Set instrument to (high bits) | (opcode >> 1)
     ;       
     ;       with
 
@@ -92,15 +92,6 @@
     ;       $FF - End of song data for this pattern
     ;   [i] - Instrument number (if r is set)
     ;   t - Time to wait until next note
-    ;3. Probably legacy Effect data
-    ;   $00 v - Set main left volume
-    ;   $01 v - Set main right volume
-    ;   $02 v - Set main both left and right volume
-    ;   $03 v - Set echo left volume
-    ;   $04 v - Set echo right volume
-    ;   $05 v - Set echo both left and right volume
-    ;   $FE t - Wait 
-    ;   $FF - End effect data
 
 ;Song data variables for more readability when assembling manually
     ;Instrument data
@@ -146,8 +137,9 @@
         !REF_SET = $7E
         !JUMP = $7F
         
-        !INSTRUMENT = $80
-        !nWAIT = $81
+        !nWAIT = $80
+        !INSTRUMENT = $81
+        
 
     ;Effect data
         !SET_VOLUME_LR_SAME = $00
@@ -186,10 +178,9 @@
 ;     dw NoteDataNone
 
 SongHeader:
-dw nNoteDataBass1, NoteDataNone, NoteDataNone, NoteDataNone
+dw nNoteDataBass1, NoteDataDrums, NoteDataNone, NoteDataNone
 dw NoteDataNone, NoteDataNone, NoteDataNone, NoteDataNone
 
-Instr03Data:
 Instr00Data:
 .Header:
 db %00000000, %00000000    ;Looping, everything one-shot for now
@@ -296,8 +287,6 @@ db $1D, $2C, $2A, $1D
 .Pitchbend:
 db $00
 
-
-; Instr03Data:
 ;     db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
 
 ;     db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
@@ -325,221 +314,248 @@ nNoteDataBass1:
     db $42, !nWAIT|($10<<1)
     db $39, !nWAIT|($10<<1)
 
-    db !REF_SET, 2
+    db !REF_SET, 11
     dw nNoteDataBass1+1
-    db !REF_SET, 2
-    dw nNoteDataBass1+13
     db !REF_RPT, 0
     db !REF_RPT, 2
-
-    db !REF_RPT, 8
-    db !REF_RPT, 6
-    db !REF_RPT, 8
-    db !REF_RPT, 10
-    db !nWAIT|($10<<1)
 
     db !JUMP
     dw NoteDataNone
 
+NoteDataDrums:
+    db !nWAIT|($00<<1)  ; $40   |
+    db !nWAIT|($00<<1)  ; $40   |   $B0
+    db !nWAIT|($30<<1)  ; $30   |__
 
-NoteDataBass1:
-    dw EffectDataBass
-    db $B0, $00, $10
-    db $B0, $00, $10
-    db $B0, $00, $10
-    db $BC, $00, $10
-    db $B0, $00, $10
-    db $B3, $00, $10
-    db $BF, $00, $10
-    db $B3, $00, $10
-    db $B6, $00, $10
-    db $C2, $00, $10
-    db $B9, $00, $10
+; ===
+    db !INSTRUMENT|($01<<1)
+    db $3C, !nWAIT|($10<<1)
+    db !KEY_OFF, !nWAIT|($40<<1)
+    db $3C, !nWAIT|($10<<1)
+    db !KEY_OFF, !nWAIT|($20<<1)
+    db $3C, !nWAIT|($10<<1)
+    db !KEY_OFF, !nWAIT|($20<<1)
 
-    db !END_DATA
+; ===
+.ref0:
+    db $3C, !nWAIT|($10<<1)
+    db !KEY_OFF, !nWAIT|($10<<1)
 
-NoteDataDrums1:
-    ; dw EffectDataNone
-    db $BC, $01, $10
-    db !KEY_OFF, $40
-    db $BC, $01, $10
-    db !KEY_OFF, $20
-    db $BC, $01, $10
-    db !KEY_OFF, $20
+    db $3C, !nWAIT|($10<<1)
+    db !INSTRUMENT|($02<<1)
+    db $00, !nWAIT|($20<<1)
 
-    db !END_DATA
+    db !INSTRUMENT|($01<<1)
+    db !REF_SET, 4
+    dw NoteDataDrums_ref0
 
-NoteDataDrums2:
-    ; dw EffectDataNone
-    db $BC, $01, $10
-    db !KEY_OFF, $10
-	db $BC, $01, $10
-	db $80, $02, $20
+    db !INSTRUMENT|($01<<1)
+    db $3C, !nWAIT|($10<<1)
+; ===
 
-    db $BC, $01, $10
-    db !KEY_OFF, $10
-    db $BC, $01, $10
-    db $80, $02, $20
-	db $BC, $01, $10
-
-    db !END_DATA
-
-NoteDataLong:
-    ; dw EffectDataNone
-    db !WAIT, $80
-    db !WAIT, $80
-    db !WAIT, $80
-    db !WAIT, $80
-
-
-    db !END_DATA
-
-NoteDataCh4:
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $0C
-    db $C0, $02, $0C
-    db $C8, $01, $0C
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C0, $02, $0C
-    db $C8, $01, $0C
-    db $FE, $18
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $0C
-    db $C0, $02, $0C
-    db $C8, $01, $0C
-
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C0, $02, $0C
-    db $C8, $01, $0C
-    db $FE, $18
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $0C
-    db $C0, $02, $0C
-    db $C8, $01, $0C
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C0, $02, $0C
-    db $C8, $01, $0C
-    db $FE, $18
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $0C
-    db $C0, $02, $0C
-    db $C8, $01, $0C
-
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C8, $01, $0C
-    db $FE, $24
-
-    db $C0, $02, $0C
-    db $C8, $01, $0C
-    db $FE, $18
-
-    db $FE, $18
-    db $D2, $00, $18
-    db $FE, $0C
-    db $D2, $00, $18
-    db $FE, $0C
-    db $D4, $00, $18
-    db $FE, $18
+    db !JUMP
+    dw NoteDataNone
 
 NoteDataNone:
     db !nWAIT|($40<<1)
     db !JUMP
     dw NoteDataNone
 
-NoteDataNoise:
-    ; dw EffectDataNone
-    db $81, $03, $7F
-    db $80, $03, $7F
-    db $81, $03, $7F
-    db $80, $03, $7F
-    db $81, $03, $7F
-    db $80, $03, $7F
-    db $81, $03, $7F
-    db $80, $03, $7F
-    db !END_DATA
 
-EffectDataBass:
-    db !SET_VOLUME_LR_SAME, $7F, !WAIT, $10
-    ; db !SET_VOLUME_LR_DIFF, $40, $00, !WAIT, $10
-    ; db !SET_VOLUME_LR_DIFF, $00, $20, !WAIT, $10
-    ; db !SET_VOLUME_LR_SAME, $7F, !WAIT, $10
-    ; db !SET_VOLUME_LR_DIFF, $10, $08, !WAIT, $10
-    ; db !SET_VOLUME_LR_SAME, $7F, !WAIT, $10
-    ; db !SET_VOLUME_LR_DIFF, $00, $40, !WAIT, $10
-    ; db !SET_VOLUME_LR_DIFF, $20, $00, !WAIT, $10
-    ; db !SET_VOLUME_LR_SAME, $7F, !WAIT, $10
-    ; db !SET_VOLUME_LR_DIFF, $00, $40, !WAIT, $10
-    ; db !SET_VOLUME_LR_DIFF, $20, $00, !WAIT, $10
-    db !END_DATA
+
+; NoteDataBass1:
+;     dw EffectDataBass
+;     db $B0, $00, $10
+;     db $B0, $00, $10
+;     db $B0, $00, $10
+;     db $BC, $00, $10
+;     db $B0, $00, $10
+;     db $B3, $00, $10
+;     db $BF, $00, $10
+;     db $B3, $00, $10
+;     db $B6, $00, $10
+;     db $C2, $00, $10
+;     db $B9, $00, $10
+
+;     db !END_DATA
+
+; NoteDataDrums1:
+;     ; dw EffectDataNone
+;     db $BC, $01, $10
+;     db !KEY_OFF, $40
+;     db $BC, $01, $10
+;     db !KEY_OFF, $20
+;     db $BC, $01, $10
+;     db !KEY_OFF, $20
+
+;     db !END_DATA
+
+; NoteDataDrums2:
+;     ; dw EffectDataNone
+;     db $BC, $01, $10
+;     db !KEY_OFF, $10
+; 	db $BC, $01, $10
+; 	db $80, $02, $20
+
+;     db $BC, $01, $10
+;     db !KEY_OFF, $10
+;     db $BC, $01, $10
+;     db $80, $02, $20
+; 	db $BC, $01, $10
+
+;     db !END_DATA
+
+; NoteDataLong:
+;     ; dw EffectDataNone
+;     db !WAIT, $80
+;     db !WAIT, $80
+;     db !WAIT, $80
+;     db !WAIT, $80
+
+
+;     db !END_DATA
+
+; NoteDataCh4:
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $0C
+;     db $C0, $02, $0C
+;     db $C8, $01, $0C
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C0, $02, $0C
+;     db $C8, $01, $0C
+;     db $FE, $18
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $0C
+;     db $C0, $02, $0C
+;     db $C8, $01, $0C
+
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C0, $02, $0C
+;     db $C8, $01, $0C
+;     db $FE, $18
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $0C
+;     db $C0, $02, $0C
+;     db $C8, $01, $0C
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C0, $02, $0C
+;     db $C8, $01, $0C
+;     db $FE, $18
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $0C
+;     db $C0, $02, $0C
+;     db $C8, $01, $0C
+
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C8, $01, $0C
+;     db $FE, $24
+
+;     db $C0, $02, $0C
+;     db $C8, $01, $0C
+;     db $FE, $18
+
+;     db $FE, $18
+;     db $D2, $00, $18
+;     db $FE, $0C
+;     db $D2, $00, $18
+;     db $FE, $0C
+;     db $D4, $00, $18
+;     db $FE, $18
+
+; NoteDataNoise:
+;     ; dw EffectDataNone
+;     db $81, $03, $7F
+;     db $80, $03, $7F
+;     db $81, $03, $7F
+;     db $80, $03, $7F
+;     db $81, $03, $7F
+;     db $80, $03, $7F
+;     db $81, $03, $7F
+;     db $80, $03, $7F
+;     db !END_DATA
+
+; EffectDataBass:
+;     db !SET_VOLUME_LR_SAME, $7F, !WAIT, $10
+;     ; db !SET_VOLUME_LR_DIFF, $40, $00, !WAIT, $10
+;     ; db !SET_VOLUME_LR_DIFF, $00, $20, !WAIT, $10
+;     ; db !SET_VOLUME_LR_SAME, $7F, !WAIT, $10
+;     ; db !SET_VOLUME_LR_DIFF, $10, $08, !WAIT, $10
+;     ; db !SET_VOLUME_LR_SAME, $7F, !WAIT, $10
+;     ; db !SET_VOLUME_LR_DIFF, $00, $40, !WAIT, $10
+;     ; db !SET_VOLUME_LR_DIFF, $20, $00, !WAIT, $10
+;     ; db !SET_VOLUME_LR_SAME, $7F, !WAIT, $10
+;     ; db !SET_VOLUME_LR_DIFF, $00, $40, !WAIT, $10
+;     ; db !SET_VOLUME_LR_DIFF, $20, $00, !WAIT, $10
+;     db !END_DATA

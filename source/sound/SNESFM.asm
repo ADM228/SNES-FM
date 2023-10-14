@@ -283,8 +283,10 @@ Init:       ;init routine, totally not grabbed from tales of phantasia
     MOV $F2, #$1C   ;
     MOV $F3, #$7F   ;__
     MOV $F1, #$00   ;
-    ;'MOV $FA, #$85   ;   Set Timer 0 to 16.625 ms (~60 Hz)
+    ;MOV $FA, #$85   ;   Set Timer 0 to 16.625 ms (~60 Hz)
     MOV $FA, #$50   ;   Set Timer 0 to 10 ms     (100 Hz)
+    ;MOV $FA, #$A0   ;   Set Timer 0 to 20 ms     (50 Hz)
+    ;MOV $FA, #$FF   ;   Set Timer 0 to 31.875 ms (~31 Hz)
     MOV $F1, #$07   ;__
 
 if !SNESFM_CFG_PITCHTABLE_GEN >= 1
@@ -570,7 +572,7 @@ namespace ParseSongData
         INCW CHTEMP_SONG_POINTER_L
         AND A, #$7F
         LSR A
-        BCS WaitCmd
+        BCC WaitCmd
         MOV CHTEMP_INSTRUMENT_INDEX, A
         MOV A, CHTEMP_INSTRUMENT_SECTION_HIGHBITS
         AND A, #$C0
@@ -579,12 +581,21 @@ namespace ParseSongData
         JMP ReadByte
 
     WaitCmd:
-        CLRC
-        ADC A, CHTEMP_SONG_COUNTER
-        DEC A
+        BNE +
+        MOV A, #$40
+    +   ADC A, CHTEMP_SONG_COUNTER
+        ;DEC A
         MOV CHTEMP_SONG_COUNTER, A
         BBS0 CHTEMP_FLAGS, DecrementReference
         RET
+
+    Inst_Section_HighBits:
+        MOV !TEMP_VALUE, A
+        AND A, #$03
+        BBC2 !TEMP_VALUE, Inst_HighBits   ; If it is setting the high bits, call the right routine
+        AND CHTEMP_INSTRUMENT_SECTION_HIGHBITS, #$FC
+-       TSET CHTEMP_INSTRUMENT_SECTION_HIGHBITS, A
+        JMP ReadByte
 
     Note:
         MOV CHTEMP_NOTE, !TEMP_VALUE
@@ -623,13 +634,6 @@ namespace ParseSongData
                 CLR4 CHTEMP_FLAGS           ;__ Do attack
                 JMP ReadByte
 
-    Inst_Section_HighBits:
-        MOV !TEMP_VALUE, A
-        AND A, #$03
-        BBC2 !TEMP_VALUE, Inst_HighBits   ; If it is setting the high bits, call the right routine
-        AND CHTEMP_INSTRUMENT_SECTION_HIGHBITS, #$FC
--       TSET CHTEMP_INSTRUMENT_SECTION_HIGHBITS, A
-        JMP ReadByte
 
 
     DecrementReference:
