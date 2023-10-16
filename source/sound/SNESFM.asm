@@ -61,6 +61,7 @@ Documentation:
 	;   ==== Code/data distribution table: ====
 		;   Page		Purpose
         ;   $00			$20 - $3F: Temporary storage of flags, counters and pointers for note stuff
+        ;               $40 - $4F: Communicating with S-CPU stuff
         ;   |__ _ _ _ _ $C0 - $EF: Operating space of subroutines (how exactly described before every subroutine)
         ;   $01 _ _ _ _ Stack
         ;   $02 _ _ _ _ Sample Directory
@@ -86,8 +87,8 @@ Documentation:
         ;       === To SNES: ===
         ;   Id  | P1 |    Pt2    |    Pt3    |   Meaning
         ;   $0  |    |           |           |   Waiting for yo command
-        ;   $1  |    |  id | location & $FFF |   Read, jumping to transfer routine, redirect me to $5000 | location
-        ;   $2  |    |    location - $1000   |   Send song data to location + $1000
+        ;   $1  |    |           |           |   Start sending data
+        ;   $2  |    |           |           |   Got the data
         ;   $3  |     20-bit tick counter    |   Currently playing song, here's what tick it is
         ;   $F  |    |           |           |   What? 
         ;       === To SPC: ===
@@ -101,6 +102,8 @@ Documentation:
         ;   $6  |    |           |           |   Play the song you have received
         ;   $7  |    |           |   SFX ID  |   Play sound effect 
         ;   $8  |    | instrument|  note ID  |   Play just a note  
+        ;   $9  |    |    16 bits of data    |   Get a load of this data
+        ;   $A  |    |           |           |   Data transfer finished
         ;   $F  |    |           |           |   What? 
     ;   Sound engine documentation:
         ;   Channel flags: n00af0ir
@@ -203,6 +206,9 @@ InternalDefines:
         !TEMP_POINTER1_L = $0E
         !TEMP_POINTER1_H = $0F
 
+    ; S-CPU communication
+        MESSAGE_CNT_TH1 = $40
+
     ;Internal configuration
 
         !SNESFM_CFG_SAMPLE_GENERATE ?= 0
@@ -230,6 +236,7 @@ Init:       ;init routine, totally not grabbed from tales of phantasia
     MOV $F5, A      ;
     MOV $F6, A      ;   Clear the in/out ports with the SNES, disable timers
     MOV $F7, A      ;
+    MOV MESSAGE_CNT_TH1, A
     MOV $F1, #$30   ;__
     MOV X, #$FF     ;   Reset the stack
     MOV SP, X       ;__
@@ -499,10 +506,14 @@ Begin:
     MOV $F2, #$6C
     MOV $F3, #$20
 
-    MOV A, $0EC9
+    MOV A, #$00
     MOV !TEMP_POINTER0_L, A
-    MOV A, $0ECA
+    MOV TDB_OUT_PTR_L, A
+    MOV A, #$10
     MOV !TEMP_POINTER0_H, A
+    MOV TDB_OUT_PTR_H, A
+
+    CALL TransferDataBlock
 
     MOV X, #$01
     MOV !CHANNEL_BITMASK, X
@@ -1135,17 +1146,73 @@ namespace ParseInstrumentData
 
 namespace off
 
-End:
-    MOV $F2, #$6C   ;   Mute!
-    MOV $F3, #$60   ;__
-    MOV $6C, #$C0
-    MOV $F4, #$89
-    MOV $F5, #$AB
-    MOV $F6, #$CD
-    MOV $F7, #$EF
-    STOP
+TransferDataBlock:
+    .Labels:
+        TDB_OUT_PTR_L = $D0
+        TDB_OUT_PTR_H = $D1
+        TDB_TMP_PTR_L = $EE
+        TDB_TMP_PTR_H = $EF
+    .Documentation:
+        ; Inputs:
+        ; $D0-D1 - Output pointer
+        ; Temp Variables:
+        ; $EE-EF - Output pointer
+        ; Other variables used:
+        ; $40 - Message counter on thread 1
+    .Start:
+        MOV TDB_TMP_PTR_H, TDB_OUT_PTR_H
+        MOV TDB_TMP_PTR_L, TDB_OUT_PTR_L
+        MOV Y, #$00
+        CALL WaitCPUMsg
+        AND A, #$E0     ;   Both opcodes 4x and 5x
+        CMP A, #$40     ;__ are valid
+        BNE TransferDataBlock_VeryEnd
 
-;
+        MOV A, #$10
+        CALL SendCPUMsg
+    .GetWord:
+        CALL WaitCPUMsg
+        CMP A, #$A0
+        BEQ TransferDataBlock_End
+
+        CMP A, #$90
+        BNE TransferDataBlock_VeryEnd
+        
+        ; Push the 2 bytes where they need to be
+        MOV A, $F6
+        MOV (TDB_TMP_PTR_L)+Y, A
+        INCW TDB_TMP_PTR_L
+        MOV A, $F7
+        MOV (TDB_TMP_PTR_L)+Y, A
+        INCW TDB_TMP_PTR_L
+
+        ; Affirm having received data
+        MOV A, #$20
+        CALL SendCPUMsg
+        JMP TransferDataBlock_GetWord
+
+    .End:
+        MOV A, Y
+        CALL SendCPUMsg
+    .VeryEnd:
+        RET
+SendCPUMsg:
+    ; Inputs:
+    ; A - message ID
+    MOV $F5, A
+    MOV $F4, MESSAGE_CNT_TH1
+    INC MESSAGE_CNT_TH1
+    RET
+
+WaitCPUMsg:
+    -:
+        MOV A, $F4
+        CMP A, MESSAGE_CNT_TH1
+        BNE -
+    INC MESSAGE_CNT_TH1
+    MOV A, $F5
+    AND A, #$F0
+    RET
 
 set_echoFIR:
     MOV $00, #$08
@@ -2265,7 +2332,6 @@ Includes:
             incbin "pitchHi.bin"
     endif
         db $03, $00, $00, $00, $00, $00, $00, $00, $00 ;Dummy empty sample
-        dw SongHeader
     org $0F00
 		SineTable:
         incbin "quartersinetable.bin"

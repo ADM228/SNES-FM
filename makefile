@@ -30,8 +30,8 @@ Demo: bin/SNESFMDemo.sfc
 bin/SNESFM.bin: asar bin source/sound/* tables/multTables.bin tables/pitch*.bin tables/quartersinetable.bin
 	${ASAR_DIR}/asar/${ASAR_EXECUTABLE} -v --symbols=${SYM_SND} -I"tables" -I"source/sound" "source/sound/demoConfig.asm" "bin/SNESFM.bin"
 
-bin/SNESFMDemo.sfc: asar bin bin/SNESFM.bin source/gui/* graphics/palette.pal graphics/tilesetUnicode.chr tables/sinetable.bin
-	${ASAR_DIR}/asar/${ASAR_EXECUTABLE} -v --symbols=${SYM_GUI} -I"bin" -I"graphics" -I"tables" --fix-checksum=on "source/gui/SNESFMDemo.asm" "bin/SNESFMDemo.sfc"
+bin/SNESFMDemo.sfc: asar bin SNESFM source/gui/* graphics/palette.pal graphics/tilesetUnicode.chr tables/sinetable.bin
+	${ASAR_DIR}/asar/${ASAR_EXECUTABLE} -v --symbols=${SYM_GUI} -I"bin" -I"source/sound" -I"graphics" -I"tables" --fix-checksum=on "source/gui/SNESFMDemo.asm" "bin/SNESFMDemo.sfc"
 
 bin:
 	mkdir -p bin

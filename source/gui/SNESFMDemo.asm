@@ -99,6 +99,12 @@
 
 !SRAM_VERSION_MAJOR = #$00
 
+!P_A = #%00100000
+!P_XY = #%00010000
+
+MESSAGE_CNT_TH1 = $60
+MESSAGE_CNT_TH2 = $61
+
 math pri on
 incsrc "header.asm"
 incsrc "initSNES.asm"
@@ -111,7 +117,25 @@ org $06FC00
 incbin "sinetable.bin"
 org $838000
 incsrc "locale.asm"
+
+org $81E000
+!SNESFM_ASM ?= 0
+if !SNESFM_ASM == 1
+	incsrc "../sound/demoConfig.asm"
+else
+	incbin "SNESFM.bin"
+endif
+
+SongData:
+    arch spc700
+    incsrc "songData.asm"
+    arch 65816
+AfterSongData:
+
+!SongData = SongData
+
 org $07FFFF ;set size of the file, irrelevant lmao
+
 db $00
 
 
@@ -203,14 +227,15 @@ SPCTransfer:        ;   Kept in SlowROM for compatibility/laziness
         STA $2140
     LDA #$0F
     STA $60
-    JML $8081C7 ;81C3-81C6  ;__ Use FastROM for faster execution
-org $8081C7         ;Here purely for not causing errors purpose
+    JML dmaToCGRAM  ;__ Use FastROM for faster execution
+ProgCnt:
+org $800000|ProgCnt         ;Here purely for not causing errors purpose
 dmaToCGRAM:
     
     PEA $4300
     PLD				;set dp to 43
-    REP #%00010000	;set xy to 16bit
-    SEP #%00100000 	;set a to 8bit
+    REP !P_XY     	;set xy to 16bit
+    SEP !P_A       	;set a to 8bit
     LDA #$00		;Address to write to in CGRAM
     STA $2121		;Write it to tell Snes that
     LDA #$22		;CGRAM Write register
@@ -244,8 +269,8 @@ InitSRAM:
     .CheckSRAM:
         PEA $0000       ;   Set DP to $00
         PLD				;__ 
-        REP #%00100000  ;   Set A to 16 bit
-        SEP #%00010000  ;__ Set XY to 8 bit
+        REP !P_A        ;   Set A to 16 bit
+        SEP !P_XY       ;__ Set XY to 8 bit
         PEA $00F0       ;   Set DB to $F0 (SRAM first bank)
         PLB             ;__
         ..VerificationCodes:
@@ -292,7 +317,7 @@ ReadLocale:
     ORA #$8380
     STA $15
 UnicodeToVRAM:
-    SEP #%00100000  ;__ Set A to 8 bit
+    SEP !P_A        ;__ Set A to 8 bit
     STZ $14
     LDY #$00
     -:
@@ -308,49 +333,97 @@ UnicodeToVRAM:
     STZ $01
 TurnOnScreen:
     JSR InitiateTrackerMode
-forever:
-    WAI
-    REP #%00010000 ;set XY to 16bit
-    SEP #%00100000 ;set A to 8bit
-    LDA $0060
-    CMP #$0E
-    BEQ +
-    LDA $2140
-    CMP #$89
-    BNE +
-    LDA $2141
-    CMP #$AB
-    BNE +
-    LDA $2142
-    CMP #$CD
-    BNE +
-    LDA $2143
-    CMP #$EF
-    BNE +
-    LDA #$0E
-    STA $60
-+:
+    SEP !P_A       ;set A to 8bit
     LDA #$00
     PEA $0000
     PLD				;set dp to 00
-    JSL clearPaletteData
-    JSL PhaseModulation
-    SEP #%00100000 ;A 8-bit
-    lda $60            ; = 00001111
-    sta $2100           ; Turn on screen, full or quarter brightness
+    REP !P_XY      ;set XY to 16bit
+    LDA #$00
+    STA MESSAGE_CNT_TH1
+
+
+
+; Send "hey i have song data, ill send it"
+SendSongSPC:
+    .Start:
+        LDA #$40
+        JSR SendMsgBase
+
+    .WaitForAffirmative:
+        ; Prepare pointers while waiting anyway:
+            LDX #SongData&$FFFF
+            STX $00
+            LDA.b #bank(SongData)
+            STA $02
+            LDY #$0000
+        JSR WaitMsgBase
+        CMP #$10    ; Verify that the response is affirmative:
+        BNE SendSongSPC_What
+    .SendBytes:
+        ; Send 2 bytes of data:
+            REP !P_A
+            LDA [$00], Y
+            STA $2142
+            SEP !P_A
+            INY #2
+        ; Finish message:
+            LDA #$90
+            JSR SendMsgBase
+        ; Wait for response
+            JSR WaitMsgBase
+            CMP #$20
+            BEQ +
+        ; If bytes not received or whatever, resend them
+            DEY #2
+            JMP SendSongSPC_SendBytes
+        +   ; Compare if Y is finished
+            CPY #(AfterSongData-SongData)&$FFFF
+            BPL SendSongSPC_End
+            JMP SendSongSPC_SendBytes
+
+    .What:
+        LDA #$F0
+        JSR SendMsgBase
+        JSR WaitMsgBase
+        JMP SendSongSPC
+
+    .End:
+        LDA #$A0
+        JSR SendMsgBase
+
+forever:
+    WAI
     JMP forever
+
+SendMsgBase:
+    STA $2141   ; CMD ID in A
+
+    LDA MESSAGE_CNT_TH1
+    STA $2140
+    INC.b MESSAGE_CNT_TH1
+    RTS
+
+WaitMsgBase:
+        LDA $2140
+        CMP MESSAGE_CNT_TH1
+        BNE WaitMsgBase
+    INC.b MESSAGE_CNT_TH1
+    LDA $2141
+    AND #$F0
+    RTS
+
 NMI_Routine:
     JML $800000|NMI_Routine_InFastROM         ;Take advantage of FastROM
-.InFastROM:
-REP #%00010000 ;set XY to 16bit
-SEP #%00100000 ;set A to 8bit
+    .InFastROM:
+    REP !P_XY      ;set XY to 16bit
+    SEP !P_A       ;set A to 8bit
     lda #$0F             ; = 00001111
     sta $2100           ; Turn on screen, full brightness
 
-incsrc "controllerRoutine.asm"
+    incsrc "controllerRoutine.asm"
 
-REP #%00010000 ;set XY to 16bit
-SEP #%00100000 ;set A to 8bit
+    REP !P_XY      ;set XY to 16bit
+    SEP !P_A       ;set A to 8bit
 
     LDA $FF
     DEC A
@@ -371,22 +444,18 @@ SEP #%00100000 ;set A to 8bit
     LDA $1E
     STA $2110
 
-lda #$0F            ; = 00001111
-sta $2100           ; Turn on screen, full brightness
+    lda #$0F            ; = 00001111
+    sta $2100           ; Turn on screen, full brightness
 
-
-
-
-
-PLP
-PLA
-RTI 
+    PLP
+    PLA
+    RTI 
 
 InitiateTrackerMode:
     lda #$80            ;   F-Blank 
     sta $2100           ;__
-    REP #%00010000      ;   Set XY to 16 bit
-    SEP #%00100000      ;__ Set A to 8 bit
+    REP !P_XY           ;   Set XY to 16 bit
+    SEP !P_A            ;__ Set A to 8 bit
     PEA $2100           ;   Set Direct Page to 2100
     PLD				    ;__ For PPU registers
     lda #%00000001      ;   Enable Auto Joypad Read
@@ -636,13 +705,13 @@ InitiateTrackerMode:
 
             ;     PEA $0000           ;   Set Direct Page to 4200 for CPU regs
             ;     PLD				    ;__
-            ;     REP #%00010000      ;   Set XY to 16 bit
+            ;     REP !P_XY           ;   Set XY to 16 bit
     JSR DrawHeaderTrackerMode
     JSL tableROMtoWRAM
     JSL clearPaletteData
     JSL PhaseModulation
     JSL PlotGraph
-    SEP #%00100000 ;A 8-bit
+    SEP !P_A       ;A 8-bit
     lda #$0F            ;   Turn on screen, full brightness
     sta $2100           ;__
     lda #%10000001      ;
@@ -654,19 +723,19 @@ InitiateTrackerMode:
     RTS
 
 ; DrawTrackerRow:
-;     ;Memory allocation:
-;         ;$0000-0001 - Row to draw
-;     .Setup:
-;         PHB             ;
-;         PHD             ;   Back up some registers
-;         PHP             ;__
-;         REP #%00100000  ;   Set A to 16 bit
-;         SEP #%00010000  ;__ Set XY to 8 bit
-;         PEA $0000       ;   Set DP to 00
-;         PLD				;__
-;         LDX #$83        ;
-;         PHX             ;   Set DB to 83, locales in FastROM
-;         PLB             ;__   
+    ;     ;Memory allocation:
+    ;         ;$0000-0001 - Row to draw
+    ;     .Setup:
+    ;         PHB             ;
+    ;         PHD             ;   Back up some registers
+    ;         PHP             ;__
+    ;         REP !P_A        ;   Set A to 16 bit
+    ;         SEP !P_XY       ;__ Set XY to 8 bit
+    ;         PEA $0000       ;   Set DP to 00
+    ;         PLD				;__
+    ;         LDX #$83        ;
+    ;         PHX             ;   Set DB to 83, locales in FastROM
+    ;         PLB             ;__   
 
 DrawColumn:
     .Setup:
@@ -728,7 +797,7 @@ DrawColumn:
 
         PEA $2100       ;   Set Direct Page to $2100 
         PLD             ;__ because PPU registers
-        REP #%00100000  ;   Set A to 16 bit
+        REP !P_A        ;   Set A to 16 bit
         LDX #%10000001  ;   Increment by 32
         STX $15         ;__
         LDX #$00
@@ -818,8 +887,8 @@ ClearTrackerPattern:
     PHB             ;
     PHD             ;   Back up some registers
     PHP             ;__
-    REP #%00100000  ;   Set A to 16 bit
-    SEP #%00010000  ;__ Set XY to 8 bit
+    REP !P_A        ;   Set A to 16 bit
+    SEP !P_XY       ;__ Set XY to 8 bit
     .00Byte:
     PEA $4300       ;   set DP to 4300 because DMA
     PLD				;__
@@ -868,8 +937,8 @@ ScrollHeaderTrackerMode:
         PHB             ;
         PHD             ;   Back up some registers
         PHP             ;__
-        REP #%00100000  ;   Set A to 16 bit
-        SEP #%00010000  ;__ Set XY to 8 bit
+        REP !P_A        ;   Set A to 16 bit
+        SEP !P_XY       ;__ Set XY to 8 bit
         PEA $0000       ;   set DP to 00
         PLD				;__
         LDA $FF		    ;
@@ -1034,8 +1103,8 @@ DrawHeaderTrackerMode:
         PHB             ;
         PHD             ;   Back up some registers
         PHP             ;__
-        REP #%00100000  ;   Set A to 16 bit
-        SEP #%00010000  ;__ Set XY to 8 bit
+        REP !P_A        ;   Set A to 16 bit
+        SEP !P_XY       ;__ Set XY to 8 bit
         PEA $0000       ;   set DP to 00
         PLD				;__
         PEA $F080       ;   Set DB to 80 (With CPU registers)
@@ -1701,8 +1770,8 @@ DecompressLocaleBlock:
     PHB             ;
     PHD             ;   Back up some registers
     PHP             ;__
-    REP #%00100000  ;   Set A to 16 bit
-    SEP #%00010000  ;__ Set XY to 8 bit
+    REP !P_A        ;   Set A to 16 bit
+    SEP !P_XY       ;__ Set XY to 8 bit
     PEA $0000       ;   Set DP to 00
     PLD				;__
     LDX #$83        ;
@@ -1780,8 +1849,8 @@ UpdateColumn:
         PHP             ;__
         PEA $2100       ;   Set Direct Page to $2100 
         PLD             ;__ because PPU registers
-        REP #%00100000  ;   Set XY to 8 bit
-        SEP #%00010000  ;__ Set A to 16 bit
+        REP !P_A        ;   Set XY to 8 bit
+        SEP !P_XY       ;__ Set A to 16 bit
         LDA $00FF       ;
         ASL A           ;
         ASL A           ;
@@ -1920,7 +1989,7 @@ DecompressUnicodeBlock:
     ;DMA TRANSFER 0: 2BPP
         PEA $4300       ;
         PLD				;set dp to 43
-        SEP #%00100000 	;set a to 8bit
+        SEP !P_A       	;set a to 8bit
         LDA $0001
         ASL A
         ASL A    
@@ -2006,7 +2075,7 @@ DecompressUnicodeBlock:
     ;4BPP DMA TRANSFERS
         PEA $4300       ;
         PLD				;set dp to 43
-        SEP #%00100000 	;set a to 8bit
+        SEP !P_A       	;set a to 8bit
         LDA $0001
         ASL A
         ORA $001F
@@ -2060,14 +2129,12 @@ DecompressUnicodeBlock:
     RTS
 
 ClearInstrumentBuffer:
-
-
-;TODO: WRAM TO SRAM
+        ;TODO: WRAM TO SRAM
         PHB             ;
         PHD             ;   Back up some registers
         PHP             ;__
-        REP #%00100000  ;   Set A to 16 bit
-        SEP #%00010000  ;__ Set XY to 8 bit
+        REP !P_A        ;   Set A to 16 bit
+        SEP !P_XY       ;__ Set XY to 8 bit
         PEA $4300       ;
         PLD				;set dp to 43
         LDX #$80		;WRAM Write register & Data Bank
@@ -2183,8 +2250,8 @@ clearPaletteData:
     RTL
 PlotGraph:
     .Decompress
-        REP #%00010000 ;set xy to 16bit
-        SEP #%00100000 ;set a to 8bit
+        REP !P_XY      ;set xy to 16bit
+        SEP !P_A       ;set a to 8bit
         PEA $0000
         PLD				;set db to 7f
         LDA #$7F
@@ -2213,7 +2280,7 @@ PlotGraph:
         LDY #$0000
         ..Loop:
             TAX
-            SEP #%00100000 ;set a to 8bit
+            SEP !P_A       ;set a to 8bit
             LDA #$FF
             STA $FE01,X
             STA $FE03,X
@@ -2386,8 +2453,8 @@ PlotGraph:
                 BMI PlotGraph_DMA
                 JMP PlotGraph_InWRAM_Loop
     .DMA:
-        REP #%00010000 ;set xy to 16bit
-        SEP #%00100000 ;set a to 8bit
+        REP !P_XY      ;set xy to 16bit
+        SEP !P_A       ;set a to 8bit
         PEA $4300
         PLD	;set dp to 43
         PHK
@@ -2417,7 +2484,7 @@ PhaseModulation:
     ;Input: Modulator wavetable at $7F0C00, $0400 bytes long
     ;Output: Modulated Wavetable at $7F0000, $0400 bytes long
     .RoutineSelect:
-        SEP #%00100000 ;set a to 8bit
+        SEP !P_A       ;set a to 8bit
         LDA $0020
         STA $7FFFFD
         PEA $2100
@@ -2551,7 +2618,7 @@ PhaseModulation:
             BPL PhaseModulation_Divider08_Loop ;2
 
     .End:
-        SEP #%00100000 ;set a to 8bit
+        SEP !P_A       ;set a to 8bit
         LDA $FFFD
         STA $000010
         STZ $FFFD
@@ -2565,11 +2632,3 @@ PhaseModulation:
 DisplaySRAMWarningMessage:
     .LoadLocale:
         nop
-org $81E000
-
-!SNESFM_ASM ?= 0
-if !SNESFM_ASM == 1
-	incsrc "../sound/demoConfig.asm"
-else
-	incbin "SNESFM.bin"
-endif

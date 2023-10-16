@@ -13,9 +13,9 @@
     incsrc "SNESFM.asm"
 
     namespace SPC
-    org $1000
+    org $1F00
         ; Song data
-        incsrc "songData.asm"
+        incsrc "instrumentData.asm"
     org $0A00
 		ParseInstrumentData_InstrumentPtrLo:
         ;instrument data pointers
