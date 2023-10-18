@@ -16,7 +16,12 @@
     ;               ee -    Envelope macro,
     ;               ss -    Sample Pointer macro,
     ;               aa -    Arpeggio macro
-    ;       1 byte describing looping type for pitchbend macro
+    ;           1 byte:
+    ;               00ppire0
+    ;               pp - looping type for Pitchbend macro,
+    ;       i - Choose sample by index, not absolute position
+    ;       r - Relative pitchbends (not done yet)
+    ;       e - Envelope type (if 0 - GAIN, if 1 - ADSR) (same as DSP register x5.7)
     ;           == end of for future ==
     ;       5 times:
     ;           Pointer to {macro} macro,
@@ -30,11 +35,58 @@
     ;       0hssiret
     ;       h - Sample index "page" number
     ;       ss - Subpage of sample index
-    ;       i - Choose sample by index, not absolute position
-    ;       r - Relative pitchbends (not done yet)
-    ;       e - Envelope type (if 0 - GAIN, if 1 - ADSR) (same as DSP register x5.7)
+    ;[old]  i - Choose sample by index, not absolute position
+    ;[old]  r - Relative pitchbends (not done yet)
+    ;[old]  e - Envelope type (if 0 - GAIN, if 1 - ADSR) (same as DSP register x5.7)
     ;       t - Instrument type (0 - Noise, 1 - Sample)
     ;   3. The rest of the macros are straightforward
+    ;   4. Instrument data instruction macros:
+    ;   lss|$00 S D - If l=0 copy 128 PCM samples from page S to page D
+    ;                   if l=1 resample 128 PCM samples from page S 
+    ;                   to 32 samples at page D subpage ss
+    ;   lm0|$01 C [M] O S P [s] - Phase modulation:
+    ;                   l - length (0 = 128 samples, 1 = 32 samples)
+    ;                   C - Carrier page
+    ;                   M - Modulator page [Only present if m=0, otherwise M=C]
+    ;                   O - Output page
+    ;                   S - Modulation strength
+    ;                   P - Phase shift
+    ;                   [s]-Subpages: ccmmoo-- [Only present if l=1] 
+    ;                       cc - Carrier subpage
+    ;                       mm - Modulator subpage
+    ;                       oo - Output subpage
+    ;       $02     - Meta-opcode for the second half of phase modulation
+    ;   lss|$03 O D F - Generate pulse wave
+    ;                   O - Output page
+    ;                   D - Duty cycle
+    ;                   F - Flags: ddddddsz
+    ;                       dddddd - Duty cycle (fractional part)
+    ;                       s - starting value (0 - 0/-1, 1 - 1)
+    ;                       z - the low value is -1 instead of 0 (for not ringmod)
+
+    
+
+    ;   x00|$1A S D F [X] - BRR sample conversion:
+    ;                   x - extended sample length mode (more than 1 sample)
+    ;                   S - Source PCM page
+    ;                   D - Destination BRR page
+    ;                   F - Flags: fsixppbb 
+    ;                       f - whether to use filter mode 1
+    ;                       s - short sample mode (32 samples instead of 128)
+    ;                       i - high bit of output index 
+    ;                       pp - PCM sample subpage number (0-3, if s is set)
+    ;                       bb - BRR output subpage number (0-3, if s is set)
+    ;                   [X]-Number of samples-2 [Only present if x is set]
+    ;    0ss|$1C X Y - Conserve the next opcode's arguments (as bitmasked by X, unnes. args count)
+    ;                   for Y opcodes after it
+    ;                   Can have 4 conservation settings at once, indicated by ss
+    ;       $1D [db]- New instrument header
+    ;                   The pointers in the data block are relative
+    ;                   to the beginning of the aforementioned raw
+    ;                   global instrument data block
+    ;       $1E X X - Raw global instrument data block
+    ;                   X X - 16-bit size
+    ;       $1F     - End of instrument generation data
 
 ;Song data variables for more readability when assembling manually
     ;Instrument data
@@ -59,141 +111,216 @@
             !ENVELOPE_TYPE_ADSR = %00000010
             !INSTRUMENT_TYPE_NOISE = %0000000
             !INSTRUMENT_TYPE_SAMPLE = %00000001 
-    ;Common shit
-        !WAIT = $FE
-        !END_DATA = $FF
+    ;Instrument data opcodes 
+        !COPY_RSMP      = $00
+        !PHASEMOD       = $01
+        !PULSEGEN       = $03
 
-; PatternData:
-;     db $01, $00, $00, $00, $00, $00, $00, $00
-; ;    db $01, $02, $00, $00, $00, $00, $00, $00
-; ;    db $01, $03, $00, $00, $00, $00, $00, $00
-; ;    db $01, $02, $00, $00, $00, $00, $00, $00
-; ;    db $01, $01, $02, $00, $00, $00, $00, $00
+        !BRRGEN         = $1A
+        !INS_NEW_HDR    = $1D
+        !CONSERVE_ARGS  = $1C
+        !INS_DATA_BLOCK = $1E
+        !INS_DATA_END   = $1F
+    ;Instrument data internal parameters
+        !LONG_          = %00000000
+        !SHORT          = %10000000
+        
+        !SUBP0          = %00000000
+        !SUBP1          = %00100000
+        !SUBP2          = %01000000
+        !SUBP3          = %01100000
 
-;     ;db $01, $02, $00, $00, $00, $00, $00, $00
-; ;    db $04, $00, $00, $00, $00, $00, $00, $00
-;     db !END_DATA
-; PatternPointers:
-;     dw NoteDataNone
-;     ; dw NoteDataBass1
-;     dw nNoteDataBass1
-;     dw NoteDataDrums1
-;     dw NoteDataDrums2
-;     dw NoteDataLong
-;     dw NoteDataNone
+        !MOD_SELF       = %01000000
 
-Instr03Data:
-Instr00Data:
-.Header:
-db %00000000, %00000000    ;Looping, everything one-shot for now
+arch spc700
+base $1000
+InstrGenData:
+db !SHORT|!SUBP0|!COPY_RSMP, $0F, $20
+db !SHORT|!MOD_SELF|!PHASEMOD, $20, $20, $20, $00, $04
+db !SUBP0|!CONSERVE_ARGS, %11000000, 14 ; Carrier and modulator pages remain the same
+db !SUBP1|!CONSERVE_ARGS, %00100000, 2  ; Output page
+db !SHORT|!PHASEMOD,      $1E, $02, $08
+db !SHORT|!PHASEMOD,      $1C, $04, $0C
 
-dw Instr00Data_InsType
-db $00, $00     ;
+db !SHORT|!PHASEMOD, $21, $1A, $06, $00
+db !SUBP1|!CONSERVE_ARGS, %00100000, 3  ; Output page
+db !SHORT|!PHASEMOD,      $18, $08, $04
+db !SHORT|!PHASEMOD,      $16, $0A, $08
+db !SHORT|!PHASEMOD,      $14, $0C, $0C
 
-dw Instr00Data_Envelope
-db $00, $00
+db !SHORT|!PHASEMOD, $22, $12, $0E, $00
+db !SUBP1|!CONSERVE_ARGS, %00100000, 3  ; Output page
+db !SHORT|!PHASEMOD,      $10, $10, $04
+db !SHORT|!PHASEMOD,      $0E, $12, $08
+db !SHORT|!PHASEMOD,      $0C, $14, $0C
 
-dw Instr00Data_SmpPtr
-db $0F, $00
-
-dw Instr00Data_Arpeggio
-db $00, $00
-
-dw Instr00Data_Pitchbend
-db $00, $00
-.InsType:
-db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_ADSR|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX|!SAMPLE_SUBPAGE_0
-.Envelope:
-db $5E, $90
-.SmpPtr:
-db $00, $00, $01, $02
-db $03, $04, $05, $06
-db $07, $08, $09, $0A
-db $0B, $0C, $0D, $0E
-.Arpeggio:
-.Pitchbend:
-db $00
+db !SHORT|!PHASEMOD, $23, $0A, $16, $00
+db !SUBP1|!CONSERVE_ARGS, %00100000, 3  ; Output page
+db !SHORT|!PHASEMOD,      $08, $18, $04
+db !SHORT|!PHASEMOD,      $06, $1A, $08
+db !SHORT|!PHASEMOD,      $04, $1C, $0C
 
 
+db !BRRGEN, $20, $00, %11000100
+db !SUBP0|!CONSERVE_ARGS, %10000000, 2  ; Source page
+db !BRRGEN,      $01, %11001000
+db !BRRGEN,      $02, %11001100
 
-; 
-;     db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
+db !BRRGEN, $21, $03, %11000000
+db !SUBP0|!CONSERVE_ARGS, %10000000, 3  ; Source page
+db !BRRGEN,      $04, %11000100
+db !BRRGEN,      $05, %11001000
+db !BRRGEN,      $06, %11001100
 
-;     db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
-;     dw $6240
-;     db $60, $00, $01
-;     db !UPD_ENVELOPE|!UPD_ARPEGGIO, $30, $EE, $01
+db !BRRGEN, $22, $07, %11000000
+db !SUBP0|!CONSERVE_ARGS, %10000000, 3  ; Source page
+db !BRRGEN,      $08, %11000100
+db !BRRGEN,      $09, %11001000
+db !BRRGEN,      $0A, %11001100
 
-;     db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_NOISE
-;     db !UPD_ENVELOPE|!UPD_ARPEGGIO
-;     db $8C, $19, $01
-;     db !UPD_ARPEGGIO
-;     db $1C, $03
+db !BRRGEN, $23, $0B, %11000000
+db !SUBP0|!CONSERVE_ARGS, %10000000, 3  ; Source page
+db !BRRGEN,      $0C, %11000100
+db !BRRGEN,      $0D, %11001000
+db !BRRGEN,      $0E, %11001100
 
-;     db !END_DATA
+db !SHORT|!PULSEGEN, $28, $20, $03
+db !BRRGEN, $28, $FF, %11000000
 
-Instr01Data:
-i01:
-.Header:
-db %00000000, %00000000
+db !INS_DATA_BLOCK
+dw InsDBEnd ; InsDB is already 0
 
-dw i01_InsType
-db $00, $00
-dw i01_Envelope
-db $01, $0B
-dw i01_SmpPtr
-db $00, $00
-dw i01_Arpeggio
-db $0B, $00
-dw i01_Pitchbend
-db $00, $00
+pushbase
+base $0000
+InsDB:
+    i00InsType:
+    db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_ADSR|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX|!SAMPLE_SUBPAGE_0
+    i01InsType:
+    db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_ADDRESS
+    i02InsType:
+    db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_NOISE|!SAMPLE_USE_INDEX
+    db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
+    db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
+    db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_NOISE|!SAMPLE_USE_INDEX
 
-.InsType: db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_ADDRESS
-.Envelope:
-db $7F, $00
-.SmpPtr: dw $6288
-.Arpeggio:
-db $00, $F4, $EE, $E8
-db $E5, $E2, $DF, $DC
-db $DB, $DA, $D9, $D8
-.Pitchbend:
-db $00  ;also used by arpeggio
+    i00Envelope:
+    db $5E, $90
+    i01Envelope:
+    db $7F, $00
+    i02Envelope:
+    db $20, $7F, $7F, $20, !ENV_DECREASE_LINEAR|$06
 
-Instr02Data:
-i02:
-.Header:
-db %00000000, %00000000
+    i00SmpPtr:
+    db $00, $00, $01, $02
+    db $03, $04, $05, $06
+    db $07, $08, $09, $0A
+    db $0B, $0C, $0D, $0E
+    i01SmpPtr:
+    dw $6288
+    i02SmpPtr:
+    db $FF
 
-dw i02_InsType
-db $03, $01
-dw i02_Envelope
-db $04, $01
-dw i02_SmpPtr
-db $00, $00
-dw i02_Arpeggio
-db $03, $01
-dw i02_Pitchbend
-db $00, $00
+    i00Arpeggio:
+    i00Pitchbend:
+    i01Arpeggio:
+    i01Pitchbend:
+    i02Pitchbend:
+    db $00, $F4, $EE, $E8
+    db $E5, $E2, $DF, $DC
+    db $DB, $DA, $D9, $D8
+    db $00
 
-.InsType:
-db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_NOISE|!SAMPLE_USE_INDEX
-db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
-db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
-db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_NOISE|!SAMPLE_USE_INDEX
-.Envelope:
-db $20, $7F, $7F, $20, !ENV_DECREASE_LINEAR|$06
-.SmpPtr:
-db $FF
-.Arpeggio:
-db $1D, $2C, $2A, $1D
-.Pitchbend:
-db $00
+    i02Arpeggio:
+    db $1D, $2C, $2A, $1D
 
-;     db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
+InsDBEnd:
 
-;     db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
-;     db $FF, $7F, $00, $02
+pullbase
 
-;     db !UPD_ENVELOPE
-;     db $8A, $03
-;     db !END_DATA
+db !INS_NEW_HDR
+
+    Instr03Data:
+    Instr00Data:
+    .Header:
+    db %00000000, %00000000    ;Looping, everything one-shot for now
+
+    dw i00InsType
+    db $00, $00     ;
+
+    dw i00Envelope
+    db $00, $00
+
+    dw i00SmpPtr
+    db $0F, $00
+
+    dw i00Arpeggio
+    db $00, $00
+
+    dw i00Pitchbend
+    db $00, $00
+
+db !INS_NEW_HDR
+
+    Instr01Data:
+    .Header:
+    db %00000000, %00000000
+
+    dw i01InsType
+    db $00, $00
+    dw i01Envelope
+    db $01, $0B
+    dw i01SmpPtr
+    db $00, $00
+    dw i01Arpeggio
+    db $0B, $00
+    dw i01Pitchbend
+    db $00, $00
+
+db !INS_NEW_HDR
+
+    Instr02Data:
+    i02:
+    .Header:
+    db %00000000, %00000000
+
+    dw i02InsType
+    db $03, $01
+    dw i02Envelope
+    db $04, $01
+    dw i02SmpPtr
+    db $00, $00
+    dw i02Arpeggio
+    db $03, $01
+    dw i02Pitchbend
+    db $00, $00
+
+db !INS_DATA_END
+arch 65816
+base off
+; some ol data:
+    ;     db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
+
+    ;     db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
+    ;     db $FF, $7F, $00, $02
+
+    ;     db !UPD_ENVELOPE
+    ;     db $8A, $03
+    ;     db !END_DATA
+
+
+
+    ; 
+    ;     db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
+
+    ;     db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO
+    ;     dw $6240
+    ;     db $60, $00, $01
+    ;     db !UPD_ENVELOPE|!UPD_ARPEGGIO, $30, $EE, $01
+
+    ;     db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_NOISE
+    ;     db !UPD_ENVELOPE|!UPD_ARPEGGIO
+    ;     db $8C, $19, $01
+    ;     db !UPD_ARPEGGIO
+    ;     db $1C, $03
+
+    ;     db !END_DATA

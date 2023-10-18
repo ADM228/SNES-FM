@@ -126,13 +126,13 @@ else
 	incbin "SNESFM.bin"
 endif
 
-SongData:
-    arch spc700
-    incsrc "songData.asm"
-    arch 65816
-AfterSongData:
 
-!SongData = SongData
+InstrumentData:
+    incsrc "../sound/instrumentData.asm"
+InstrumentData_End:
+SongData:
+    incsrc "../sound/songData.asm"
+SongData_End:
 
 org $07FFFF ;set size of the file, irrelevant lmao
 
@@ -338,7 +338,7 @@ TurnOnScreen:
     PEA $0000
     PLD				;set dp to 00
     REP !P_XY      ;set XY to 16bit
-    LDA #$00
+    LDA #$01
     STA MESSAGE_CNT_TH1
 
 
@@ -351,9 +351,9 @@ SendSongSPC:
 
     .WaitForAffirmative:
         ; Prepare pointers while waiting anyway:
-            LDX #SongData&$FFFF
+            LDX #InstrumentData&$FFFF
             STX $00
-            LDA.b #bank(SongData)
+            LDA.b #bank(InstrumentData)
             STA $02
             LDY #$0000
         JSR WaitMsgBase
@@ -377,7 +377,7 @@ SendSongSPC:
             DEY #2
             JMP SendSongSPC_SendBytes
         +   ; Compare if Y is finished
-            CPY #(AfterSongData-SongData)&$FFFF
+            CPY #(InstrumentData_End-InstrumentData)
             BPL SendSongSPC_End
             JMP SendSongSPC_SendBytes
 

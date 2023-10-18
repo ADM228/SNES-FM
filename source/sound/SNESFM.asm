@@ -209,6 +209,25 @@ InternalDefines:
     ; S-CPU communication
         MESSAGE_CNT_TH1 = $40
 
+    ; Instrument generation
+        OPCODE_ARGUMENT = $50
+        REPEAT_BITMASK  = $58
+        REPEAT_COUNTER  = $5C
+
+        INSDATA_PTR_L   = $60
+        INSDATA_PTR_H   = $61
+        INSBLOCK_PTR_L  = $62
+        INSBLOCK_PTR_H  = $63
+
+        INSDATA_OPCODE  = $64
+
+        INSDATA_TMP_CNT     = $6A
+        INSDATA_TMP_VALUE   = $6B
+        INSDATA_TMP_PTR_0_L = $6C
+        INSDATA_TMP_PTR_0_H = $6D
+        INSDATA_TMP_PTR_1_L = $6E
+        INSDATA_TMP_PTR_1_H = $6F
+
     ;Internal configuration
 
         !SNESFM_CFG_SAMPLE_GENERATE ?= 0
@@ -357,154 +376,168 @@ SetVolume:
         ADC A, #$10
         DBNZ Y, SetVolume_loopVolumeSetup
 
-CompileInstruments:
-    MOV LTS_IN_PAGE, #$0F
-    MOV LTS_OUT_PAGE, #$20
-    MOV LTS_OUT_SUBPAGE, #$00
-    CALL LongToShort_Start
-    MOV MOD_CAR_PAGE, #$20
-    MOV MOD_MOD_PAGE, #$20
-    MOV MOD_OUT_PAGE, #$20
-    MOV MOD_MOD_STRENGTH, #$20
-    MOV MOD_MOD_PHASE_SHIFT, #$00
-    MOV MOD_SUBPAGE, #$04
-    CALL PhaseModulation_32
-    MOV MOD_MOD_STRENGTH, #$1E
-    MOV MOD_MOD_PHASE_SHIFT, #$02
-    MOV MOD_SUBPAGE, #$08
-    CALL PhaseModulation_32
-    MOV MOD_MOD_STRENGTH, #$1C
-    MOV MOD_MOD_PHASE_SHIFT, #$04
-    MOV MOD_SUBPAGE, #$0C
-    CALL PhaseModulation_32
+    MOV MESSAGE_CNT_TH1, #$01
+    MOV TDB_OUT_PTR_L, #$00
+    MOV TDB_OUT_PTR_H, #$10
+    CALL TransferDataBlock
 
-    MOV MOD_OUT_PAGE, #$21
+namespace CompileInstruments
+    Start:
+        MOV Y, #$00
+        MOV INSDATA_PTR_L, Y
+        MOV INSDATA_PTR_H, #$10
 
-    MOV MOD_MOD_STRENGTH, #$1A
-    MOV MOD_MOD_PHASE_SHIFT, #$06
-    MOV MOD_SUBPAGE, #$00
-    CALL PhaseModulation_32
-    MOV MOD_MOD_STRENGTH, #$18
-    MOV MOD_MOD_PHASE_SHIFT, #$08
-    MOV MOD_SUBPAGE, #$04
-    CALL PhaseModulation_32
-    MOV MOD_MOD_STRENGTH, #$16
-    MOV MOD_MOD_PHASE_SHIFT, #$0A
-    MOV MOD_SUBPAGE, #$08
-    CALL PhaseModulation_32
-    MOV MOD_MOD_STRENGTH, #$14
-    MOV MOD_MOD_PHASE_SHIFT, #$0C
-    MOV MOD_SUBPAGE, #$0C
-    CALL PhaseModulation_32
+        MOV REPEAT_BITMASK+0, Y
+        MOV REPEAT_BITMASK+1, Y
+        MOV REPEAT_BITMASK+2, Y
+        MOV REPEAT_BITMASK+3, Y
 
-    MOV MOD_OUT_PAGE, #$22
+        MOV REPEAT_COUNTER+0, Y
+        MOV REPEAT_COUNTER+1, Y
+        MOV REPEAT_COUNTER+2, Y
+        MOV REPEAT_COUNTER+3, Y
 
-    MOV MOD_MOD_STRENGTH, #$12
-    MOV MOD_MOD_PHASE_SHIFT, #$0E
-    MOV MOD_SUBPAGE, #$00
-    CALL PhaseModulation_32
-    MOV MOD_MOD_STRENGTH, #$10
-    MOV MOD_MOD_PHASE_SHIFT, #$10
-    MOV MOD_SUBPAGE, #$04
-    CALL PhaseModulation_32
-    MOV MOD_MOD_STRENGTH, #$0E
-    MOV MOD_MOD_PHASE_SHIFT, #$12
-    MOV MOD_SUBPAGE, #$08
-    CALL PhaseModulation_32
-    MOV MOD_MOD_STRENGTH, #$0C
-    MOV MOD_MOD_PHASE_SHIFT, #$14
-    MOV MOD_SUBPAGE, #$0C
-    CALL PhaseModulation_32
+    ReadByte:
+        MOV A, (INSDATA_PTR_L)+Y
+        INCW INSDATA_PTR_L
+        MOV INSDATA_OPCODE, A
+        AND A, #$1F
+        MOV X, A
+        MOV A, ArgCountTable+X
+        MOV INSDATA_TMP_CNT, A
+        BEQ Jump
+        AND A, INSDATA_OPCODE
+        BPL +   ; If bit 7 is set in both the counter and the opcode it has 1 less argument
+            DEC INSDATA_TMP_CNT
+        +
+        AND INSDATA_TMP_CNT, #$7F
 
-    MOV MOD_OUT_PAGE, #$23
+        CLRC
+        ADC INSDATA_TMP_CNT, #OPCODE_ARGUMENT
 
-    MOV MOD_MOD_STRENGTH, #$0A
-    MOV MOD_MOD_PHASE_SHIFT, #$16
-    MOV MOD_SUBPAGE, #$00
-    CALL PhaseModulation_32
-    MOV MOD_MOD_STRENGTH, #$08
-    MOV MOD_MOD_PHASE_SHIFT, #$18
-    MOV MOD_SUBPAGE, #$04
-    CALL PhaseModulation_32
-    MOV MOD_MOD_STRENGTH, #$06
-    MOV MOD_MOD_PHASE_SHIFT, #$1A
-    MOV MOD_SUBPAGE, #$08
-    CALL PhaseModulation_32
-    MOV MOD_MOD_STRENGTH, #$04
-    MOV MOD_MOD_PHASE_SHIFT, #$1C
-    MOV MOD_SUBPAGE, #$0C
-    CALL PhaseModulation_32
+        CALL RepeatBitmask
 
-    MOV BRR_PCM_PAGE, #$20
-    MOV BRR_OUT_INDEX, #$00
-    MOV BRR_FLAGS, #%11000100
-    CALL ConvertToBRR_Start
-    MOV BRR_OUT_INDEX, #$01
-    MOV BRR_FLAGS, #%11001000
-    CALL ConvertToBRR_Start
-    MOV BRR_OUT_INDEX, #$02
-    MOV BRR_FLAGS, #%11001100
-    CALL ConvertToBRR_Start
+        MOV X, #OPCODE_ARGUMENT
 
-    MOV BRR_PCM_PAGE, #$21
 
-    MOV BRR_OUT_INDEX, #$03
-    MOV BRR_FLAGS, #%11000000
-    CALL ConvertToBRR_Start
-    MOV BRR_OUT_INDEX, #$04
-    MOV BRR_FLAGS, #%11000100
-    CALL ConvertToBRR_Start
-    MOV BRR_OUT_INDEX, #$05
-    MOV BRR_FLAGS, #%11001000
-    CALL ConvertToBRR_Start
-    MOV BRR_OUT_INDEX, #$06
-    MOV BRR_FLAGS, #%11001100
-    CALL ConvertToBRR_Start
+    GetArguments:
+        MOV A, (INSDATA_PTR_L)+Y
+        ASL INSDATA_TMP_VALUE
+        BCS +
+            MOV (X), A
+            INCW INSDATA_PTR_L
+        + INC X
+        CMP X, INSDATA_TMP_CNT
+        BNE GetArguments
 
-    MOV BRR_PCM_PAGE, #$22
-    
-    MOV BRR_OUT_INDEX, #$07
-    MOV BRR_FLAGS, #%11000000
-    CALL ConvertToBRR_Start
-    MOV BRR_OUT_INDEX, #$08
-    MOV BRR_FLAGS, #%11000100
-    CALL ConvertToBRR_Start
-    MOV BRR_OUT_INDEX, #$09
-    MOV BRR_FLAGS, #%11001000
-    CALL ConvertToBRR_Start
-    MOV BRR_OUT_INDEX, #$0A
-    MOV BRR_FLAGS, #%11001100
-    CALL ConvertToBRR_Start
+    Jump:
+        MOV A, INSDATA_OPCODE
+        AND A, #$1F
+        ASL A
+        MOV X, A
+        JMP (JumpTable+X)
 
-    MOV BRR_PCM_PAGE, #$23
-    
-    MOV BRR_OUT_INDEX, #$0B
-    MOV BRR_FLAGS, #%11000000
-    CALL ConvertToBRR_Start
-    MOV BRR_OUT_INDEX, #$0C
-    MOV BRR_FLAGS, #%11000100
-    CALL ConvertToBRR_Start
-    MOV BRR_OUT_INDEX, #$0D
-    MOV BRR_FLAGS, #%11001000
-    CALL ConvertToBRR_Start
-    MOV BRR_OUT_INDEX, #$0E
-    MOV BRR_FLAGS, #%11001100
-    CALL ConvertToBRR_Start
+    ArgCountTable:
+        fillbyte $00
+        db $02, $00, $03
+        fill ($1A-($02+1))
+        db $84, $00, $00, $00, $00, $00 
 
-    MOV PUL_FLAGS, #$03
-    MOV PUL_OUT_PAGE, #$28
-    MOV PUL_DUTY, #$20
-    CALL GeneratePulse_32
-    MOV BRR_PCM_PAGE, #$28
-    MOV BRR_OUT_INDEX, #$FF
-    MOV BRR_FLAGS, #%11000000
-    CALL ConvertToBRR_Start
+    JumpTable:
+        fillword ReadByte
+        dw CopyResample, PhaseModPart1
+        dw PhaseModPart2, PulseGen
+        fill ($1A-($03+1))*2
+        dw BRRGen, ReadByte
+        dw ConserveArgs, NewInstrument
+        dw InstrumentRawDataBlock, End
 
+    RepeatBitmask:
+        MOV INSDATA_TMP_VALUE, REPEAT_BITMASK+0
+        OR  INSDATA_TMP_VALUE, REPEAT_BITMASK+1
+        OR  INSDATA_TMP_VALUE, REPEAT_BITMASK+2
+        OR  INSDATA_TMP_VALUE, REPEAT_BITMASK+3
+
+        DEC REPEAT_COUNTER+0
+        BNE +
+            MOV REPEAT_BITMASK+0, Y
+        + DEC REPEAT_COUNTER+1
+        BNE +
+            MOV REPEAT_BITMASK+1, Y
+        + DEC REPEAT_COUNTER+2
+        BNE +
+            MOV REPEAT_BITMASK+2, Y
+        + DEC REPEAT_COUNTER+3
+        BNE +
+            MOV REPEAT_BITMASK+3, Y
+        +
+        RET
+
+    CopyResample:
+        MOV A, INSDATA_OPCODE
+        BMI CopyResample_Resample
+        MOV A, OPCODE_ARGUMENT+0        ;   Self-modifying code is
+        MOV CopyResample_CopyLoop+2, A  ;   faster than (dp)+Y
+        MOV A, OPCODE_ARGUMENT+1        ;   (8 cycles vs 2*256 cycles)
+        MOV CopyResample_CopyLoop+4, A  ;__
+
+        .CopyLoop:
+            MOV A, $4000+Y
+            MOV $4000+Y, A
+            DBNZ Y, CopyResample_CopyLoop
+        JMP ReadByte
+
+        .Resample:
+            MOV LTS_IN_PAGE, OPCODE_ARGUMENT+0
+            MOV LTS_OUT_PAGE, OPCODE_ARGUMENT+1
+            ASL A
+            AND A, #$C0
+            MOV LTS_OUT_SUBPAGE, A
+            CALL SPC_LongToShort
+            JMP ReadByte
+
+    PhaseModPart1:      
+        MOV INSDATA_TMP_CNT, #OPCODE_ARGUMENT+6
+        MOV A, INSDATA_OPCODE
+        BPL +   ; If bit 7 is set in both the counter and the opcode it has 1 less argument
+            DEC INSDATA_TMP_CNT
+        +
+
+        CALL RepeatBitmask
+
+        MOV X, #OPCODE_ARGUMENT+2
+
+        ASL INSDATA_TMP_VALUE
+        BCS +
+            MOV A, (INSDATA_PTR_L)+Y
+            MOV OPCODE_ARGUMENT+0, A
+            INCW INSDATA_PTR_L
+        + 
+        ASL INSDATA_TMP_VALUE
+        BCS ++
+            MOV A, OPCODE_ARGUMENT+0
+            MOV1 C, INSDATA_OPCODE.6
+            BCS +   ; Bit 6 is set, copy modulator from carrier
+                MOV A, (INSDATA_PTR_L)+Y
+                INCW INSDATA_PTR_L
+            + MOV OPCODE_ARGUMENT+1, A
+        ++ JMP GetArguments
+
+    PhaseModPart2: STOP
+    PulseGen: STOP
+    BRRGen: STOP
+    ConserveArgs: STOP
+    NewInstrument: STOP
+        
+    InstrumentRawDataBlock:
+        STOP
+
+    End:
+        STOP
+
+namespace off
 Begin:
-    MOV $F2, #$5C
-    MOV $F3, #$00
-    MOV $F2, #$6C
-    MOV $F3, #$20
+
 
     MOV A, #$00
     MOV !TEMP_POINTER0_L, A
@@ -547,6 +580,12 @@ Begin:
         AND A, #$38
         MOV X, A
         BNE -
+
+    MOV $F2, #$5C
+    MOV $F3, X      ; X is 0
+    MOV $F2, #$6C
+    MOV $F3, #$20
+
     MOV A, $FD
     JMP mainLoop_00
 
@@ -605,7 +644,7 @@ namespace ParseSongData
         AND A, #$03
         BBC2 !TEMP_VALUE, Inst_HighBits   ; If it is setting the high bits, call the right routine
         AND CHTEMP_INSTRUMENT_SECTION_HIGHBITS, #$FC
--       TSET CHTEMP_INSTRUMENT_SECTION_HIGHBITS, A
+    -   TSET CHTEMP_INSTRUMENT_SECTION_HIGHBITS, A
         JMP ReadByte
 
     Note:
@@ -788,14 +827,12 @@ namespace ParseSongData
         JMP POPX_ReadByte
 
     OpcodeTable:
+        fillword POPX_ReadByte
         dw NoAttack         ; $68, Disable attack
         dw POPX_ReadByte    ; $69, Arp table
         dw POPX_ReadByte    ; $6A, Pitch table
         dw POPX_ReadByte    ; $6B, Fine pitch
-        dw POPX_ReadByte    ; $6C, 
-        dw POPX_ReadByte    ; $6D, 
-        dw POPX_ReadByte    ; $6E
-        dw POPX_ReadByte    ; $6F
+        fill 2*4
 
         dw SetVolumeL_or_R  ; $70, Set left volume
         dw SetVolumeL_or_R  ; $71, Set right volume
@@ -803,12 +840,7 @@ namespace ParseSongData
         dw POPX_ReadByte    ; $73, Left volume slide
         dw POPX_ReadByte    ; $74, Right volume slide
         dw POPX_ReadByte    ; $75, Both volume slide
-        dw POPX_ReadByte    ; $76
-        dw POPX_ReadByte    ; $77
-        dw POPX_ReadByte    ; $78
-        dw POPX_ReadByte    ; $79
-        dw POPX_ReadByte    ; $7A
-        dw POPX_ReadByte    ; $7B
+        fill 2*6
         dw Keyoff           ; $7C, Keyoff
         dw ReferenceRepeat  ; $7D, Repeat last reference
         dw ReferenceSet     ; $7E, Set reference
@@ -975,7 +1007,7 @@ namespace ParseInstrumentData
         MOV CHTEMP_INSTRUMENT_TYPE, A      	;__
         MOV $F2, #$3D                       ;
         BBC0 CHTEMP_INSTRUMENT_TYPE, +		;
-            MOV A, !CHANNEL_BITMASK             ;
+            MOV A, !CHANNEL_BITMASK         ;
             TCLR $F3, A                     ;   Update the noise enable flag
             JMP ++                          ;
         +:                                  ;
@@ -1050,7 +1082,7 @@ namespace ParseInstrumentData
             INCW !TEMP_POINTER1_L               ;   Load sample pointer into memory
             MOV A, (!TEMP_POINTER1_L)+Y         ;
             MOV CHTEMP_SAMPLE_POINTER_H, A     	;__
-    ++:
+        ++:
             MOV A, !CHANNEL_REGISTER_INDEX		;
             LSR A								;	Get current channel's X
             AND A, #$38							;	(cheaper than getting it from stack)
@@ -1116,33 +1148,33 @@ namespace ParseInstrumentData
             RET		
 
     UpdateArpeggio:
-	POP X
-	MOV A, (!TEMP_POINTER1_L)+Y 			;   Update arpeggio 
-	MOV CHTEMP_ARPEGGIO, A                 	;__
-	MOV A, CHTEMP_NOTE                     	;
-	CLRC                                    ;   Apply arpeggio
-	ADC A, CHTEMP_ARPEGGIO                 	;__
-	BBC0 CHTEMP_INSTRUMENT_TYPE, ++
-        AND A, #$7F
-		MOV Y, A                                ;__
-		MOV A, PitchTableLo+Y                   ;
-		AND !CHANNEL_REGISTER_INDEX, #$70       ;
-		OR !CHANNEL_REGISTER_INDEX, #$02        ;   Update low byte of pitch
-		MOV $F2, !CHANNEL_REGISTER_INDEX;       ;
-		MOV $F3, A                              ;__
-		MOV A, PitchTableHi+Y                   ;
-		OR !CHANNEL_REGISTER_INDEX, #$01        ;   Update high byte of pitch
-		MOV $F2, !CHANNEL_REGISTER_INDEX;       ;
-		MOV $F3, A                              ;
-		MOV Y, #$00                             ;__
-		RET
-    ++:
-		AND A, #$1F                             ;
-		MOV $F2, #$6C                           ;  Update noise clock
-		AND $F3, #$E0                           ;
-		OR A, $F3                               ;
-		MOV $F3, A                              ;__
-   		RET
+        POP X
+        MOV A, (!TEMP_POINTER1_L)+Y 			;   Update arpeggio 
+        MOV CHTEMP_ARPEGGIO, A                 	;__
+        MOV A, CHTEMP_NOTE                     	;
+        CLRC                                    ;   Apply arpeggio
+        ADC A, CHTEMP_ARPEGGIO                 	;__
+        BBC0 CHTEMP_INSTRUMENT_TYPE, ++
+            AND A, #$7F
+            MOV Y, A                                ;__
+            MOV A, PitchTableLo+Y                   ;
+            AND !CHANNEL_REGISTER_INDEX, #$70       ;
+            OR !CHANNEL_REGISTER_INDEX, #$02        ;   Update low byte of pitch
+            MOV $F2, !CHANNEL_REGISTER_INDEX;       ;
+            MOV $F3, A                              ;__
+            MOV A, PitchTableHi+Y                   ;
+            OR !CHANNEL_REGISTER_INDEX, #$01        ;   Update high byte of pitch
+            MOV $F2, !CHANNEL_REGISTER_INDEX;       ;
+            MOV $F3, A                              ;
+            MOV Y, #$00                             ;__
+            RET
+        ++:
+            AND A, #$1F                             ;
+            MOV $F2, #$6C                           ;  Update noise clock
+            AND $F3, #$E0                           ;
+            OR A, $F3                               ;
+            MOV $F3, A                              ;__
+            RET
 
 namespace off
 
@@ -2338,5 +2370,10 @@ Includes:
 
     org $FFC0   ;For TCALLs
         dw transferChToTemp, transferTempToCh, IndexToSamplePointer
+
+    ParseInstrumentData_InstrumentPtrLo = $0A00
+    ParseInstrumentData_InstrumentPtrHi = $0B00
+    InstrumentPtrLo = $0A00
+    InstrumentPtrHi = $0B00
 
 namespace off

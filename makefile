@@ -31,13 +31,10 @@ bin/SNESFM.bin: asar bin source/sound/* tables/multTables.bin tables/pitch*.bin 
 	${ASAR_DIR}/asar/${ASAR_EXECUTABLE} -v --symbols=${SYM_SND} -I"tables" -I"source/sound" "source/sound/demoConfig.asm" "bin/SNESFM.bin"
 
 bin/SNESFMDemo.sfc: asar bin SNESFM source/gui/* graphics/palette.pal graphics/tilesetUnicode.chr tables/sinetable.bin
-	${ASAR_DIR}/asar/${ASAR_EXECUTABLE} -v --symbols=${SYM_GUI} -I"bin" -I"source/sound" -I"graphics" -I"tables" --fix-checksum=on "source/gui/SNESFMDemo.asm" "bin/SNESFMDemo.sfc"
+	${ASAR_DIR}/asar/${ASAR_EXECUTABLE} -v --symbols=${SYM_GUI} -I"bin" -I"graphics" -I"tables" --fix-checksum=on "source/gui/SNESFMDemo.asm" "bin/SNESFMDemo.sfc"
 
 bin:
 	mkdir -p bin
-
-SFML:
-	cd "SFMLtracker" && $(MAKE)
 
 clean:
 	rm -f -R bin
@@ -50,5 +47,5 @@ ${ASAR_DIR}/src/asar/*:
 ${ASAR_DIR}/asar/${ASAR_EXECUTABLE}: ${ASAR_DIR}/src/asar/*
 	cd "${ASAR_DIR}" && cmake src > /dev/null && $(MAKE) > /dev/null
 
-.PHONY: SFML clean asar SNESFM Demo build debug
+.PHONY: clean asar SNESFM Demo build debug
 .SILENT: build

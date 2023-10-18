@@ -97,7 +97,6 @@
         !VOLUME_L_SLIDE_UP = $0A
         !VOLUME_R_SLIDE_UP = $0B
 
-
 arch spc700
 base $1000
 
@@ -171,7 +170,8 @@ NoteDataNone:
     db !JUMP
     dw NoteDataNone
 
-
+arch 65816
+base off
 
 ; NoteDataBass1:
 ;     dw EffectDataBass
