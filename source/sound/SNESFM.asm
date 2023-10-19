@@ -458,8 +458,8 @@ namespace CompileInstruments
 
     ArgCountTable:
         fillbyte $00
-        db $02, $00, $03
-        fill ($1A-($02+1))
+        db $02, $00, $00, $03
+        fill ($1A-1-$03)
         db $83, $00, $00, $00, $00, $00 
 
     endif   ; !SNESFM_CFG_SAMPLE_GENERATE
@@ -487,10 +487,11 @@ namespace CompileInstruments
 
     if !SNESFM_CFG_SAMPLE_GENERATE >= 1
     RepeatBitmask:
-        MOV INSDATA_TMP_VALUE, REPEAT_BITMASK+0
-        OR  INSDATA_TMP_VALUE, REPEAT_BITMASK+1
-        OR  INSDATA_TMP_VALUE, REPEAT_BITMASK+2
-        OR  INSDATA_TMP_VALUE, REPEAT_BITMASK+3
+        MOV A, REPEAT_BITMASK+0
+        OR  A, REPEAT_BITMASK+1
+        OR  A, REPEAT_BITMASK+2
+        OR  A, REPEAT_BITMASK+3
+        MOV INSDATA_TMP_VALUE, A
 
         DEC REPEAT_COUNTER+0
         BNE +
@@ -522,11 +523,11 @@ namespace CompileInstruments
         JMP ReadByte
 
         .Resample:
-            MOV LTS_IN_PAGE, OPCODE_ARGUMENT+0
-            MOV LTS_OUT_PAGE, OPCODE_ARGUMENT+1
             ASL A
             AND A, #$C0
             MOV LTS_OUT_SUBPAGE, A
+            MOVW YA, OPCODE_ARGUMENT+0
+            MOVW LTS_IN_PAGE, YA
             CALL SPC_LongToShort
             JMP ReadByte
 
@@ -588,10 +589,16 @@ namespace CompileInstruments
     endif   ; !SNESFM_CFG_PHASEMOD
 
     if !SNESFM_CFG_PULSEGEN >= 1
-    PulseGen: STOP
+    PulseGen: JMP ReadByte
     endif   ; !SNESFM_CFG_PULSEGEN
 
-    BRRGen: STOP
+    BRRGen: 
+        MOV X, #OPCODE_ARGUMENT
+        CALL CopyArguments
+        BBC7 INSDATA_OPCODE, +  ;   Ironically this takes the same cycles as MOV1
+            OR BRR_FLAGS, #$10  ;__ when it sets the bit, and 3 less if it doesn't
+        + CALL SPC_ConvertToBRR
+        JMP ReadByte
 
     ConserveArgs: 
         MOV A, INSDATA_OPCODE   ;
@@ -613,7 +620,62 @@ namespace CompileInstruments
     NewInstrument: STOP
         
     InstrumentRawDataBlock:
-        STOP
+        MOV A, (INSDATA_PTR_L)+Y
+        MOV INSBLOCK_PTR_L, A
+        MOV INSDATA_TMP_PTR_0_L, A
+        INCW INSDATA_PTR_L
+
+        MOV A, (INSDATA_PTR_L)+Y
+        MOV INSBLOCK_PTR_H, A
+        MOV INSDATA_TMP_PTR_0_H, A
+        INCW INSDATA_PTR_L
+
+        MOV A, Y    ; 0
+        MOV Y, #$50
+        SUBW YA, INSDATA_TMP_PTR_0_L
+        MOVW INSDATA_TMP_PTR_1_L, YA
+
+        DECW INSDATA_TMP_PTR_0_L
+
+        MOV Y, #$00
+
+        .BigLoop:
+            MOVW YA, INSDATA_PTR_L
+            MOV InstrumentRawDataBlock_SmallLoop+1, A   ; Lo byte of 1st MOV
+            MOV InstrumentRawDataBlock_SmallLoop+2, Y   ; Hi byte of 1st MOV
+
+            MOVW YA, INSDATA_TMP_PTR_1_L
+            MOV InstrumentRawDataBlock_SmallLoop+4, A   ; Lo byte of 2nd MOV
+            MOV InstrumentRawDataBlock_SmallLoop+5, Y   ; Hi byte of 2nd MOV
+
+            DEC INSDATA_TMP_PTR_0_H
+            BMI +
+                ; If >=$FF bytes left
+                MOV Y, #$00
+                CALL InstrumentRawDataBlock_SmallLoop
+                INC INSDATA_PTR_H
+                INC INSDATA_TMP_PTR_1_H
+                JMP InstrumentRawDataBlock_BigLoop
+
+            +:
+                MOV Y, INSDATA_TMP_PTR_0_L
+                CALL InstrumentRawDataBlock_SmallLoop
+                ; Y is 0 after DBNZ
+                MOV A, (INSDATA_PTR_L)+Y
+                MOV (INSDATA_TMP_PTR_1_L)+Y, A
+
+                INCW INSDATA_TMP_PTR_0_L
+                MOV A, INSDATA_TMP_PTR_0_L
+                ADDW YA, INSDATA_PTR_L
+                MOVW INSDATA_PTR_L, YA
+                MOV Y, #$00
+                JMP ReadByte
+            .SmallLoop:
+                MOV A, $1000+Y
+                MOV $4F00+Y, A
+                DBNZ Y, InstrumentRawDataBlock_SmallLoop
+            RET
+
 
     End:
         STOP

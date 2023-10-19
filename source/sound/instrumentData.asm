@@ -70,7 +70,7 @@
     ;                   x - extended sample length mode (more than 1 sample)
     ;                   S - Source PCM page
     ;                   D - Destination BRR page
-    ;                   F - Flags: fsixppbb 
+    ;                   F - Flags: fsi0ppbb 
     ;                       f - whether to use filter mode 1
     ;                       s - short sample mode (32 samples instead of 128)
     ;                       i - high bit of output index 
