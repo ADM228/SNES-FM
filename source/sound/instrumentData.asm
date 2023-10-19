@@ -77,7 +77,7 @@
     ;                       pp - PCM sample subpage number (0-3, if s is set)
     ;                       bb - BRR output subpage number (0-3, if s is set)
     ;                   [X]-Number of samples-2 [Only present if x is set]
-    ;    0ss|$1C X Y - Conserve the next opcode's arguments (as bitmasked by X, unnes. args count)
+    ;    0ss|$1C X Y - Conserve the opcode arguments (as bitmasked by X, unnes. args count)
     ;                   for Y opcodes after it
     ;                   Can have 4 conservation settings at once, indicated by ss
     ;       $1D [db]- New instrument header

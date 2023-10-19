@@ -238,9 +238,11 @@ InternalDefines:
         !SNESFM_CFG_LONG_SMP_GEN ?= 0
         !SNESFM_CFG_SHORTSMP_GEN ?= (!SNESFM_CFG_SAMPLE_GENERATE)&~(!SNESFM_CFG_LONG_SMP_GEN)
 
+        !SNESFM_CFG_BOTH_SMP_GEN ?= (!SNESFM_CFG_LONG_SMP_GEN)&(!SNESFM_CFG_SHORTSMP_GEN)
+
         !SNESFM_CFG_PITCHTABLE_GEN ?= 0
 
-        ; if !SNESFM_CFG_SAMPLE_GENERATE&&((!SNESFM_CFG_LONG_SMP_GEN+!SNESFM_CFG_SHORTSMP_GEN) == 0)
+        ; if !SNESFM_CFG_SAMPLE_GENERATE && ( ~(!SNESFM_CFG_LONG_SMP_GEN+!SNESFM_CFG_SHORTSMP_GEN) )
         ;     error "You have specified to generate samples, but have specified to not generate short nor long samples. Pick one"
         ; endif
 
@@ -527,6 +529,14 @@ namespace CompileInstruments
             MOV LTS_OUT_SUBPAGE, A
             CALL SPC_LongToShort
             JMP ReadByte
+
+    CopyArguments:
+        MOV A, (X+)
+        MOV $D0-OPCODE_ARGUMENT-1+X, A
+        CMP X, INSDATA_TMP_CNT
+        BNE CopyArguments
+    RET
+
     if !SNESFM_CFG_PHASEMOD >= 1
     PhaseModPart1:      
         MOV INSDATA_TMP_CNT, #OPCODE_ARGUMENT+5
@@ -549,14 +559,32 @@ namespace CompileInstruments
         ASL INSDATA_TMP_VALUE
         BCS ++
             MOV A, OPCODE_ARGUMENT+0
-            MOV1 C, INSDATA_OPCODE.6
-            BCS +   ; Bit 6 is set, copy modulator from carrier
+            BBS6 INSDATA_OPCODE, +   ; Bit 6 is set, copy modulator from carrier
                 MOV A, (INSDATA_PTR_L)+Y
                 INCW INSDATA_PTR_L
             + MOV OPCODE_ARGUMENT+1, A
         ++ JMP GetArguments
 
-    PhaseModPart2: STOP
+    PhaseModPart2:
+        MOV X, #OPCODE_ARGUMENT
+        CALL CopyArguments
+        if !SNESFM_CFG_BOTH_SMP_GEN >= 1
+            BBS7 INSDATA_OPCODE, +
+                CALL SPC_PhaseModulation_128
+                MOV Y, #$00
+                JMP ReadByte
+            +   CALL SPC_PhaseModulation_32
+                MOV Y, #$00
+                JMP ReadByte
+        elseif !SNESFM_CFG_LONG_SMP_GEN >= 1
+            CALL SPC_PhaseModulation_128
+            MOV Y, #$00
+            JMP ReadByte
+        else
+            CALL SPC_PhaseModulation_32
+            MOV Y, #$00
+            JMP ReadByte
+        endif
     endif   ; !SNESFM_CFG_PHASEMOD
 
     if !SNESFM_CFG_PULSEGEN >= 1
@@ -564,11 +592,23 @@ namespace CompileInstruments
     endif   ; !SNESFM_CFG_PULSEGEN
 
     BRRGen: STOP
+
+    ConserveArgs: 
+        MOV A, INSDATA_OPCODE   ;
+        XCN A                   ;
+        LSR A                   ;   Get pointer into dp
+        AND A, #$03             ;
+        MOV X, A                ;__
+        
+        MOV A, (INSDATA_PTR_L)+Y
+        MOV REPEAT_BITMASK+X, A
+        INCW INSDATA_PTR_L
+
+        MOV A, (INSDATA_PTR_L)+Y
+        MOV REPEAT_COUNTER+X, A
+        INCW INSDATA_PTR_L
+        JMP ReadByte
     endif   ; !SNESFM_CFG_SAMPLE_GENERATE
-
-
-    ConserveArgs: STOP
-
 
     NewInstrument: STOP
         
