@@ -387,6 +387,8 @@ namespace CompileInstruments
         MOV INSDATA_PTR_L, Y
         MOV INSDATA_PTR_H, #$10
 
+        if !SNESFM_CFG_SAMPLE_GENERATE >= 1
+
         MOV REPEAT_BITMASK+0, Y
         MOV REPEAT_BITMASK+1, Y
         MOV REPEAT_BITMASK+2, Y
@@ -397,9 +399,14 @@ namespace CompileInstruments
         MOV REPEAT_COUNTER+2, Y
         MOV REPEAT_COUNTER+3, Y
 
+        endif   ; !SNESFM_CFG_SAMPLE_GENERATE
+
     ReadByte:
         MOV A, (INSDATA_PTR_L)+Y
         INCW INSDATA_PTR_L
+
+        if !SNESFM_CFG_SAMPLE_GENERATE >= 1
+
         MOV INSDATA_OPCODE, A
         AND A, #$1F
         MOV X, A
@@ -408,7 +415,7 @@ namespace CompileInstruments
         BEQ Jump
         AND A, INSDATA_OPCODE
         BPL +   ; If bit 7 is set in both the counter and the opcode it has 1 less argument
-            DEC INSDATA_TMP_CNT
+            INC INSDATA_TMP_CNT
         +
         AND INSDATA_TMP_CNT, #$7F
 
@@ -432,26 +439,51 @@ namespace CompileInstruments
 
     Jump:
         MOV A, INSDATA_OPCODE
+
+        endif   ; !SNESFM_CFG_SAMPLE_GENERATE
+
         AND A, #$1F
         ASL A
         MOV X, A
+
+        if !SNESFM_CFG_SAMPLE_GENERATE >= 1
         JMP (JumpTable+X)
+        else
+        JMP (JumpTable-($1D*2)+X)
+        endif
+
+    if !SNESFM_CFG_SAMPLE_GENERATE >= 1
 
     ArgCountTable:
         fillbyte $00
         db $02, $00, $03
         fill ($1A-($02+1))
-        db $84, $00, $00, $00, $00, $00 
+        db $83, $00, $00, $00, $00, $00 
+
+    endif   ; !SNESFM_CFG_SAMPLE_GENERATE
 
     JumpTable:
         fillword ReadByte
-        dw CopyResample, PhaseModPart1
-        dw PhaseModPart2, PulseGen
-        fill ($1A-($03+1))*2
-        dw BRRGen, ReadByte
-        dw ConserveArgs, NewInstrument
-        dw InstrumentRawDataBlock, End
+        if !SNESFM_CFG_SAMPLE_GENERATE >= 1
+            dw CopyResample
+            if !SNESFM_CFG_PHASEMOD >= 1
+                dw PhaseModPart1, PhaseModPart2
+            else
+                fill 2*2
+            endif
 
+            if !SNESFM_CFG_PULSEGEN >= 1
+                dw PulseGen
+            else
+                fill 2*1
+            endif
+            fill ($1A-1-$03)*2
+            dw BRRGen
+            dw ReadByte, ConserveArgs
+        endif
+        dw NewInstrument, InstrumentRawDataBlock, End
+
+    if !SNESFM_CFG_SAMPLE_GENERATE >= 1
     RepeatBitmask:
         MOV INSDATA_TMP_VALUE, REPEAT_BITMASK+0
         OR  INSDATA_TMP_VALUE, REPEAT_BITMASK+1
@@ -495,13 +527,14 @@ namespace CompileInstruments
             MOV LTS_OUT_SUBPAGE, A
             CALL SPC_LongToShort
             JMP ReadByte
-
+    if !SNESFM_CFG_PHASEMOD >= 1
     PhaseModPart1:      
-        MOV INSDATA_TMP_CNT, #OPCODE_ARGUMENT+6
+        MOV INSDATA_TMP_CNT, #OPCODE_ARGUMENT+5
         MOV A, INSDATA_OPCODE
         BPL +   ; If bit 7 is set in both the counter and the opcode it has 1 less argument
-            DEC INSDATA_TMP_CNT
+            INC INSDATA_TMP_CNT
         +
+        INC INSDATA_OPCODE
 
         CALL RepeatBitmask
 
@@ -524,9 +557,19 @@ namespace CompileInstruments
         ++ JMP GetArguments
 
     PhaseModPart2: STOP
+    endif   ; !SNESFM_CFG_PHASEMOD
+
+    if !SNESFM_CFG_PULSEGEN >= 1
     PulseGen: STOP
+    endif   ; !SNESFM_CFG_PULSEGEN
+
     BRRGen: STOP
+    endif   ; !SNESFM_CFG_SAMPLE_GENERATE
+
+
     ConserveArgs: STOP
+
+
     NewInstrument: STOP
         
     InstrumentRawDataBlock:
