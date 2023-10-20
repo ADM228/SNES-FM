@@ -444,15 +444,20 @@ namespace CompileInstruments
 
         endif   ; !SNESFM_CFG_SAMPLE_GENERATE
 
+        CALL +
+        JMP ReadByte
+    +
+
         AND A, #$1F
         ASL A
         MOV X, A
 
         if !SNESFM_CFG_SAMPLE_GENERATE >= 1
-        JMP (JumpTable+X)
+            JMP (JumpTable+X)
         else
-        JMP (JumpTable-($1D*2)+X)
+            JMP (JumpTable-($1D*2)+X)
         endif
+
 
     if !SNESFM_CFG_SAMPLE_GENERATE >= 1
 
@@ -465,7 +470,7 @@ namespace CompileInstruments
     endif   ; !SNESFM_CFG_SAMPLE_GENERATE
 
     JumpTable:
-        fillword ReadByte
+        fillword RETJump
         if !SNESFM_CFG_SAMPLE_GENERATE >= 1
             dw CopyResample
             if !SNESFM_CFG_PHASEMOD >= 1
@@ -481,7 +486,7 @@ namespace CompileInstruments
             endif
             fill ($1A-1-$03)*2
             dw BRRGen
-            dw ReadByte, ConserveArgs
+            dw RETJump, ConserveArgs
         endif
         dw NewInstrument, InstrumentRawDataBlock, End
 
@@ -520,7 +525,7 @@ namespace CompileInstruments
             MOV A, $4000+Y
             MOV $4000+Y, A
             DBNZ Y, CopyResample_CopyLoop
-        JMP ReadByte
+        RET
 
         .Resample:
             ASL A
@@ -529,7 +534,7 @@ namespace CompileInstruments
             MOVW YA, OPCODE_ARGUMENT+0
             MOVW LTS_IN_PAGE, YA
             CALL SPC_LongToShort
-            JMP ReadByte
+            RET
 
     CopyArguments:
         MOV A, (X+)
@@ -573,23 +578,60 @@ namespace CompileInstruments
             BBS7 INSDATA_OPCODE, +
                 CALL SPC_PhaseModulation_128
                 MOV Y, #$00
-                JMP ReadByte
+                RET
             +   CALL SPC_PhaseModulation_32
                 MOV Y, #$00
-                JMP ReadByte
+                RET
         elseif !SNESFM_CFG_LONG_SMP_GEN >= 1
             CALL SPC_PhaseModulation_128
             MOV Y, #$00
-            JMP ReadByte
+            RET
         else
             CALL SPC_PhaseModulation_32
             MOV Y, #$00
-            JMP ReadByte
+            RET
         endif
     endif   ; !SNESFM_CFG_PHASEMOD
 
     if !SNESFM_CFG_PULSEGEN >= 1
-    PulseGen: JMP ReadByte
+    PulseGen: 
+        MOV X, #OPCODE_ARGUMENT
+        CALL CopyArguments
+
+        if !SNESFM_CFG_BOTH_SMP_GEN >= 1
+            MOV A, INSDATA_OPCODE
+            BMI +
+        endif
+        if !SNESFM_CFG_BOTH_SMP_GEN+!SNESFM_CFG_LONG_SMP_GEN >= 1
+                CALL SPC_GeneratePulse_128
+                DEC Y   ; Y is always 1
+                RET
+        endif
+        if !SNESFM_CFG_BOTH_SMP_GEN >= 1
+            +:
+        endif
+        if !SNESFM_CFG_BOTH_SMP_GEN+!SNESFM_CFG_SHORTSMP_GEN >= 1
+                MOV A, Y    ; 0
+                LSR PUL_DUTY
+                ROL PUL_FLAGS
+                BCC +
+                    OR A, #$02
+                + LSR PUL_DUTY
+                ROL PUL_FLAGS
+                BCC +
+                    INC A
+                + AND PUL_FLAGS, #$FC
+                TSET PUL_FLAGS, A
+
+                MOV A, INSDATA_OPCODE
+                ASL A
+                AND A, #$C0
+                TSET PUL_DUTY, A
+
+                CALL SPC_GeneratePulse_32
+                DEC Y
+                RET
+        endif
     endif   ; !SNESFM_CFG_PULSEGEN
 
     BRRGen: 
@@ -598,7 +640,7 @@ namespace CompileInstruments
         BBC7 INSDATA_OPCODE, +  ;   Ironically this takes the same cycles as MOV1
             OR BRR_FLAGS, #$10  ;__ when it sets the bit, and 3 less if it doesn't
         + CALL SPC_ConvertToBRR
-        JMP ReadByte
+        RET
 
     ConserveArgs: 
         MOV A, INSDATA_OPCODE   ;
@@ -614,7 +656,7 @@ namespace CompileInstruments
         MOV A, (INSDATA_PTR_L)+Y
         MOV REPEAT_COUNTER+X, A
         INCW INSDATA_PTR_L
-        JMP ReadByte
+        RET
     endif   ; !SNESFM_CFG_SAMPLE_GENERATE
 
     NewInstrument: STOP
@@ -669,11 +711,12 @@ namespace CompileInstruments
                 ADDW YA, INSDATA_PTR_L
                 MOVW INSDATA_PTR_L, YA
                 MOV Y, #$00
-                JMP ReadByte
+                RET
             .SmallLoop:
                 MOV A, $1000+Y
                 MOV $4F00+Y, A
                 DBNZ Y, InstrumentRawDataBlock_SmallLoop
+            #RETJump:
             RET
 
 
@@ -1337,8 +1380,8 @@ TransferDataBlock:
         ; Other variables used:
         ; $40 - Message counter on thread 1
     .Start:
-        MOV TDB_TMP_PTR_H, TDB_OUT_PTR_H
-        MOV TDB_TMP_PTR_L, TDB_OUT_PTR_L
+        MOVW YA, TDB_OUT_PTR_L
+        MOVW TDB_TMP_PTR_L, YA
         MOV Y, #$00
         CALL WaitCPUMsg
         AND A, #$E0     ;   Both opcodes 4x and 5x
