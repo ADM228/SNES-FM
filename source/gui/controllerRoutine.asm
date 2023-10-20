@@ -1,7 +1,5 @@
 namespace ControllerRead
 Wait:
-    PHA
-    PHP
     REP #%00100000 ;set xy to 8bit
     SEP #%00010000 ;set a to 16bit
     NOP #16
@@ -41,10 +39,9 @@ namespace StandardJoy
         LDX #$00
     Loop:
         ROL $0E
-        BCC AfterLoop
-        JSR (RoutineTable, X)
-    AfterLoop:
-        INX
+        BCC +
+            JSR (RoutineTable, X)
+        + INX
         INX
         CPX #$18
         BNE Loop

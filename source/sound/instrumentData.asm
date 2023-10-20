@@ -132,6 +132,9 @@
 
         !MOD_SELF       = %01000000
 
+    ;Memory locations
+        !BASE_MEMORY    = $5000
+
 arch spc700
 base $1000
 InstrGenData:
@@ -188,7 +191,7 @@ db !SHORT|!PULSEGEN, $28, $20, $03
 db !BRRGEN, $28, $FF, %11000000
 
 db !INS_DATA_BLOCK
-dw InsDBEnd ; InsDB is already 0
+dw InsDBEnd-InsDB ; InsDB is already 0
 
 pushbase
 base $0000
@@ -244,19 +247,15 @@ db !INS_NEW_HDR
     .Header:
     db %00000000, %00000000    ;Looping, everything one-shot for now
 
-    dw i00InsType
+    dw !BASE_MEMORY-(InsDBEnd-i00InsType)
     db $00, $00     ;
-
-    dw i00Envelope
+    dw !BASE_MEMORY-(InsDBEnd-i00Envelope)
     db $00, $00
-
-    dw i00SmpPtr
+    dw !BASE_MEMORY-(InsDBEnd-i00SmpPtr)
     db $0F, $00
-
-    dw i00Arpeggio
+    dw !BASE_MEMORY-(InsDBEnd-i00Arpeggio)
     db $00, $00
-
-    dw i00Pitchbend
+    dw !BASE_MEMORY-(InsDBEnd-i00Pitchbend)
     db $00, $00
 
 db !INS_NEW_HDR
@@ -265,15 +264,15 @@ db !INS_NEW_HDR
     .Header:
     db %00000000, %00000000
 
-    dw i01InsType
+    dw !BASE_MEMORY-(InsDBEnd-i01InsType)
     db $00, $00
-    dw i01Envelope
+    dw !BASE_MEMORY-(InsDBEnd-i01Envelope)
     db $01, $0B
-    dw i01SmpPtr
+    dw !BASE_MEMORY-(InsDBEnd-i01SmpPtr)
     db $00, $00
-    dw i01Arpeggio
+    dw !BASE_MEMORY-(InsDBEnd-i01Arpeggio)
     db $0B, $00
-    dw i01Pitchbend
+    dw !BASE_MEMORY-(InsDBEnd-i01Pitchbend)
     db $00, $00
 
 db !INS_NEW_HDR
@@ -283,15 +282,15 @@ db !INS_NEW_HDR
     .Header:
     db %00000000, %00000000
 
-    dw i02InsType
+    dw !BASE_MEMORY-(InsDBEnd-i02InsType)
     db $03, $01
-    dw i02Envelope
+    dw !BASE_MEMORY-(InsDBEnd-i02Envelope)
     db $04, $01
-    dw i02SmpPtr
+    dw !BASE_MEMORY-(InsDBEnd-i02SmpPtr)
     db $00, $00
-    dw i02Arpeggio
+    dw !BASE_MEMORY-(InsDBEnd-i02Arpeggio)
     db $03, $01
-    dw i02Pitchbend
+    dw !BASE_MEMORY-(InsDBEnd-i02Pitchbend)
     db $00, $00
 
 db !INS_DATA_END

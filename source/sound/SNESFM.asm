@@ -89,7 +89,8 @@ Documentation:
         ;   $0  |    |           |           |   Waiting for yo command
         ;   $1  |    |           |           |   Start sending data
         ;   $2  |    |           |           |   Got the data
-        ;   $3  |     20-bit tick counter    |   Currently playing song, here's what tick it is
+        ;   $3  |    |           |           |   Have started compiling instruments
+        ;   $4  |     20-bit tick counter    |   Currently playing song, here's what tick it is
         ;   $F  |    |           |           |   What? 
         ;       === To SPC: ===
         ;   Id  | P1 |    Pt2    |    Pt3    |   Meaning
@@ -220,7 +221,8 @@ InternalDefines:
         INSBLOCK_PTR_H  = $63
 
         INSDATA_OPCODE  = $64
-
+        
+        INSDATA_INS_CNT     = $69
         INSDATA_TMP_CNT     = $6A
         INSDATA_TMP_VALUE   = $6B
         INSDATA_TMP_PTR_0_L = $6C
@@ -614,13 +616,12 @@ namespace CompileInstruments
                 MOV A, Y    ; 0
                 LSR PUL_DUTY
                 ROL PUL_FLAGS
-                BCC +
-                    OR A, #$02
-                + LSR PUL_DUTY
+                ADC A, #$00
+                ASL A
+                LSR PUL_DUTY
                 ROL PUL_FLAGS
-                BCC +
-                    INC A
-                + AND PUL_FLAGS, #$FC
+                ADC A, #$00
+                AND PUL_FLAGS, #$FC
                 TSET PUL_FLAGS, A
 
                 MOV A, INSDATA_OPCODE
@@ -659,7 +660,38 @@ namespace CompileInstruments
         RET
     endif   ; !SNESFM_CFG_SAMPLE_GENERATE
 
-    NewInstrument: STOP
+    NewInstrument:
+        ; Adjust pointer
+        MOV A, #$EA     ;   Constant #$FFDE = -22
+        DEC Y           ;__
+        ADDW YA, INSDATA_TMP_PTR_0_L    ;
+        MOVW INSDATA_TMP_PTR_0_L, YA    ;__ Get pointer
+        MOV ByteTransferLoop+4, A       ;   Store it into lo byte of 2nd MOV
+        MOV ByteTransferLoop+5, Y       ;__ Store it into hi byte of 2nd MOV
+        MOV X, INSDATA_INS_CNT          ;
+        MOV InstrumentPtrLo+X, A        ;
+        MOV A, Y                        ;   Store it in instrument table 
+        MOV InstrumentPtrHi+X, A        ;
+        INC INSDATA_INS_CNT             ;__
+
+        MOVW YA, INSDATA_PTR_L
+        MOV ByteTransferLoop+1, A   ; Lo byte of 1st MOV
+        MOV ByteTransferLoop+2, Y   ; Hi byte of 1st MOV
+
+        MOV Y, #22-1
+        CALL ByteTransferLoop
+        ; Y is 0 after DBNZ
+        MOV A, (INSDATA_PTR_L)+Y
+        MOV (INSDATA_TMP_PTR_0_L)+Y, A
+
+        MOV A, #22
+        ADDW YA, INSDATA_PTR_L
+        MOVW INSDATA_PTR_L, YA
+
+        MOV Y, #$00
+
+        RET
+
         
     InstrumentRawDataBlock:
         MOV A, (INSDATA_PTR_L)+Y
@@ -676,6 +708,7 @@ namespace CompileInstruments
         MOV Y, #$50
         SUBW YA, INSDATA_TMP_PTR_0_L
         MOVW INSDATA_TMP_PTR_1_L, YA
+        MOVW INSBLOCK_PTR_L, YA
 
         DECW INSDATA_TMP_PTR_0_L
 
@@ -683,49 +716,52 @@ namespace CompileInstruments
 
         .BigLoop:
             MOVW YA, INSDATA_PTR_L
-            MOV InstrumentRawDataBlock_SmallLoop+1, A   ; Lo byte of 1st MOV
-            MOV InstrumentRawDataBlock_SmallLoop+2, Y   ; Hi byte of 1st MOV
+            MOV ByteTransferLoop+1, A   ; Lo byte of 1st MOV
+            MOV ByteTransferLoop+2, Y   ; Hi byte of 1st MOV
 
             MOVW YA, INSDATA_TMP_PTR_1_L
-            MOV InstrumentRawDataBlock_SmallLoop+4, A   ; Lo byte of 2nd MOV
-            MOV InstrumentRawDataBlock_SmallLoop+5, Y   ; Hi byte of 2nd MOV
+            MOV ByteTransferLoop+4, A   ; Lo byte of 2nd MOV
+            MOV ByteTransferLoop+5, Y   ; Hi byte of 2nd MOV
 
             DEC INSDATA_TMP_PTR_0_H
             BMI +
                 ; If >=$FF bytes left
                 MOV Y, #$00
-                CALL InstrumentRawDataBlock_SmallLoop
+                CALL ByteTransferLoop
                 INC INSDATA_PTR_H
                 INC INSDATA_TMP_PTR_1_H
                 JMP InstrumentRawDataBlock_BigLoop
 
             +:
                 MOV Y, INSDATA_TMP_PTR_0_L
-                CALL InstrumentRawDataBlock_SmallLoop
+                CALL ByteTransferLoop
                 ; Y is 0 after DBNZ
                 MOV A, (INSDATA_PTR_L)+Y
                 MOV (INSDATA_TMP_PTR_1_L)+Y, A
 
                 INCW INSDATA_TMP_PTR_0_L
+                INC INSDATA_TMP_PTR_0_H
                 MOV A, INSDATA_TMP_PTR_0_L
                 ADDW YA, INSDATA_PTR_L
                 MOVW INSDATA_PTR_L, YA
+
+                MOVW YA, INSBLOCK_PTR_L
+                MOVW INSDATA_TMP_PTR_0_L, YA
+
                 MOV Y, #$00
+                MOV INSDATA_INS_CNT, Y
                 RET
-            .SmallLoop:
-                MOV A, $1000+Y
-                MOV $4F00+Y, A
-                DBNZ Y, InstrumentRawDataBlock_SmallLoop
-            #RETJump:
-            RET
+        ByteTransferLoop:
+            MOV A, $1000+Y
+            MOV $4F00+Y, A
+            DBNZ Y, ByteTransferLoop
+        #RETJump:
+        RET
 
 
     End:
-        STOP
-
 namespace off
 Begin:
-
 
     MOV A, #$00
     MOV !TEMP_POINTER0_L, A
@@ -1384,9 +1420,10 @@ TransferDataBlock:
         MOVW TDB_TMP_PTR_L, YA
         MOV Y, #$00
         CALL WaitCPUMsg
+        PUSH A
         AND A, #$E0     ;   Both opcodes 4x and 5x
         CMP A, #$40     ;__ are valid
-        BNE TransferDataBlock_VeryEnd
+        BNE TransferDataBlock_POPA_RET
 
         MOV A, #$10
         CALL SendCPUMsg
@@ -1396,7 +1433,7 @@ TransferDataBlock:
         BEQ TransferDataBlock_End
 
         CMP A, #$90
-        BNE TransferDataBlock_VeryEnd
+        BNE TransferDataBlock_POPA_RET
         
         ; Push the 2 bytes where they need to be
         MOV A, $F6
@@ -1411,17 +1448,22 @@ TransferDataBlock:
         CALL SendCPUMsg
         JMP TransferDataBlock_GetWord
 
+    .POPA_RET
+        POP A : RET
+
     .End:
-        MOV A, Y
-        CALL SendCPUMsg
-    .VeryEnd:
-        RET
+        POP A
+        AND A, #$10
+        BNE SendCPUMsg
+        MOV A, #$30
+
 SendCPUMsg:
     ; Inputs:
     ; A - message ID
     MOV $F5, A
     MOV $F4, MESSAGE_CNT_TH1
     INC MESSAGE_CNT_TH1
+    .RETJump:
     RET
 
 WaitCPUMsg:

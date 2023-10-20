@@ -340,21 +340,35 @@ TurnOnScreen:
     REP !P_XY      ;set XY to 16bit
     LDA #$01
     STA MESSAGE_CNT_TH1
+    LDX #InstrumentData&$FFFF
+    STX $00
+    LDX #(InstrumentData_End-InstrumentData)
+    STX $03
+    LDA.b #bank(InstrumentData)
+    STA $02
+    LDA #$40
+    JSR SendSongSPC
 
+    JSR WaitMsgBase
+
+
+    LDX #SongData&$FFFF
+    STX $00
+    LDX #(SongData_End-SongData)
+    STX $03
+    LDA.b #bank(SongData)
+    STA $02
+    LDA #$50
+    JSR SendSongSPC
 
 
 ; Send "hey i have song data, ill send it"
 SendSongSPC:
     .Start:
-        LDA #$40
         JSR SendMsgBase
 
     .WaitForAffirmative:
         ; Prepare pointers while waiting anyway:
-            LDX #InstrumentData&$FFFF
-            STX $00
-            LDA.b #bank(InstrumentData)
-            STA $02
             LDY #$0000
         JSR WaitMsgBase
         CMP #$10    ; Verify that the response is affirmative:
@@ -377,7 +391,7 @@ SendSongSPC:
             DEY #2
             JMP SendSongSPC_SendBytes
         +   ; Compare if Y is finished
-            CPY #(InstrumentData_End-InstrumentData)
+            CPY $03
             BPL SendSongSPC_End
             JMP SendSongSPC_SendBytes
 
@@ -390,6 +404,7 @@ SendSongSPC:
     .End:
         LDA #$A0
         JSR SendMsgBase
+        RTS
 
 forever:
     WAI
@@ -415,6 +430,11 @@ WaitMsgBase:
 NMI_Routine:
     JML $800000|NMI_Routine_InFastROM         ;Take advantage of FastROM
     .InFastROM:
+    PHA
+    PHX
+    PHY
+    PHP
+
     REP !P_XY      ;set XY to 16bit
     SEP !P_A       ;set A to 8bit
     lda #$0F             ; = 00001111
@@ -448,6 +468,8 @@ NMI_Routine:
     sta $2100           ; Turn on screen, full brightness
 
     PLP
+    PLY
+    PLX
     PLA
     RTI 
 
