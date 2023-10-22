@@ -17,36 +17,59 @@ Configuration:
         ;__
         ;
     ; There are several configuration sections:
-        ; 1. Features ran before song playback
+        ; 1. Features of instrument generation
         ;__
 
     !SNESFM_CFG_EXTERNAL ?= 0
 
     if !SNESFM_CFG_EXTERNAL == 0
 
-    ;========== 1. Features ran before song playback ==========
+    ;========== 1. Features of instrument generation ==========
 
-        ; Whether to generate samples at all - the main gimmick of
-        ; this sound driver. Disabling this will disable all sample
-        ; generation capabilities. You will be responsible for
-        ; supplying all of the samples.
+        ; Whether to generate samples at all - the main gimmick
+        ; of this sound driver. Disabling this will disable all
+        ; sample generation capabilities and automatically
+        ; enable the ability to supply custom samples within
+        ; instrument data, which you will have to do.
         !SNESFM_CFG_SAMPLE_GENERATE = 1
 
-        ; Whether to generate phase modulated instruments - just
-        ; like on Yamaha chips. Not to be confused with hardware
-        ; pitch modulation.
+        ; Whether to generate phase modulated instruments - 
+        ; just like on Yamaha chips. Not to be confused with
+        ; hardware pitch modulation.
         !SNESFM_CFG_PHASEMOD = 1
 
         ; Whether to generate pulse wave samples.
         !SNESFM_CFG_PULSEGEN = 1
 
-        ; Whether to generate long samples (128 samples long, good
-        ; for bass).
+        ; Whether to generate long samples (128 sample points
+        ; long, good for higher quality in bass).
         !SNESFM_CFG_LONG_SMP_GEN = 1
 
-        ; Whether to generate short samples (32 samples long, the
-        ; only way to get high pitched instruments).
+        ; Whether to generate short samples (32 sample points
+        ; long, the only way to get high pitched instruments).
         !SNESFM_CFG_SHORTSMP_GEN = 1
+
+        ; Whether to be able to include custom samples from
+        ; instrument data. Automatically set if you don't set
+        ; it while disabling sample generation.
+        !SNESFM_CFG_INSDATA_CUSTOM_SAMPLES = 1
+
+        ; Amount of space for repeating opcode parameters in 
+        ; the instrument generation routine. Lesser values will
+        ; slightly reduce code size and execution time at the
+        ; cost of possibly increasing the size of instrument 
+        ; data. Can range from 0 to 4. Should be supplied by
+        ; the tool that compiled the instrument data. 
+        !SNESFM_CFG_INSGEN_REPEAT_AMOUNT = 4
+
+        ; Amount of space for doing arithmetic opcode
+        ; parameters in the instrument generation routine.
+        ; Lesser values will slightly reduce code size and
+        ; execution time at the cost of possibly increasing the
+        ; size of instrument data. Can range from 0 to 4.
+        ; Should be supplied by the tool that compiled the
+        ; instrument data. 
+        !SNESFM_CFG_INSGEN_ARITHMETIC_AMOUNT = 4
 
         ; Whether to generate pitch tables on the SPC700 itself.
         ; If disabled, you will be responsible for supplying the
@@ -159,7 +182,30 @@ InternalDefines:
         CH1_POINTER_1 = $0840
         CH1_POINTER_2 = $0880
         CH1_POINTER_3 = $08C0
+
+    ;Internal configuration
+
+        !SNESFM_CFG_SAMPLE_GENERATE ?= 0
+
+        !SNESFM_CFG_PHASEMOD ?= 0
+        !SNESFM_CFG_PULSEGEN ?= 0
+
+        !SNESFM_CFG_LONG_SMP_GEN ?= 0
+        !SNESFM_CFG_SHORTSMP_GEN ?= (!SNESFM_CFG_SAMPLE_GENERATE)&~(!SNESFM_CFG_LONG_SMP_GEN)
+
+        !SNESFM_CFG_BOTH_SMP_GEN ?= (!SNESFM_CFG_LONG_SMP_GEN)&(!SNESFM_CFG_SHORTSMP_GEN)
+
+        !SNESFM_CFG_PITCHTABLE_GEN ?= 0
+
+        !SNESFM_CFG_INSGEN_REPEAT_AMOUNT ?= 0
+        !SNESFM_CFG_INSGEN_ARITHMETIC_AMOUNT ?= 0
+
+        ; if !SNESFM_CFG_SAMPLE_GENERATE && ( ~(!SNESFM_CFG_LONG_SMP_GEN+!SNESFM_CFG_SHORTSMP_GEN) )
+        ;     error "You have specified to generate samples, but have specified to not generate short nor long samples. Pick one"
+        ; endif
+
     ;Temporary channel pointers during song playback
+
         CHTEMP_SONG_POINTER_L = $20
         CHTEMP_SONG_POINTER_H = $21
         CHTEMP_REF0_POINTER_L = $22
@@ -229,24 +275,6 @@ InternalDefines:
         INSDATA_TMP_PTR_0_H = $6D
         INSDATA_TMP_PTR_1_L = $6E
         INSDATA_TMP_PTR_1_H = $6F
-
-    ;Internal configuration
-
-        !SNESFM_CFG_SAMPLE_GENERATE ?= 0
-
-        !SNESFM_CFG_PHASEMOD ?= 0
-        !SNESFM_CFG_PULSEGEN ?= 0
-
-        !SNESFM_CFG_LONG_SMP_GEN ?= 0
-        !SNESFM_CFG_SHORTSMP_GEN ?= (!SNESFM_CFG_SAMPLE_GENERATE)&~(!SNESFM_CFG_LONG_SMP_GEN)
-
-        !SNESFM_CFG_BOTH_SMP_GEN ?= (!SNESFM_CFG_LONG_SMP_GEN)&(!SNESFM_CFG_SHORTSMP_GEN)
-
-        !SNESFM_CFG_PITCHTABLE_GEN ?= 0
-
-        ; if !SNESFM_CFG_SAMPLE_GENERATE && ( ~(!SNESFM_CFG_LONG_SMP_GEN+!SNESFM_CFG_SHORTSMP_GEN) )
-        ;     error "You have specified to generate samples, but have specified to not generate short nor long samples. Pick one"
-        ; endif
 
 warnings enable W1008
 ;
@@ -393,15 +421,22 @@ namespace CompileInstruments
 
         if !SNESFM_CFG_SAMPLE_GENERATE >= 1
 
-        MOV REPEAT_BITMASK+0, Y
-        MOV REPEAT_BITMASK+1, Y
-        MOV REPEAT_BITMASK+2, Y
-        MOV REPEAT_BITMASK+3, Y
-
-        MOV REPEAT_COUNTER+0, Y
-        MOV REPEAT_COUNTER+1, Y
-        MOV REPEAT_COUNTER+2, Y
-        MOV REPEAT_COUNTER+3, Y
+        if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
+            MOV REPEAT_BITMASK+0, Y
+            MOV REPEAT_COUNTER+0, Y
+        endif
+        if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 2
+            MOV REPEAT_BITMASK+1, Y
+            MOV REPEAT_COUNTER+1, Y
+        endif
+        if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 3
+            MOV REPEAT_BITMASK+2, Y
+            MOV REPEAT_COUNTER+2, Y
+        endiF
+        if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 4
+            MOV REPEAT_BITMASK+3, Y
+            MOV REPEAT_COUNTER+3, Y
+        endif
 
         endif   ; !SNESFM_CFG_SAMPLE_GENERATE
 
@@ -426,7 +461,9 @@ namespace CompileInstruments
         CLRC
         ADC INSDATA_TMP_CNT, #OPCODE_ARGUMENT
 
-        CALL RepeatBitmask
+        if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
+            CALL RepeatBitmask
+        endif
 
         MOV X, #OPCODE_ARGUMENT
 
@@ -493,27 +530,47 @@ namespace CompileInstruments
         dw NewInstrument, InstrumentRawDataBlock, End
 
     if !SNESFM_CFG_SAMPLE_GENERATE >= 1
+
+    if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
     RepeatBitmask:
-        MOV A, REPEAT_BITMASK+0
-        OR  A, REPEAT_BITMASK+1
-        OR  A, REPEAT_BITMASK+2
-        OR  A, REPEAT_BITMASK+3
-        MOV INSDATA_TMP_VALUE, A
+        if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 2
+            MOV A, REPEAT_BITMASK+0
+            OR  A, REPEAT_BITMASK+1
+            if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 3
+                OR  A, REPEAT_BITMASK+2
+                if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 4
+                    OR  A, REPEAT_BITMASK+3
+                endif   ; !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 4
+            endif ; !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 3
+            MOV INSDATA_TMP_VALUE, A
+        else    ; if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT == 1, then just copy the value
+            MOV INSDATA_TMP_VALUE, REPEAT_BITMASK+0
+        endif ; !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 2 
 
         DEC REPEAT_COUNTER+0
         BNE +
             MOV REPEAT_BITMASK+0, Y
-        + DEC REPEAT_COUNTER+1
-        BNE +
-            MOV REPEAT_BITMASK+1, Y
-        + DEC REPEAT_COUNTER+2
-        BNE +
-            MOV REPEAT_BITMASK+2, Y
-        + DEC REPEAT_COUNTER+3
-        BNE +
-            MOV REPEAT_BITMASK+3, Y
-        +
+        +:
+        if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 2
+            DEC REPEAT_COUNTER+1
+            BNE +
+                MOV REPEAT_BITMASK+1, Y
+            +:
+        endif
+        if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 3
+            DEC REPEAT_COUNTER+2
+            BNE +
+                MOV REPEAT_BITMASK+2, Y
+            +:
+        endif
+        if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 4
+            DEC REPEAT_COUNTER+3
+            BNE +
+                MOV REPEAT_BITMASK+3, Y
+            +:
+        endif
         RET
+    endif   ; !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
 
     CopyResample:
         MOV A, INSDATA_OPCODE
@@ -554,7 +611,9 @@ namespace CompileInstruments
         +
         INC INSDATA_OPCODE
 
-        CALL RepeatBitmask
+        if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
+            CALL RepeatBitmask
+        endif
 
         MOV X, #OPCODE_ARGUMENT+2
 
