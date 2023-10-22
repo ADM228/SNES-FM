@@ -1,5 +1,8 @@
 arch spc700-inline
 
+dpbase $0000
+optimize dp always
+
 namespace nested on
 namespace SPC
 
@@ -470,8 +473,10 @@ namespace CompileInstruments
 
     GetArguments:
         MOV A, (INSDATA_PTR_L)+Y
+        if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
         ASL INSDATA_TMP_VALUE
         BCS +
+        endif
             MOV (X), A
             INCW INSDATA_PTR_L
         + INC X
@@ -525,8 +530,13 @@ namespace CompileInstruments
             endif
             fill ($1A-1-$03)*2
             dw BRRGen
-            dw RETJump, ConserveArgs
-        endif
+            dw RETJump
+            if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
+                dw ConserveArgs
+            else
+                fill 2*1
+            endif
+        endif   ; !SNESFM_CFG_SAMPLE_GENERATE
         dw NewInstrument, InstrumentRawDataBlock, End
 
     if !SNESFM_CFG_SAMPLE_GENERATE >= 1
@@ -609,7 +619,7 @@ namespace CompileInstruments
         BPL +   ; If bit 7 is set in both the counter and the opcode it has 1 less argument
             INC INSDATA_TMP_CNT
         +
-        INC INSDATA_OPCODE
+        INC INSDATA_OPCODE  ; Set the opcode to its meta version
 
         if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
             CALL RepeatBitmask
@@ -617,20 +627,25 @@ namespace CompileInstruments
 
         MOV X, #OPCODE_ARGUMENT+2
 
+        if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
         ASL INSDATA_TMP_VALUE
         BCS +
+        endif
             MOV A, (INSDATA_PTR_L)+Y
             MOV OPCODE_ARGUMENT+0, A
             INCW INSDATA_PTR_L
+        if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
         + 
         ASL INSDATA_TMP_VALUE
         BCS ++
+        endif
             MOV A, OPCODE_ARGUMENT+0
             BBS6 INSDATA_OPCODE, +   ; Bit 6 is set, copy modulator from carrier
                 MOV A, (INSDATA_PTR_L)+Y
                 INCW INSDATA_PTR_L
             + MOV OPCODE_ARGUMENT+1, A
-        ++ JMP GetArguments
+        ++:
+        JMP GetArguments
 
     PhaseModPart2:
         MOV X, #OPCODE_ARGUMENT
