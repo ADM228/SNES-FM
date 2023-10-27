@@ -21,6 +21,7 @@ Configuration:
         ;
     ; There are several configuration sections:
         ; 1. Features of instrument generation
+        ; 2. Features of song playback
         ;__
 
     !SNESFM_CFG_EXTERNAL ?= 0
@@ -74,12 +75,14 @@ Configuration:
         ; instrument data. 
         !SNESFM_CFG_INSGEN_ARITHMETIC_AMOUNT = 4
 
-        ; Whether to generate pitch tables on the SPC700 itself.
-        ; If disabled, you will be responsible for supplying the
-        ; pitch table yourself (at location $0E00 - $0EBF, the
-        ; first 96 bytes being low bytes and the last 96 being
-        ; high bytes, the topmost note is a B7, close to the max
-        ; pitch on the SNES).
+    ;============== 2. Features of song playback ==============
+
+        ; Whether to generate pitch tables on the SPC700
+        ; itself. If disabled, you will be responsible for
+        ; supplying the pitch table yourself (at location
+        ; $0E00 - $0EBF, the first 96 bytes being low bytes and
+        ; the last 96 being high bytes, the topmost note is a
+        ; B7, close to the max pitch on the SNES).
         !SNESFM_CFG_PITCHTABLE_GEN = 1
 
     endif
@@ -325,19 +328,12 @@ Init:       ;init routine, totally not grabbed from tales of phantasia
 
     MOV $F2, #$6C   ;
     MOV $F3, #$BF   ;___
-    MOV Y, #$06     ;
-    -:              ;Wait 97.5 ms for some reason
-        MOV A, $FD  ;
-        BEQ -
-        DBNZ Y, -
-                    ;__
-    MOV A, #$00     ;
     MOV $F2, #$5C   ;   Key off on all channels
     MOV $F3, #$FF   ;__
     MOV $F2, #$2D   ;   Disable Hardware Pitchmod
-    MOV $F3, A      ;__
+    MOV $F3, Y      ;__
     MOV $F2, #$3D   ;   Disable Noise
-    MOV $F3, A      ;__
+    MOV $F3, Y      ;__
     CALL set_echoFIR
     MOV $F2, #$0C   ;
     MOV $F3, #$7F   ;   Set main volume to 127
@@ -935,6 +931,7 @@ namespace ParseSongData
         ;DEC A
         MOV CHTEMP_SONG_COUNTER, A
         BBS0 CHTEMP_FLAGS, DecrementReference
+        BCC ReadByte    ; C still in effect since the ADC, indicates that the driver is REALLY falling behind
         RET
 
     Inst_Section_HighBits:
@@ -942,7 +939,7 @@ namespace ParseSongData
         AND A, #$03
         BBC2 !TEMP_VALUE, Inst_HighBits   ; If it is setting the high bits, call the right routine
         AND CHTEMP_INSTRUMENT_SECTION_HIGHBITS, #$FC
-    -   TSET CHTEMP_INSTRUMENT_SECTION_HIGHBITS, A
+    --  TSET CHTEMP_INSTRUMENT_SECTION_HIGHBITS, A
         JMP ReadByte
 
     Note:
@@ -980,7 +977,7 @@ namespace ParseSongData
                 MOV $F2, #$4C       		;   Key on the needed channel
                 MOV $F3, !CHANNEL_BITMASK	;__ 
                 CLR4 CHTEMP_FLAGS           ;__ Do attack
-                JMP ReadByte
+            -   JMP ReadByte
 
 
 
@@ -992,6 +989,10 @@ namespace ParseSongData
         CLR0 CHTEMP_FLAGS
         MOV CHTEMP_SONG_POINTER_L, CHTEMP_REF0_POINTER_L
         MOV CHTEMP_SONG_POINTER_H, CHTEMP_REF0_POINTER_H
+        
+        CMP Y, CHTEMP_SONG_COUNTER
+        BPL -   ; Indicates that the driver is really falling behind
+
         RET
 
     Inst_HighBits:
@@ -999,7 +1000,7 @@ namespace ParseSongData
         ASL A
         ASL A
         AND CHTEMP_INSTRUMENT_SECTION_HIGHBITS, #$3F
-        JMP -
+        JMP --
 
 
     NoAttack:

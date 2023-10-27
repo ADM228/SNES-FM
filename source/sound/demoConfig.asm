@@ -12,11 +12,7 @@
     !SNESFM_CFG_INSGEN_ARITHMETIC_AMOUNT = 0
 
     !SNESFM_CFG_PITCHTABLE_GEN = 1
-    
+
     incsrc "SNESFM.asm"
 
-    namespace SPC
-
-    startpos Init
-
-    namespace off
+    startpos SPC_Init

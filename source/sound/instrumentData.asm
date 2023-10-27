@@ -117,8 +117,8 @@
         !PULSEGEN       = $03
 
         !BRRGEN         = $1A
-        !INS_NEW_HDR    = $1D
         !CONSERVE_ARGS  = $1C
+        !INS_NEW_HDR    = $1D
         !INS_DATA_BLOCK = $1E
         !INS_DATA_END   = $1F
     ;Instrument data internal parameters
