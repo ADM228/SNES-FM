@@ -2319,7 +2319,6 @@ ConvertToBRR:
                 MOV Y, #$04
         ..ShiftValuePart2:
             MOV A, BRR_MAXM0_L
-            CLRC
             -:
                 ASL A
                 BCS ConvertToBRR_BRREncoding_CheckIf8
@@ -2387,7 +2386,6 @@ ConvertToBRR:
         CMP Y, #$05
         BMI +
             -:
-                CLRC
                 LSR A
                 ROR BRR_CSMPT_L
                 DEC Y
@@ -2398,7 +2396,6 @@ ConvertToBRR:
             CMP Y, #$00
             BEQ +
             -:
-                CLRC
                 LSR A
                 DEC Y
                 BNE -

@@ -9,7 +9,7 @@ Configuration names are marked in `code`, !SNESFM_CFG is omitted from all of the
 ### `SAMPLE_GENERATE`
 
 - **0**: The basis, **+0** bytes;
-- **1**: **+522** bytes while also enabling other chunks of code.
+- **1**: **+519** bytes while also enabling other chunks of code.
 
 ### `SAMPLE_USE_FILTER1` (only applies if `SAMPLE_GENERATE` is set)
 
