@@ -37,6 +37,12 @@ Configuration:
         ; instrument data, which you will have to do.
         !SNESFM_CFG_SAMPLE_GENERATE = 1
 
+        ; Whether to be able to generate samples using BRR
+        ; filter mode 1. These samples have finer details, but
+        ; take longer to produce, and due to the rough nature
+        ; of the algorithm, may have some details wrong.
+        !SNESFM_CFG_SAMPLE_USE_FILTER1 = 1
+
         ; Whether to generate phase modulated instruments - 
         ; just like on Yamaha chips. Not to be confused with
         ; hardware pitch modulation.
@@ -192,6 +198,8 @@ InternalDefines:
     ;Internal configuration
 
         !SNESFM_CFG_SAMPLE_GENERATE ?= 0
+
+        !SNESFM_CFG_SAMPLE_USE_FILTER1 ?= 0
 
         !SNESFM_CFG_PHASEMOD ?= 0
         !SNESFM_CFG_PULSEGEN ?= 0
@@ -2152,19 +2160,10 @@ ConvertToBRR:
         MOV BRR_CSMPT_L, A              ;                               #
         INCW BRR_IN0_PTR_L              ;   Python code:                #
         MOV A, (BRR_IN0_PTR_L)+Y        ;   currentsmppoint = array[i]  #
-        MOV BRR_CSMPT_H, A              ;                               #
-        BPL +                           ;                               #
-            EOR A, #$FF                 ;   Invert negative numbers     #
-            EOR BRR_CSMPT_L, #$FF       ;__                             #
-        +:                              ;                               #
         INCW BRR_IN0_PTR_L              ;__                             #
-        CLRC                            ;   Python code:                #
-        LSR A                           ;   currentsmppoint /= 2        #   OG Python code:
-        ROR BRR_CSMPT_L                 ;__                             #   for i in range(len(BRRBuffer)):
-        BBC7 BRR_CSMPT_H, +             ;                               #       BRRBuffer[i] = (array[i&(length-1)])/2
-            EOR A, #$FF                 ;   Invert negative numbers     #
-            EOR BRR_CSMPT_L, #$FF       ;__                             #
-        +:                              ;                               #
+        CMP A, #$80                     ;   Python code:                #   OG Python code:
+        ROR A                           ;   currentsmppoint /= 2        #   for i in range(len(BRRBuffer)):
+        ROR BRR_CSMPT_L                 ;__ (ASR algo from cc65)        #       BRRBuffer[i] = (array[i&(length-1)])/2
         MOV BRR_CSMPT_H, A              ;                               #
         MOV A, BRR_CSMPT_L              ;                               #
         MOV (X+), A                     ;   Python code:                #
@@ -2172,31 +2171,36 @@ ConvertToBRR:
         MOV (X+), A                     ;                               #
         CMP X, #$40                     ;   Loop                        #
         BNE ConvertToBRR_CopyLoop   	;__                             #
-    .SetupFilter
-        BBS7 BRR_TEMP_FLAGS, ConvertToBRR_FirstBlock    ;   If this is the first block, Or filter 0 is forced,
-        BBS7 BRR_FLAGS, ConvertToBRR_FirstBlock         ;__ Skip doing filter 1 entirely   
-        MOV X, #$00
 
+        if !SNESFM_CFG_SAMPLE_USE_FILTER1 >= 1
+        .SetupFilter:
+            BBS7 BRR_TEMP_FLAGS, ConvertToBRR_FirstBlock    ;   If this is the first block, Or filter 0 is forced,
+            BBS7 BRR_FLAGS, ConvertToBRR_FirstBlock         ;__ Skip doing filter 1 entirely   
+            
+            MOV X, #$00
+            CLR4 BRR_TEMP_FLAGS
+            MOV BRR_SMPPT_L, BRR_LSMPT_L    ;   OG Python code:
+            MOV BRR_SMPPT_H, BRR_LSMPT_H    ;__ currentsmppoint = 0
+            BBC7 BRR_SMPPT_H, +        	    ;
+                SET4 BRR_TEMP_FLAGS         ;   Inverting negative numbers
+                EOR BRR_SMPPT_L, #$FF       ;
+                EOR BRR_SMPPT_H, #$FF       ;__     
+            +:
+            POP A
+            MOV BRR_CSMPT_H, A
+            POP A
+            MOV BRR_CSMPT_L, A
+            JMP ConvertToBRR_FilterLoop
+        endif   ; !SNESFM_CFG_SAMPLE_USE_FILTER1
 
-        CLR4 BRR_TEMP_FLAGS
-        MOV BRR_SMPPT_L, BRR_LSMPT_L    ;   OG Python code:
-        MOV BRR_SMPPT_H, BRR_LSMPT_H    ;__ currentsmppoint = 0
-        BBC7 BRR_SMPPT_H, +        	    ;
-            SET4 BRR_TEMP_FLAGS         ;   Inverting negative numbers
-            EOR BRR_SMPPT_L, #$FF       ;
-            EOR BRR_SMPPT_H, #$FF       ;__     
-        +:
-        POP A
-        MOV BRR_CSMPT_H, A
-        POP A
-        MOV BRR_CSMPT_L, A
-        JMP ConvertToBRR_FilterLoop
     .FirstBlock:
 
         MOV BRR_MAXM0_L, #$FF
         MOV BRR_MAXM0_H, #$7F
         MOV X, #$20
         JMP ConvertToBRR_BRREncoding_OuterLoop
+
+    if !SNESFM_CFG_SAMPLE_USE_FILTER1 >= 1
     .FilterLoop:
         MOV Y, BRR_SMPPT_L          ;                                       #
         MOV A, $0D00+Y              ;                                       #
@@ -2243,16 +2247,20 @@ ConvertToBRR:
     +   CMP X, #$20                 ;   Loop                                #
         BNE ConvertToBRR_FilterLoop ;__ 
     
-        MOV BRR_LSMPT_L, BRR_SMPPT_L
-        MOV BRR_LSMPT_H, BRR_SMPPT_H
+        MOVW YA, BRR_SMPPT_L
+        MOVW BRR_LSMPT_L, YA
         BBC4 BRR_TEMP_FLAGS, ConvertToBRR_BRREncoding
         EOR BRR_LSMPT_L, #$FF
         EOR BRR_LSMPT_H, #$FF
         CLR4 BRR_TEMP_FLAGS
 
+    endif   ; !SNESFM_CFG_SAMPLE_USE_FILTER1
+
     .BRREncoding:
-        SET6 BRR_TEMP_FLAGS
-        MOV X, #$00
+        if !SNESFM_CFG_SAMPLE_USE_FILTER1 >= 1
+            SET6 BRR_TEMP_FLAGS
+            MOV X, #$00
+        endif   ; !SNESFM_CFG_SAMPLE_USE_FILTER1
         ..OuterLoop:
             MOV A, (X+)   
             MOV BRR_SMPPT_L, A         
@@ -2279,20 +2287,24 @@ ConvertToBRR:
             MOV A, X
             AND A, #$1F
             BNE ConvertToBRR_BRREncoding_MaximumFilter1
-            CMP X, #$40
-            BEQ +
-                MOVW YA, BRR_SMPPT_L
-                MOVW BRR_MAXM0_L, YA
-                ;Set up the routine for maximum in the OG PCM buffer
-                JMP  ConvertToBRR_BRREncoding_OuterLoop
-            +:
-                MOV X, #$00
-                MOVW YA, BRR_SMPPT_L
-                CMPW YA, BRR_MAXM0_L
-                BPL ConvertToBRR_BRREncoding_ShiftValuePart1
-                MOVW BRR_MAXM0_L, YA
-                MOV X, #$20
-                CLR6 BRR_TEMP_FLAGS
+            if !SNESFM_CFG_SAMPLE_USE_FILTER1 >= 1
+                CMP X, #$40
+                BEQ +
+                    MOVW YA, BRR_SMPPT_L
+                    MOVW BRR_MAXM0_L, YA
+                    ;Set up the routine for maximum in the OG PCM buffer
+                    JMP  ConvertToBRR_BRREncoding_OuterLoop
+                +:
+                    MOV X, #$00
+                    MOVW YA, BRR_SMPPT_L
+                    CMPW YA, BRR_MAXM0_L
+                    BPL ConvertToBRR_BRREncoding_ShiftValuePart1
+                    CLR6 BRR_TEMP_FLAGS
+            else
+                    MOVW YA, BRR_SMPPT_L
+            endif   ; !SNESFM_CFG_SAMPLE_USE_FILTER1
+                    MOVW BRR_MAXM0_L, YA
+                    MOV X, #$20
         ..ShiftValuePart1:
             MOV Y, #12
             MOV A, BRR_MAXM0_H
@@ -2339,9 +2351,11 @@ ConvertToBRR:
             BNE +                           ;   Set the end flag if it's the last block
             OR A, #%00010000                ;__
         +:
-            MOV BRR_MAXM0_H, BRR_TEMP_FLAGS ;	Set the filter to 1
-            AND BRR_MAXM0_H, #%01000000     ;   if appropriate
-            OR A, BRR_MAXM0_H               ;__
+            if !SNESFM_CFG_SAMPLE_USE_FILTER1 >= 1
+                MOV BRR_MAXM0_H, BRR_TEMP_FLAGS ;	Set the filter to 1
+                AND BRR_MAXM0_H, #%01000000     ;   if appropriate
+                OR A, BRR_MAXM0_H               ;__
+            endif   ; !SNESFM_CFG_SAMPLE_USE_FILTER1
             XCN A                           ;__ Swap the nybbles to make a valid header
             MOV Y, #$00                     ;
             MOV (BRR_OUT_PTR_L)+Y, A        ;   Write the header out
@@ -2419,21 +2433,25 @@ ConvertToBRR:
         CLR7 BRR_TEMP_FLAGS
         CMP BRR_END_PTR_L, BRR_IN0_PTR_L;   If this is the last block, end
         BEQ ConvertToBRR_End        	;__   
-        BBS7 BRR_FLAGS, ++              ;
-        +   CMP X, #$20                     ;   
-            BNE +                           ;   If we just used filter mode 1, 
-            MOV A, $1E                      ;
-            PUSH A                          ;   currentsmppoint = BRRBuffer[last]
-            MOV A, $1F                      ;
-            PUSH A                          ;__
-        ++  JMP ConvertToBRR_SetupCopy
-        +:                                  ;   If we just used filter mode 0,   
-            MOV BRR_LSMPT_L, $3E            ;   smppoint = BRRBuffer[last]
-            MOV BRR_LSMPT_H, $3F            ;__
-            MOV A, #$00                     ;
-            PUSH A                          ;   currentsmppoint = 0
-            PUSH A                          ;__
+        if !SNESFM_CFG_SAMPLE_USE_FILTER1 >= 1
+            BBS7 BRR_FLAGS, ++
+            +   CMP X, #$20                     ;   
+                BNE +                           ;
+                MOV A, $1E                      ;   If we just used filter mode 1, 
+                PUSH A                          ;   currentsmppoint = BRRBuffer[last]
+                MOV A, $1F                      ;
+                PUSH A                          ;__
+            ++  JMP ConvertToBRR_SetupCopy
+            +:                                  ;   If we just used filter mode 0,   
+                MOV BRR_LSMPT_L, $3E            ;   smppoint = BRRBuffer[last]
+                MOV BRR_LSMPT_H, $3F            ;__
+                MOV A, #$00                     ;
+                PUSH A                          ;   currentsmppoint = 0
+                PUSH A                          ;__
+                JMP ConvertToBRR_SetupCopy
+        else
             JMP ConvertToBRR_SetupCopy
+        endif   ; !SNESFM_CFG_SAMPLE_USE_FILTER1
     .End:
     RET
 

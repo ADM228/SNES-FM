@@ -4,12 +4,17 @@ It's a pretty big question to solve considering how configurable SNESFM is. So h
 
 ## Usage by configuration options
 
-Configuration names are marked in `code`, !SNESFM_CFG is omitted from all of them
+Configuration names are marked in `code`, !SNESFM_CFG is omitted from all of them.
 
 ### `SAMPLE_GENERATE`
 
 - **0**: The basis, **+0** bytes;
-- **1**: **+738** bytes while also enabling other chunks of code.
+- **1**: **+522** bytes while also enabling other chunks of code.
+
+### `SAMPLE_USE_FILTER1` (only applies if `SAMPLE_GENERATE` is set)
+
+- **0**: The basis, **+0** bytes;
+- **1**: **+193** bytes.
 
 ### `LONG_SMP_GEN` (only applies if `SAMPLE_GENERATE` is set)
 
