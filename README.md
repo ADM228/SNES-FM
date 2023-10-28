@@ -46,9 +46,13 @@ SNES-FM is a frequency modulation synthesis engine/sound driver for the SNES (or
 - Miracle Piano Teaching System keyboard support (up to 4 (maybe 8 if additional buttons)) (if anyone i know gets one)
 - XBAND ASCII keyboard support (up to 2)
 
+## Building
+
+This project is made and compiled with the [asar](https://github.com/rpghacker/asar) SNES compiler. On Linux you build it with `make`, and there is no separate process for building on Windows, so just use e.g. [winmake](https://gnuwin32.sourceforge.net/packages/make.htm) to build it with the same makefile. If you want use other compilers in your project, you're sorta in luck as asar (somehow) can build a binary file of just SNES-FM (in N-SPC format). To do that, call `make SNESFM`, and you will end up with an `SNESFM.bin` file in the `bin` directory.
+
 ## Usage in your projects
 
-This project is very much incomplete so i can't exactly recommend using it yet, but if you really need to, it is licensed under the zlib license, a copy of which is [included with the project](LICENSE). The usage statistics can be found in [this document](usage.md) (currently WIP to include every config setting).
+This project is very much incomplete so i can't exactly recommend using it yet, but if you really need to, it is licensed under the zlib license, a copy of which is [included with the project](LICENSE). The code size statistics depending on compile options can be found in [this document](docs/usage.md).
 
 ## Development & testing
 
