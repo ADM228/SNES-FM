@@ -9,7 +9,7 @@ Configuration names are marked in `code`, !SNESFM_CFG is omitted from all of the
 ### `SAMPLE_GENERATE`
 
 - **0**: The basis, **+0** bytes;
-- **1**: **+519** bytes while also enabling other chunks of code.
+- **1**: **+520** bytes while also enabling other chunks of code.
 
 ### `SAMPLE_USE_FILTER1` (only applies if `SAMPLE_GENERATE` is set)
 
@@ -19,7 +19,7 @@ Configuration names are marked in `code`, !SNESFM_CFG is omitted from all of the
 ### `LONG_SMP_GEN` (only applies if `SAMPLE_GENERATE` is set)
 
 - **0**: The basis, **+0** bytes;
-- **1**: **+44** bytes while also enabling other chunks of code.
+- **1**: **+48** bytes while also enabling other chunks of code.
 
 ### `PHASEMOD` (only applies if `SAMPLE_GENERATE` is set)
 
@@ -40,10 +40,10 @@ Configuration names are marked in `code`, !SNESFM_CFG is omitted from all of the
 ### `INSGEN_REPEAT_AMOUNT` (only applies if `SAMPLE_GENERATE` is set)
 
 - **0**: The basis, **+0** bytes;
-- **1**: **+21** bytes, and an additional +11 bytes if `PHASEMOD` is also set, resulting in **+32** bytes;
-- **2**: **+34** and **+45** bytes respectively;
-- **3**: **+46** and **+57** bytes respectively;
-- **4**: **+58** and **+69** (nice) bytes respectively.
+- **1**: **+20** bytes, and an additional +11 bytes if `PHASEMOD` is also set, resulting in **+31** bytes;
+- **2**: **+33** and **+44** bytes respectively;
+- **3**: **+39** and **+50** bytes respectively;
+- **4**: **+45** and **+56** bytes respectively.
 
 ### `PITCHTABLE_GEN`
 

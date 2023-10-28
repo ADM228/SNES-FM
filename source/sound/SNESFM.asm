@@ -111,8 +111,7 @@ Documentation:
         ;   $0E         $00 - $BF: Pitch table, 96 entries long
         ;   |__ _ _ _ _ $C0 - $C8: Dummy empty sample (for beginnings and noise)
         ;   $0F _ _ _ _ Sine table, only $0F00-$0F42 is written, everything else is calculated
-        ;   $10-$1F _ _ Instrument data      \_ Combined for
-        ;   $20-$4F _ _ FM generation buffers/  song data   (16KB!!!!)
+        ;   $10-$4F _ _ FM generation buffers, Instrument data (at the end)
         ;   $50-$5F _ _ Code
         ;   $60-$FE _ _ Actual sample storage, echo buffer (separated depending on the delay & amount of samples)
         ;   $FF         $00 - $BF: Hardsync routine (here for use with PCALL to save 2 cycles)
@@ -561,28 +560,28 @@ namespace CompileInstruments
             MOV INSDATA_TMP_VALUE, REPEAT_BITMASK+0
         endif ; !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 2 
 
-        DEC REPEAT_COUNTER+0
-        BNE +
-            MOV REPEAT_BITMASK+0, Y
-        +:
-        if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 2
-            DEC REPEAT_COUNTER+1
-            BNE +
-                MOV REPEAT_BITMASK+1, Y
-            +:
-        endif
         if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 3
-            DEC REPEAT_COUNTER+2
+            MOV Y, #!SNESFM_CFG_INSGEN_REPEAT_AMOUNT
+            MOV X, #$00
+            -   DEC REPEAT_COUNTER-1+Y
+                BNE +
+                    MOV REPEAT_BITMASK-1+Y, X
+                + DBNZ Y, -
+            ; After DBNZ, Y is 0
+        else
+            ; This code alone takes 6 bytes less than the loop
+            DEC REPEAT_COUNTER+0
             BNE +
-                MOV REPEAT_BITMASK+2, Y
+                MOV REPEAT_BITMASK+0, Y
             +:
-        endif
-        if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 4
-            DEC REPEAT_COUNTER+3
-            BNE +
-                MOV REPEAT_BITMASK+3, Y
-            +:
-        endif
+            if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 2
+                ; This code is the same size, but runs faster than the loop
+                DEC REPEAT_COUNTER+1
+                BNE +
+                    MOV REPEAT_BITMASK+1, Y
+                +:
+            endif   ; !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 2
+        endif   ; !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 3
         RET
     endif   ; !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
 
@@ -607,6 +606,7 @@ namespace CompileInstruments
             MOVW YA, OPCODE_ARGUMENT+0
             MOVW LTS_IN_PAGE, YA
             CALL SPC_LongToShort
+            MOV Y, #$00
             RET
 
     CopyArguments:
@@ -718,8 +718,7 @@ namespace CompileInstruments
         CALL CopyArguments
         BBC7 INSDATA_OPCODE, +  ;   Ironically this takes the same cycles as MOV1
             OR BRR_FLAGS, #$10  ;__ when it sets the bit, and 3 less if it doesn't
-        + CALL SPC_ConvertToBRR
-        RET
+        + JMP SPC_ConvertToBRR  ;__ = CALL : RET
 
     ConserveArgs: 
         MOV A, INSDATA_OPCODE   ;
@@ -2047,40 +2046,39 @@ LongToShort:
         ;       $D2 - Subpage number: ll------
         ;           ll - subpage number
         ;   Temp variables:
-        ;       $EC-ED - Input pointer
-        ;       $EE-EF - Output pointer
+        ;       None lmfao
     .Labels:
         LTS_IN_PAGE     = $D0
         LTS_OUT_PAGE    = $D1
         LTS_OUT_SUBPAGE = $D2
-
-        LTS_IN_PTR_L    = $EC
-        LTS_IN_PTR_H    = $ED
-        LTS_OUT_PTR_L   = $EE
-        LTS_OUT_PTR_H   = $EF
     .Start:
-        MOV X, #$00
-        MOV Y, #$20
-        MOV LTS_IN_PTR_H, LTS_IN_PAGE
-        MOV LTS_OUT_PTR_H, LTS_OUT_PAGE
-        MOV LTS_IN_PTR_L, #$F9
+        MOV A, LTS_IN_PAGE
+        MOV LongToShort_Loop+2, A       ; High byte of 1st IN MOV
+        MOV LongToShort_Loop+3+3+2, A   ; High byte of 2nd IN MOV
+        MOV A, LTS_OUT_PAGE
+        MOV LongToShort_Loop+3+2, A     ; High byte of 1st OUT MOV
+        MOV LongToShort_Loop+3+3+3+2, A ; High byte of 2nd OUT MOV
+
+        MOV Y, #$F8
+
         MOV A, LTS_OUT_SUBPAGE
         CLRC
-        ADC A, #$3F
-        MOV LTS_OUT_PTR_L, A
-        -:
-            MOV A, (LTS_IN_PTR_L+X)     ;   Copy high byte
-            MOV (LTS_OUT_PTR_L+X), A    ;__
-            DEC LTS_IN_PTR_L
-            DEC LTS_OUT_PTR_L
-            MOV A, (LTS_IN_PTR_L+X)     ;   Copy low byte
-            MOV (LTS_OUT_PTR_L+X), A    ;__
-            DEC LTS_OUT_PTR_L
-            MOV A, LTS_IN_PTR_L
-            SETC
-            SBC A, #$07
-            MOV LTS_IN_PTR_L, A
-            DBNZ Y, -
+        ADC A, #$3E
+        MOV X, A
+
+    .Loop:
+        MOV A, $2001+Y              ;   Copy high byte
+        MOV $2001+X, A              ;__
+        MOV A, $2000+Y              ;   Copy low byte
+        MOV $2000+X, A              ;__
+        DEC X : DEC X
+        MOV A, Y
+        SETC
+        SBC A, #$08
+        MOV Y, A
+        CMP Y, #$F8
+        BNE LongToShort_Loop
+    .End:
         RET
 
 endif   ; !SNESFM_CFG_LONG_SMP_GEN
