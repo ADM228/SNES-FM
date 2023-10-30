@@ -197,16 +197,29 @@ InternalDefines:
     ;Internal configuration
 
         !SNESFM_CFG_SAMPLE_GENERATE ?= 0
-
         !SNESFM_CFG_SAMPLE_USE_FILTER1 ?= 0
-
-        !SNESFM_CFG_PHASEMOD ?= 0
-        !SNESFM_CFG_PULSEGEN ?= 0
 
         !SNESFM_CFG_LONG_SMP_GEN ?= 0
         !SNESFM_CFG_SHORTSMP_GEN ?= (!SNESFM_CFG_SAMPLE_GENERATE)&~(!SNESFM_CFG_LONG_SMP_GEN)
-
         !SNESFM_CFG_BOTH_SMP_GEN ?= (!SNESFM_CFG_LONG_SMP_GEN)&(!SNESFM_CFG_SHORTSMP_GEN)
+
+        if not(defined("SNESFM_CFG_PHASEMOD_BOTH")) && not(defined("SNESFM_CFG_PHASEMOD_LONG")) && (not(defined("SNESFM_CFG_PHASEMOD_SHORT")))
+            !SNESFM_CFG_PHASEMOD ?= 0
+        endif
+        !SNESFM_CFG_PHASEMOD_BOTH ?= (!SNESFM_CFG_PHASEMOD&!SNESFM_CFG_BOTH_SMP_GEN)
+        !SNESFM_CFG_PHASEMOD_LONG ?= (!SNESFM_CFG_PHASEMOD&!SNESFM_CFG_LONG_SMP_GEN)|!SNESFM_CFG_PHASEMOD_BOTH
+        !SNESFM_CFG_PHASEMOD_SHORT ?= (!SNESFM_CFG_PHASEMOD&!SNESFM_CFG_SHORTSMP_GEN)|!SNESFM_CFG_PHASEMOD_BOTH
+        !SNESFM_CFG_PHASEMOD ?= !SNESFM_CFG_PHASEMOD_BOTH|!SNESFM_CFG_PHASEMOD_LONG|!SNESFM_CFG_PHASEMOD_SHORT
+
+        if not(defined("SNESFM_CFG_PULSEGEN_BOTH")) && not(defined("SNESFM_CFG_PULSEGEN_LONG")) && (not(defined("SNESFM_CFG_PULSEGEN_SHORT")))
+            !SNESFM_CFG_PULSEGEN ?= 0
+        endif
+        !SNESFM_CFG_PULSEGEN_BOTH ?= (!SNESFM_CFG_PULSEGEN&!SNESFM_CFG_BOTH_SMP_GEN)
+        !SNESFM_CFG_PULSEGEN_LONG ?= (!SNESFM_CFG_PULSEGEN&!SNESFM_CFG_LONG_SMP_GEN)|!SNESFM_CFG_PULSEGEN_BOTH
+        !SNESFM_CFG_PULSEGEN_SHORT ?= (!SNESFM_CFG_PULSEGEN&!SNESFM_CFG_SHORTSMP_GEN)|!SNESFM_CFG_PULSEGEN_BOTH
+        !SNESFM_CFG_PULSEGEN ?= !SNESFM_CFG_PULSEGEN_BOTH|!SNESFM_CFG_PULSEGEN_LONG|!SNESFM_CFG_PULSEGEN_SHORT
+
+        !SNESFM_CFG_RESAMPLE ?= !SNESFM_CFG_BOTH_SMP_GEN
 
         !SNESFM_CFG_PITCHTABLE_GEN ?= 0
 
@@ -586,8 +599,10 @@ namespace CompileInstruments
     endif   ; !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
 
     CopyResample:
-        MOV A, INSDATA_OPCODE
-        BMI CopyResample_Resample
+        if !SNESFM_CFG_RESAMPLE >= 1
+            MOV A, INSDATA_OPCODE
+            BMI CopyResample_Resample
+        endif
         MOV A, OPCODE_ARGUMENT+0        ;   Self-modifying code is
         MOV CopyResample_CopyLoop+2, A  ;   faster than (dp)+Y
         MOV A, OPCODE_ARGUMENT+1        ;   (8 cycles vs 2*256 cycles)
@@ -599,6 +614,7 @@ namespace CompileInstruments
             DBNZ Y, CopyResample_CopyLoop
         RET
 
+        if !SNESFM_CFG_RESAMPLE >= 1
         .Resample:
             ASL A
             AND A, #$C0
@@ -608,6 +624,7 @@ namespace CompileInstruments
             CALL SPC_LongToShort
             MOV Y, #$00
             RET
+        endif
 
     CopyArguments:
         MOV A, (X+)
@@ -654,7 +671,7 @@ namespace CompileInstruments
     PhaseModPart2:
         MOV X, #OPCODE_ARGUMENT
         CALL CopyArguments
-        if !SNESFM_CFG_BOTH_SMP_GEN >= 1
+        if !SNESFM_CFG_PHASEMOD_BOTH >= 1
             BBS7 INSDATA_OPCODE, +
                 CALL SPC_PhaseModulation_128
                 MOV Y, #$00
@@ -662,11 +679,11 @@ namespace CompileInstruments
             +   CALL SPC_PhaseModulation_32
                 MOV Y, #$00
                 RET
-        elseif !SNESFM_CFG_LONG_SMP_GEN >= 1
+        elseif !SNESFM_CFG_PHASEMOD_LONG >= 1
             CALL SPC_PhaseModulation_128
             MOV Y, #$00
             RET
-        else
+        elseif !SNESFM_CFG_PHASEMOD_SHORT >= 1
             CALL SPC_PhaseModulation_32
             MOV Y, #$00
             RET
@@ -678,19 +695,19 @@ namespace CompileInstruments
         MOV X, #OPCODE_ARGUMENT
         CALL CopyArguments
 
-        if !SNESFM_CFG_BOTH_SMP_GEN >= 1
+        if !SNESFM_CFG_PULSEGEN_BOTH >= 1
             MOV A, INSDATA_OPCODE
             BMI +
         endif
-        if !SNESFM_CFG_BOTH_SMP_GEN+!SNESFM_CFG_LONG_SMP_GEN >= 1
+        if !SNESFM_CFG_PULSEGEN_BOTH+!SNESFM_CFG_PULSEGEN_LONG >= 1
                 CALL SPC_GeneratePulse_128
                 DEC Y   ; Y is always 1
                 RET
         endif
-        if !SNESFM_CFG_BOTH_SMP_GEN >= 1
+        if !SNESFM_CFG_PULSEGEN_BOTH >= 1
             +:
         endif
-        if !SNESFM_CFG_BOTH_SMP_GEN+!SNESFM_CFG_SHORTSMP_GEN >= 1
+        if !SNESFM_CFG_PULSEGEN_BOTH+!SNESFM_CFG_PULSEGEN_SHORT >= 1
                 MOV A, Y    ; 0
                 LSR PUL_DUTY
                 ROL PUL_FLAGS
@@ -1596,8 +1613,9 @@ PulseGenLabels:
 
     PUL_OUT_PTR_L   = $EE
     PUL_OUT_PTR_H   = $EF
-;
-if !SNESFM_CFG_LONG_SMP_GEN >= 1
+endif   ; !SNESFM_CFG_PULSEGEN 
+
+if !SNESFM_CFG_PULSEGEN_LONG >= 1
 GeneratePulse_128:
     .Documentation:
         ;   Memory allocation:
@@ -1706,9 +1724,9 @@ GeneratePulse_128:
     +:
     RET
 
-endif   ; !SNESFM_CFG_LONG_SMP_GEN
+endif   ; !SNESFM_CFG_PULSEGEN_LONG
 
-if !SNESFM_CFG_SHORTSMP_GEN >= 1
+if !SNESFM_CFG_PULSEGEN_SHORT >= 1
 GeneratePulse_32:
     ;   Memory allocation:
     ;   Inputs:
@@ -1820,9 +1838,8 @@ GeneratePulse_32:
         BNE -
     RET
 
-endif   ; !SNESFM_CFG_SHORTSMP_GEN
+endif   ; !SNESFM_CFG_PULSEGEN_SHORT
 
-endif   ; !SNESFM_CFG_PULSEGEN 
 
 if !SNESFM_CFG_PHASEMOD >= 1
 PhaseModulation_Labels:
@@ -1838,8 +1855,10 @@ PhaseModulation_Labels:
     MOD_MOD_INDEX_H     = $ED
     MOD_MAIN_TEMP_L     = $EE
     MOD_MAIN_TEMP_H     = $EF
-;
-if !SNESFM_CFG_LONG_SMP_GEN >= 1
+
+endif   ; !SNESFM_CFG_PHASEMOD
+
+if !SNESFM_CFG_PHASEMOD_LONG >= 1
 PhaseModulation_128:
     .Documentation:
         ;   Memory allocation:
@@ -1921,9 +1940,9 @@ PhaseModulation_128:
         BNE PhaseModulation_128_loop
     RET
 
-endif   ; !SNESFM_CFG_LONG_SMP_GEN
+endif   ; !SNESFM_CFG_PHASEMOD_LONG
 
-if !SNESFM_CFG_SHORTSMP_GEN >= 1
+if !SNESFM_CFG_PHASEMOD_SHORT >= 1
 PhaseModulation_32:
     .Documentation:
         ;   Memory allocation:
@@ -2032,11 +2051,11 @@ PhaseModulation_32:
         BNE PhaseModulation_32_loop
     RET
 
-endif   ; !SNESFM_CFG_SHORTSMP_GEN
+endif   ; !SNESFM_CFG_PHASEMOD_SHORT
 
-endif   ; !SNESFM_CFG_PHASEMOD
 
-if !SNESFM_CFG_LONG_SMP_GEN >= 1
+
+if !SNESFM_CFG_RESAMPLE >= 1
 LongToShort:
     .Documentation:
         ;   Memory allocation:
@@ -2081,7 +2100,7 @@ LongToShort:
     .End:
         RET
 
-endif   ; !SNESFM_CFG_LONG_SMP_GEN
+endif   ; !SNESFM_CFG_RESAMPLE
 
 ConvertToBRR:
     .Documentation:

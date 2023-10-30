@@ -52,7 +52,7 @@ This project is made and compiled with the [asar](https://github.com/rpghacker/a
 
 ## Usage in your projects
 
-This project is very much incomplete so i can't exactly recommend using it yet, but if you really need to, it is licensed under the zlib license, a copy of which is [included with the project](LICENSE). The code size statistics depending on compile options can be found in [this document](docs/usage.md).
+This project is very much incomplete so i can't exactly recommend using it yet, but if you really need to, it is licensed under the zlib license, a copy of which is [included with the project](LICENSE). The configuration guide can be found [here](docs/configuration.md).
 
 ## Development & testing
 
