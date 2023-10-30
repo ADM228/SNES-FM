@@ -905,7 +905,7 @@ Begin:
     MOV $F3, #$20
 
     MOV A, $FD
-    JMP mainLoop_00
+    JMP MainLoop_WaitLoop
 
 
 namespace ParseSongData
@@ -1171,13 +1171,34 @@ namespace ParseSongData
 
 namespace off
 
-mainLoop:
-    .00:
+MainLoop:
+    .WaitLoop:
         MOV !TIMER_VALUE, $FD
         MOV A, !TIMER_VALUE
-        BEQ mainLoop_00
-    .01:
-        TCALL 15
+        BEQ MainLoop_WaitLoop
+    .Action:
+    .transferChToTemp:
+        MOV A, X
+        CLRC
+        ADC A, #$08
+        MOV Y, A
+
+        MOV X, #$08
+        -:
+            MOV A, CH1_POINTER_0-1+Y
+            MOV CHTEMP_POINTER_0-1+X, A
+            MOV A, CH1_POINTER_1-1+Y
+            MOV CHTEMP_POINTER_1-1+X, A
+            MOV A, CH1_POINTER_2-1+Y
+            MOV CHTEMP_POINTER_2-1+X, A
+            MOV A, CH1_POINTER_3-1+Y
+            MOV CHTEMP_POINTER_3-1+X, A
+            DEC Y
+            DEC X
+            BNE -
+        MOV A, Y        ;   Saves 2 cycles compared 
+        MOV X, A        ;__ to PUSH X : POP X
+
         ; CALL UpdateEffects
         ; SETC
         ; SBC CHTEMP_EFFECT_COUNTER, !TIMER_VALUE
@@ -1190,18 +1211,37 @@ mainLoop:
         CALL ParseSongData_Start
     +:
         CALL ParseInstrumentData_Start
-        TCALL 14    ;Transfer shit back
+
+    .transferTempToCh:
         MOV A, X
         CLRC
-        ADC A, #$08
-        ; There is no way in hell the carry should be set here
+        ADC A, #$10     ; Removes the need for a Second Addition (saves 2 cycles)
+        MOV Y, A
+
+        MOV X, #$08
+        -:
+            MOV A, CHTEMP_POINTER_0-1+X
+            MOV CH1_POINTER_0-1-8+Y, A
+            MOV A, CHTEMP_POINTER_1-1+X
+            MOV CH1_POINTER_1-1-8+Y, A
+            MOV A, CHTEMP_POINTER_2-1+X
+            MOV CH1_POINTER_2-1-8+Y, A
+            MOV A, CHTEMP_POINTER_3-1+X
+            MOV CH1_POINTER_3-1-8+Y, A
+            DEC Y
+            DEC X
+            BNE -
+        MOV A, Y        ;   Saves 8 cycles compared to PUSH X : POP X : MOV A, X
+    .GoToNextChannel:
+        CLRC
         ADC !CHANNEL_REGISTER_INDEX, #$10
         MOV X, A
         ASL !CHANNEL_BITMASK
-        BNE mainLoop_01
+        BNE MainLoop_Action
+
         MOV X, #$00
         INC !CHANNEL_BITMASK
-        JMP mainLoop_00
+        JMP MainLoop_WaitLoop
 
 namespace ParseInstrumentData
     Start:
@@ -1396,7 +1436,7 @@ namespace ParseInstrumentData
             MOV A, CHTEMP_INSTRUMENT_TYPE		;
             AND A, #$40                         ;
             OR A, $EF                           ;
-            TCALL 13                            ;
+            TCALL 15                            ;
             MOVW CHTEMP_SAMPLE_POINTER_L, YA	;
             MOV Y, #$00                         ;
             JMP ++			                    ;__
@@ -2166,7 +2206,7 @@ ConvertToBRR:
         MOV Y, BRR_OUT_INDEX            ;
         MOV A, BRR_FLAGS                ;
         AND A, #$23                     ;   Get the sample pointer from index
-        TCALL 13                        ;
+        TCALL 15                        ;
         MOVW BRR_OUT_PTR_L, YA          ;__
 
     .SetupCopy:
@@ -2584,62 +2624,7 @@ GeneratePitchTable:
 
 endif   ; !SNESFM_CFG_PITCHTABLE_GEN
 
-transferChToTemp:       ;TCALL 15
-    PUSH A
-    PUSH X
-
-    MOV A, X
-    CLRC
-    ADC A, #$07
-    MOV Y, A
-
-    MOV X, #$07
-    -:
-        MOV A, CH1_POINTER_0+Y
-        MOV CHTEMP_POINTER_0+X, A
-        MOV A, CH1_POINTER_1+Y
-        MOV CHTEMP_POINTER_1+X, A
-        MOV A, CH1_POINTER_2+Y
-        MOV CHTEMP_POINTER_2+X, A
-        MOV A, CH1_POINTER_3+Y
-        MOV CHTEMP_POINTER_3+X, A
-        DEC Y
-        DEC X
-        BPL -
-
-    POP X
-    POP A
-    RET
-
-transferTempToCh:       ;TCALL 14
-    PUSH A
-    PUSH X
-
-
-    MOV A, X
-    CLRC
-    ADC A, #$07
-    MOV Y, A
-
-    MOV X, #$07
-    -:
-        MOV A, CHTEMP_POINTER_0+X
-        MOV CH1_POINTER_0+Y, A
-        MOV A, CHTEMP_POINTER_1+X
-        MOV CH1_POINTER_1+Y, A
-        MOV A, CHTEMP_POINTER_2+X
-        MOV CH1_POINTER_2+Y, A
-        MOV A, CHTEMP_POINTER_3+X
-        MOV CH1_POINTER_3+Y, A
-        DEC Y
-        DEC X
-        BPL -
-
-    POP X
-    POP A
-    RET
-
-IndexToSamplePointer:   ;TCALL 13
+IndexToSamplePointer:   ;TCALL 15
     ;   Memory allocation:
     ;   Inputs:
     ;       Y - Sample index
@@ -2706,7 +2691,7 @@ Includes:
         incbin "quartersinetable.bin"
 
     org $FFC0   ;For TCALLs
-        dw transferChToTemp, transferTempToCh, IndexToSamplePointer
+        dw IndexToSamplePointer
 
     ParseInstrumentData_InstrumentPtrLo = $0A00
     ParseInstrumentData_InstrumentPtrHi = $0B00
