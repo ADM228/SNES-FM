@@ -20,15 +20,17 @@ Configuration:
         ;__
         ;
     ; There are several configuration sections:
-        ; 1. Features of instrument generation
-        ; 2. Features of song playback
+        ; 1. General sample generation options
+        ; 2. Phase modulation options
+        ; 3. Pulse generation options
+        ; 4. Other generation options
         ;__
 
     !SNESFM_CFG_EXTERNAL ?= 0
 
     if !SNESFM_CFG_EXTERNAL == 0
 
-    ;========== 1. Features of instrument generation ==========
+    ;========== 1. General sample generation options ==========
 
         ; Whether to generate samples at all - the main gimmick
         ; of this sound driver. Disabling this will disable all
@@ -43,26 +45,35 @@ Configuration:
         ; of the algorithm, may have some details wrong.
         !SNESFM_CFG_SAMPLE_USE_FILTER1 = 1
 
-        ; Whether to generate phase modulated instruments - 
-        ; just like on Yamaha chips. Not to be confused with
-        ; hardware pitch modulation.
-        !SNESFM_CFG_PHASEMOD = 1
-
-        ; Whether to generate pulse wave samples.
-        !SNESFM_CFG_PULSEGEN = 1
-
-        ; Whether to generate long samples (128 sample points
-        ; long, good for higher quality in bass).
-        !SNESFM_CFG_LONG_SMP_GEN = 1
-
-        ; Whether to generate short samples (32 sample points
-        ; long, the only way to get high pitched instruments).
-        !SNESFM_CFG_SHORTSMP_GEN = 1
-
         ; Whether to be able to include custom samples from
         ; instrument data. Automatically set if you don't set
         ; it while disabling sample generation.
         !SNESFM_CFG_INSDATA_CUSTOM_SAMPLES = 1
+
+    
+    ;=============== 2. Phase modulation options ==============
+
+        ; Dictates whether to generate phase modulated
+        ; instruments - just like on Yamaha chips. Not to be
+        ; confused with SNES hardware pitch modulation.
+
+        ; Enables phase modulation with long samples.
+        !SNESFM_CFG_PHASEMOD_LONG = 1
+
+        ; Enables phase modulation with short samples.
+        !SNESFM_CFG_PHASEMOD_SHORT = 1
+
+    ;=============== 3. Pulse generation options ==============
+
+        ; Dictates whether to generate pulse wave samples.
+
+        ; Enables generation of long pulse wave samples.
+        !SNESFM_CFG_PULSEGEN_LONG = 1
+
+        ; Enables generation of short pulse wave samples.
+        !SNESFM_CFG_PULSEGEN_SHORT = 1
+
+    ;=============== 4. Other generation options ==============
 
         ; Amount of space for repeating opcode parameters in 
         ; the instrument generation routine. Lesser values will
@@ -80,8 +91,6 @@ Configuration:
         ; Should be supplied by the tool that compiled the
         ; instrument data. 
         !SNESFM_CFG_INSGEN_ARITHMETIC_AMOUNT = 4
-
-    ;============== 2. Features of song playback ==============
 
         ; Whether to generate pitch tables on the SPC700
         ; itself. If disabled, you will be responsible for
@@ -199,27 +208,27 @@ InternalDefines:
         !SNESFM_CFG_SAMPLE_GENERATE ?= 0
         !SNESFM_CFG_SAMPLE_USE_FILTER1 ?= 0
 
-        !SNESFM_CFG_LONG_SMP_GEN ?= 0
-        !SNESFM_CFG_SHORTSMP_GEN ?= (!SNESFM_CFG_SAMPLE_GENERATE)&~(!SNESFM_CFG_LONG_SMP_GEN)
-        !SNESFM_CFG_BOTH_SMP_GEN ?= (!SNESFM_CFG_LONG_SMP_GEN)&(!SNESFM_CFG_SHORTSMP_GEN)
-
-        if not(defined("SNESFM_CFG_PHASEMOD_BOTH")) && not(defined("SNESFM_CFG_PHASEMOD_LONG")) && (not(defined("SNESFM_CFG_PHASEMOD_SHORT")))
-            !SNESFM_CFG_PHASEMOD ?= 0
+        if defined("SNESFM_CFG_PHASEMOD_BOTH")
+            !SNESFM_CFG_PHASEMOD_LONG ?= !SNESFM_CFG_PHASEMOD_BOTH
+            !SNESFM_CFG_PHASEMOD_SHORT ?= !SNESFM_CFG_PHASEMOD_BOTH
+        else
+            !SNESFM_CFG_PHASEMOD_LONG ?= 0
+            !SNESFM_CFG_PHASEMOD_SHORT ?= 0
+            !SNESFM_CFG_PHASEMOD_BOTH = (!SNESFM_CFG_PHASEMOD_LONG)&(!SNESFM_CFG_PHASEMOD_SHORT)
         endif
-        !SNESFM_CFG_PHASEMOD_BOTH ?= (!SNESFM_CFG_PHASEMOD&!SNESFM_CFG_BOTH_SMP_GEN)
-        !SNESFM_CFG_PHASEMOD_LONG ?= (!SNESFM_CFG_PHASEMOD&!SNESFM_CFG_LONG_SMP_GEN)|!SNESFM_CFG_PHASEMOD_BOTH
-        !SNESFM_CFG_PHASEMOD_SHORT ?= (!SNESFM_CFG_PHASEMOD&!SNESFM_CFG_SHORTSMP_GEN)|!SNESFM_CFG_PHASEMOD_BOTH
-        !SNESFM_CFG_PHASEMOD ?= !SNESFM_CFG_PHASEMOD_BOTH|!SNESFM_CFG_PHASEMOD_LONG|!SNESFM_CFG_PHASEMOD_SHORT
+        !SNESFM_CFG_PHASEMOD_ANY = (!SNESFM_CFG_PHASEMOD_LONG)|(!SNESFM_CFG_PHASEMOD_SHORT)
 
-        if not(defined("SNESFM_CFG_PULSEGEN_BOTH")) && not(defined("SNESFM_CFG_PULSEGEN_LONG")) && (not(defined("SNESFM_CFG_PULSEGEN_SHORT")))
-            !SNESFM_CFG_PULSEGEN ?= 0
+        if defined("SNESFM_CFG_PULSEGEN_BOTH")
+            !SNESFM_CFG_PULSEGEN_LONG ?= !SNESFM_CFG_PULSEGEN_BOTH
+            !SNESFM_CFG_PULSEGEN_SHORT ?= !SNESFM_CFG_PULSEGEN_BOTH
+        else
+            !SNESFM_CFG_PULSEGEN_LONG ?= 0
+            !SNESFM_CFG_PULSEGEN_SHORT ?= 0
+            !SNESFM_CFG_PULSEGEN_BOTH = (!SNESFM_CFG_PULSEGEN_LONG)&(!SNESFM_CFG_PULSEGEN_SHORT)
         endif
-        !SNESFM_CFG_PULSEGEN_BOTH ?= (!SNESFM_CFG_PULSEGEN&!SNESFM_CFG_BOTH_SMP_GEN)
-        !SNESFM_CFG_PULSEGEN_LONG ?= (!SNESFM_CFG_PULSEGEN&!SNESFM_CFG_LONG_SMP_GEN)|!SNESFM_CFG_PULSEGEN_BOTH
-        !SNESFM_CFG_PULSEGEN_SHORT ?= (!SNESFM_CFG_PULSEGEN&!SNESFM_CFG_SHORTSMP_GEN)|!SNESFM_CFG_PULSEGEN_BOTH
-        !SNESFM_CFG_PULSEGEN ?= !SNESFM_CFG_PULSEGEN_BOTH|!SNESFM_CFG_PULSEGEN_LONG|!SNESFM_CFG_PULSEGEN_SHORT
+        !SNESFM_CFG_PULSEGEN_ANY = (!SNESFM_CFG_PULSEGEN_LONG)|(!SNESFM_CFG_PULSEGEN_SHORT)
 
-        !SNESFM_CFG_RESAMPLE ?= !SNESFM_CFG_BOTH_SMP_GEN
+        !SNESFM_CFG_RESAMPLE ?= 0
 
         !SNESFM_CFG_PITCHTABLE_GEN ?= 0
 
@@ -533,13 +542,13 @@ namespace CompileInstruments
         fillword RETJump
         if !SNESFM_CFG_SAMPLE_GENERATE >= 1
             dw CopyResample
-            if !SNESFM_CFG_PHASEMOD >= 1
+            if !SNESFM_CFG_PHASEMOD_ANY >= 1
                 dw PhaseModPart1, PhaseModPart2
             else
                 fill 2*2
             endif
 
-            if !SNESFM_CFG_PULSEGEN >= 1
+            if !SNESFM_CFG_PULSEGEN_ANY >= 1
                 dw PulseGen
             else
                 fill 2*1
@@ -633,7 +642,7 @@ namespace CompileInstruments
         BNE CopyArguments
     RET
 
-    if !SNESFM_CFG_PHASEMOD >= 1
+    if !SNESFM_CFG_PHASEMOD_ANY >= 1
     PhaseModPart1:      
         MOV INSDATA_TMP_CNT, #OPCODE_ARGUMENT+5
         MOV A, INSDATA_OPCODE
@@ -688,9 +697,9 @@ namespace CompileInstruments
             MOV Y, #$00
             RET
         endif
-    endif   ; !SNESFM_CFG_PHASEMOD
+    endif   ; !SNESFM_CFG_PHASEMOD_ANY
 
-    if !SNESFM_CFG_PULSEGEN >= 1
+    if !SNESFM_CFG_PULSEGEN_ANY >= 1
     PulseGen: 
         MOV X, #OPCODE_ARGUMENT
         CALL CopyArguments
@@ -756,7 +765,7 @@ namespace CompileInstruments
 
     NewInstrument:
         ; Adjust pointer
-        MOV A, #$EA     ;   Constant #$FFDE = -22
+        MOV A, #$EA     ;   Constant #$FFEA = -22
         DEC Y           ;__
         ADDW YA, INSDATA_TMP_PTR_0_L    ;
         MOVW INSDATA_TMP_PTR_0_L, YA    ;__ Get pointer
@@ -1636,7 +1645,7 @@ set_echoFIR:
 
 if !SNESFM_CFG_SAMPLE_GENERATE >= 1
 
-if !SNESFM_CFG_PULSEGEN >= 1
+if !SNESFM_CFG_PULSEGEN_ANY >= 1
 PulseGenTables:    ;In order:
     ;Highbyte with sz = 00 (8000),
     ;Lowbyte with s=0 (8000/0000) / Highbyte with sz = 01 (0000), 
@@ -1653,7 +1662,7 @@ PulseGenLabels:
 
     PUL_OUT_PTR_L   = $EE
     PUL_OUT_PTR_H   = $EF
-endif   ; !SNESFM_CFG_PULSEGEN 
+endif   ; !SNESFM_CFG_PULSEGEN_ANY 
 
 if !SNESFM_CFG_PULSEGEN_LONG >= 1
 GeneratePulse_128:
@@ -1881,7 +1890,7 @@ GeneratePulse_32:
 endif   ; !SNESFM_CFG_PULSEGEN_SHORT
 
 
-if !SNESFM_CFG_PHASEMOD >= 1
+if !SNESFM_CFG_PHASEMOD_ANY >= 1
 PhaseModulation_Labels:
     MOD_CAR_PAGE        = $D0
     MOD_MOD_PAGE        = $D1
@@ -1896,7 +1905,7 @@ PhaseModulation_Labels:
     MOD_MAIN_TEMP_L     = $EE
     MOD_MAIN_TEMP_H     = $EF
 
-endif   ; !SNESFM_CFG_PHASEMOD
+endif   ; !SNESFM_CFG_PHASEMOD_ANY
 
 if !SNESFM_CFG_PHASEMOD_LONG >= 1
 PhaseModulation_128:

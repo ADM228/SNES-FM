@@ -53,99 +53,151 @@ Disabled by default.
 - **0**: **+0** bytes;
 - **1**: **+193** bytes.
 
-### `LONG_SMP_GEN`
+### `RESAMPLE`
 
 #### Description
 
-Whether to generate long samples (128 sample points long, good for higher quality in bass). They take longer to produce than their short counterparts.
+Enables the resampling routine, which resamples samples from 128 sample points (so-called long samples) to 32 sample points (short samples).
 
 #### Influence on/by other options, default value
 
 Only works if `SAMPLE_GENERATE` is enabled.  
 Disabled by default.
 
-#### Space usage (wrong, actually of resample)
+#### Space usage
 
 - **0**: The basis, **+0** bytes;
 - **1**: **+48** bytes while also enabling other chunks of code.
 
-### `SHORTSMP_GEN`
+## Phase modulation options
 
-#### Description
+These options enable the phase modulation routine.
 
-Whether to generate short samples (32 sample points long, the only way to get high pitched instruments).
+### Enabling any of these
 
-#### Influence on/by other options, default value
-
-Only works if `SAMPLE_GENERATE` is enabled.  
-Set to `SAMPLE_GENERATE`∧¬`LONGSMP_GEN` by default.
+Internal name: `PHASEMOD_ANY` (cannot be overridden).
 
 #### Space usage
 
-No direct space usage.
+**+44** bytes + additional space usage on top of that depending on the option.
 
-## Phase modulation options
+### `PHASEMOD_LONG`
 
-All of these only work if `SAMPLE_GENERATE` is enabled. If none of the following options are defined, they're all disabled.
+#### Description
+
+Enables phase modulation with long samples.
+
+#### Influence on/by other options, default value
+
+Disabled by default.
+
+#### Space usage
+
+- **0**: The basis, **+0** bytes;
+- **1**: **+111** bytes.
+
+### `PHASEMOD_SHORT`
+
+#### Description
+
+Enables phase modulation with short samples.
+
+#### Influence on/by other options, default value
+
+Disabled by default.
+
+#### Space usage
+
+- **0**: The basis, **+0** bytes;
+- **1**: **+140** bytes.
 
 ### `PHASEMOD_BOTH`
 
-#### Description
-
-
-
 #### Influence on/by other options, default value
 
-
+If enabled, enables both `PHASEMOD_LONG` and `PHASEMOD_SHORT`.
+If not defined, set to `PHASEMOD_LONG`∧`PHASEMOD_SHORT`.
 
 #### Space usage
 
+**+9** bytes on top of `PHASEMOD_LONG` and `PHASEMOD_SHORT`.
 
-### `PHASEMOD` (only applies if `SAMPLE_GENERATE` is set)
+## Pulse generation options
+
+These options enable the pulse generation routine.
+
+### Enabling any of these
+
+Internal name: `PULSEGEN_ANY` (cannot be overridden).
+
+#### Space usage
+
+**+5** bytes + additional space usage on top of that depending on the option.
+
+### `PULSEGEN_LONG`
+
+#### Description
+
+Enables the long-sample version of the pulse generation routine.
+
+#### Influence on/by other options, default value
+
+Disabled by default.
 
 #### Space usage
 
 - **0**: The basis, **+0** bytes;
-- **1**: A basis of **+44** bytes and additionally (these all stack):
-  - **+111** bytes if `LONG_SMP_GEN` is set,
-  - **+140** bytes if `SHORTSMP_GEN` is set,
-  - **+9** bytes on top of that if both are set.
+- **1**: **+154** bytes.
 
-### `PULSEGEN` (only applies if `SAMPLE_GENERATE` is set)
+### `PULSEGEN_SHORT`
 
 #### Description
 
-
+Enables the short-sample version of the pulse generation routine.
 
 #### Influence on/by other options, default value
 
-
+Disabled by default.
 
 #### Space usage
 
 - **0**: The basis, **+0** bytes;
-- **1**: A basis of **+5** bytes and additionally (these all stack):
-  - **+154** bytes if `LONG_SMP_GEN` is set,
-  - **+189** bytes if `SHORTSMP_GEN` is set,
-  - **+4** bytes on top of that if both are set.
+- **1**: **+189** bytes.
+
+### `PULSEGEN_BOTH`
+
+#### Influence on/by other options, default value
+
+If enabled, enables both `PULSEGEN_LONG` and `PULSEGEN_SHORT`.
+If not defined, set to `PULSEGEN_LONG`∧`PULSEGEN_SHORT`.
+
+#### Space usage
+
+**+4** bytes on top of `PULSEGEN_LONG` and `PULSEGEN_SHORT`.
+
+## Other generation options
+
+Should this be moved? probably yes
 
 ### `INSGEN_REPEAT_AMOUNT` (only applies if `SAMPLE_GENERATE` is set)
 
 #### Description
 
-
+Allocates slots for repeating arguments for opcode. Each slot has a bitmask, and it conserves options according to that bitmask (saving bytes in instrument data), and a counter decrementing with every opcode, counting until it no longer applies.
 
 #### Influence on/by other options, default value
 
-
+Disabled by default.
 
 #### Space usage
 
 - **0**: The basis, **+0** bytes;
-- **1**: **+20** bytes, and an additional +11 bytes if `PHASEMOD` is also set, resulting in **+31** bytes;
+- **1**: **+20** bytes. +31
 - **2**: **+33** and **+44** bytes respectively;
 - **3**: **+39** and **+50** bytes respectively;
 - **4**: **+45** and **+56** bytes respectively.
+
+***+11 additional bytes are used if `PHASEMOD` is also set.
 
 ### `PITCHTABLE_GEN`
 
@@ -161,3 +213,37 @@ All of these only work if `SAMPLE_GENERATE` is enabled. If none of the following
 
 - **0**: The basis,**+0** bytes inside code, but you have to supply **192** bytes of the pitchtable itself somewhere along the way;
 - **1**: **+137** bytes (will increase due to not yet parsing song data header to generate pitch tables at will) inside code.
+
+## Space usage tables
+
+With how confusing some of the configuration space usage options can be, i have compiled a table containing the space impacts. It's probably the only good part of this document lmao
+
+### Phase modulation
+
+`PHASEMOD_` ommitted from option names.
+
+| `LONG` 🡒<br>`SHORT` 🡓 | <br>0     | <br>1    |
+|-:|:-:|:-:|
+| 0                      | **+0**   | **+155** |
+| 1                      | **+184** | **+309** |
+
+### Pulse generation
+
+`PULSEGEN_` ommitted from option names.
+
+| `LONG` 🡒<br>`SHORT` 🡓 | <br>0     | <br>1    |
+|-:|:-:|:-:|
+| 0                      | **+0**   | **+155** |
+| 1                      | **+194** | **+352** |
+
+### `INSGEN_REPEAT_AMOUNT` and phase modulation
+
+`PHASEMOD_ANY` shortended to `PHASEMOD`, `INSGEN_REPEAT_AMOUNT` shortened to `REPEAT`
+
+| `PHASEMOD` 🡒<br>`REPEAT` 🡓 |<br>0|<br>1|
+|-:|:-:|:-:|
+|0|**+0** |**+0** |
+|1|**+20**|**+31**|
+|2|**+33**|**+44**|
+|3|**+39**|**+50**|
+|4|**+45**|**+56**|
