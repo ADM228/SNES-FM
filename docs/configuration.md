@@ -115,7 +115,7 @@ Disabled by default.
 
 #### Influence on/by other options, default value
 
-If enabled, enables both `PHASEMOD_LONG` and `PHASEMOD_SHORT`.
+If enabled, enables both `PHASEMOD_LONG` and `PHASEMOD_SHORT`.  
 If not defined, set to `PHASEMOD_LONG`∧`PHASEMOD_SHORT`.
 
 #### Space usage
@@ -192,12 +192,12 @@ Disabled by default.
 #### Space usage
 
 - **0**: The basis, **+0** bytes;
-- **1**: **+20** bytes. +31
-- **2**: **+33** and **+44** bytes respectively;
-- **3**: **+39** and **+50** bytes respectively;
-- **4**: **+45** and **+56** bytes respectively.
+- **1**: **+20** bytes;
+- **2**: **+33** bytes;
+- **3**: **+39** bytes;
+- **4**: **+45** bytes.
 
-***+11 additional bytes are used if `PHASEMOD` is also set.
+**+11** additional bytes are used if `PHASEMOD` is also set.
 
 ### `PITCHTABLE_GEN`
 
@@ -233,7 +233,7 @@ With how confusing some of the configuration space usage options can be, i have 
 
 | `LONG` 🡒<br>`SHORT` 🡓 | <br>0     | <br>1    |
 |-:|:-:|:-:|
-| 0                      | **+0**   | **+155** |
+| 0                      | **+0**   | **+159** |
 | 1                      | **+194** | **+352** |
 
 ### `INSGEN_REPEAT_AMOUNT` and phase modulation
