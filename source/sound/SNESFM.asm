@@ -24,6 +24,7 @@ Configuration:
         ; 2. Phase modulation options
         ; 3. Pulse generation options
         ; 4. Other generation options
+        ; 5. Song playback options
         ;__
 
     !SNESFM_CFG_EXTERNAL ?= 0
@@ -100,6 +101,10 @@ Configuration:
         ; B7, close to the max pitch on the SNES).
         !SNESFM_CFG_PITCHTABLE_GEN = 1
 
+    ;================ 5. Song playback options ================
+
+        !SNESFM_CFG_VIRTUAL_CHANNELS = 1
+
     endif
 Documentation:
 	;   ==== Code/data distribution table: ====
@@ -112,7 +117,8 @@ Documentation:
         ;   $03			$00 - $7F: Effect IDs
         ;   |__ _ _ _ _ $80 - $FF: Basic effect time counters
         ;   $04-$07 _ _ Effect q
-        ;   $08 _ _ _ _ Permanent storage of flags, counters and pointers for note stuff
+        ;   $08 _ _ _ _ Permanent storage of flags, counters and pointers for note stuff for "real" channels
+        ;   $09 _ _ _ _ Same but for virtual channels
         ;   $0A _ _ _ _ Low bytes of instrument data pointers
         ;   $0B _ _ _ _ High bytes of instrument data pointers
         ;   $0C _ _ _ _ 7/8 multiplication lookup table
@@ -123,7 +129,7 @@ Documentation:
         ;   $10-$4F _ _ FM generation buffers, Instrument data (at the end)
         ;   $50-$5F _ _ Code
         ;   $60-$FE _ _ Actual sample storage, echo buffer (separated depending on the delay & amount of samples)
-        ;   $FF         $00 - $BF: Hardsync routine (here for use with PCALL to save 2 cycles)
+        ;   $FF         $00 - $BF: Fast-called routines (here to save 2 cycles with PCALL)
         ;   |__ _ _ _ _ $C0 - $FF: TCALL pointers/Boot ROM
     ;   ==== Communication with SNES: ====
         ;       (Port 0 is always message number; Port 1's high 4 bits is message ID)
@@ -150,10 +156,12 @@ Documentation:
         ;   $A  |    |           |           |   Data transfer finished
         ;   $F  |    |           |           |   What? 
     ;   Sound engine documentation:
-        ;   Channel flags: n00af0ir
+        ;   Channel flags: n00afoir
         ;   n - sample number (0 or 1)
         ;   a - whether to disable the attack
         ;   f - whether to reset the instrument
+        ;   o - in real channels: whether the channel is overridden by a virtual channel
+        ;       in virtual channels: whether the channel is enabled 
         ;   i - whether to not parse instrument data
         ;   r - whether a reference is in effect
 InternalDefines:
@@ -234,6 +242,18 @@ InternalDefines:
 
         !SNESFM_CFG_INSGEN_REPEAT_AMOUNT ?= 0
         !SNESFM_CFG_INSGEN_ARITHMETIC_AMOUNT ?= 0
+
+        !SNESFM_CFG_VIRTUAL_CHANNELS ?= 0
+
+        if !SNESFM_CFG_VIRTUAL_CHANNELS > 0
+            macro realChannelWrite()
+                TCALL 14
+            endmacro
+        else
+            macro realChannelWrite()
+                MOV $F3, A
+            endmacro
+        endif
 
         ; if !SNESFM_CFG_SAMPLE_GENERATE && ( ~(!SNESFM_CFG_LONG_SMP_GEN+!SNESFM_CFG_SHORTSMP_GEN) )
         ;     error "You have specified to generate samples, but have specified to not generate short nor long samples. Pick one"
@@ -1214,6 +1234,22 @@ MainLoop:
         ; BPL +
         ; CALL ParseEffectData
     ; +:
+
+        ; Select the channel routine
+
+        if !SNESFM_CFG_VIRTUAL_CHANNELS > 0
+            MOV A, CHTEMP_FLAGS
+            AND A, #$04
+            BEQ +
+                MOV A, #(WriteChannel_VirtualChannel&$FF)
+            +:
+            if (WriteChannel_VirtualChannel&$FF) > 0
+                CLRC
+                ADC A, #WriteChannel
+            endif
+            MOV $FFC0+2, A
+        endif
+
         SETC
         SBC CHTEMP_SONG_COUNTER, !TIMER_VALUE
         BPL +
@@ -2671,9 +2707,20 @@ IndexToSamplePointer:   ;TCALL 15
     .LookuptableMul18:
         db $00, $12, $24, $36
 
+WriteToChannel: ; TCALL 14
+.RealChannel:
+MOV $F3, A
+RET
+.VirtualChannel:
+MOV Y, $F2
+MOV $400+Y, A
+MOV Y, #$00
+RET
+
 END_OF_CODE: ; Label to determine how much space i have left
 
 warnpc $5FFF
+
 
 Includes:
     org $0C00
@@ -2700,7 +2747,7 @@ Includes:
         incbin "quartersinetable.bin"
 
     org $FFC0   ;For TCALLs
-        dw IndexToSamplePointer
+        dw IndexToSamplePointer, WriteToChannel
 
     ParseInstrumentData_InstrumentPtrLo = $0A00
     ParseInstrumentData_InstrumentPtrHi = $0B00
