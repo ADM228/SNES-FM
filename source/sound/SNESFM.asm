@@ -246,10 +246,12 @@ InternalDefines:
         !SNESFM_CFG_VIRTUAL_CHANNELS ?= 0
 
         if !SNESFM_CFG_VIRTUAL_CHANNELS > 0
+            print "Virtual channels enabled"
             macro realChannelWrite()
                 TCALL 14
             endmacro
         else
+            print "Virtual channels disabled"
             macro realChannelWrite()
                 MOV $F3, A
             endmacro
@@ -335,59 +337,55 @@ warnings enable W1008
 ;
 
 org $5000
-Init:       ;init routine, totally not grabbed from tales of phantasia
-    CLRP
-    MOV A, #$00     ;__
-    MOV $F4, A      ;
-    MOV $F5, A      ;
-    MOV $F6, A      ;   Clear the in/out ports with the SNES, disable timers
-    MOV $F7, A      ;
+Init:       ;init routine by KungFuFurby
+;------------Clear DSP Registers------------
+;DSP register initialization will now take place.
+.clear_DSP:
+    clrp                    ;Zero direct page flag.
+    mov A, #$6C             ;Stop all channels first.
+    mov Y, #$FF             ;KOFF will be cleared
+    movw $F2, YA            ;later on, though.
+    inc Y
+    mov A, #$7F
+.clear_DSP_loop:
+    movw $F2, YA            ;Clear DSP register.
+    mov Y, #$00
+    cmp A, #$6C+1
+    bne Init_clear_not_flg
+    mov Y, #%01100000
+
+.clear_not_flg:
+    cmp A, #$6D+1
+    bne Init_clear_not_esa
+;For ESA, set to $80.
+;(Max EDL is $0F, which consumes $7800 bytes.
+;ESA is set to $80 in case echo writes are accidentally on.)
+    mov Y, #$80
+
+.clear_not_esa:
+    dec A
+    bpl Init_clear_DSP_loop
+
+.set_vol:
+    MOV A, #$3C
+    MOV Y, #$7F
+    SETC
+.set_vol_loop:
+    MOVW $F2, YA
+    ; SETC      ; not needed as it's set in the beginning, and when it clears we need to exit
+    SBC A, #$10
+    BCS Init_set_vol_loop
+
+    INC A           ; Set A to 0
+
+    MOVW $F4, YA    ;   Clear output ports 
+    MOVW $F6, YA    ;__
     MOV MESSAGE_CNT_TH1, A
-    MOV $F1, #$30   ;__
+    MOV $F1, #$30   ;__ Clear input ports
     MOV X, #$FF     ;   Reset the stack
     MOV SP, X       ;__
-    MOV $F2, #$4D   ;
-    MOV $F3, A      ;
-    MOV $F2, #$2C   ;   Disable the echo
-    MOV $F3, A      ;
-    MOV $F2, #$3C   ;
-    MOV $F3, A      ;__
-    MOV $F2, #$0C   ;
-    MOV $F3, A      ;   Reset volume
-    MOV $F2, #$1C   ;
-    MOV $F3, A      ;__
-    MOV $F2, #$4C   ;   Key On nothing
-    MOV $F3, A      ;__
-    MOV $F2, #$5C   ;   Key Off everything
-    MOV $F3, X      ;__
     MOV $F2, #$5D   ;   Set sample directory at $0200
     MOV $F3, #$02   ;__
-    MOV $FA, #$82   ;   Set timer 0 to count every 16.25 ms
-    MOV $F1, #$01   ;__
-    MOV $F2, #$7D   ;
-    MOV Y, $F3      ;
-    CMP Y, #$0F     ;
-    BCC +           ;   Load {echo delay}+1 into y, capping off at 16 if needed
-    MOV Y, #$0F     ;
-    +   INC Y       ;__
-    -:              ;
-        MOV A, $FD  ;
-        BEQ -       ;   Time-wasting loop to clear the echo buffer
-        DBNZ Y,-    ;__
-
-    MOV $F2, #$6C   ;
-    MOV $F3, #$BF   ;___
-    MOV $F2, #$5C   ;   Key off on all channels
-    MOV $F3, #$FF   ;__
-    MOV $F2, #$2D   ;   Disable Hardware Pitchmod
-    MOV $F3, Y      ;__
-    MOV $F2, #$3D   ;   Disable Noise
-    MOV $F3, Y      ;__
-    CALL set_echoFIR
-    MOV $F2, #$0C   ;
-    MOV $F3, #$7F   ;   Set main volume to 127
-    MOV $F2, #$1C   ;
-    MOV $F3, #$7F   ;__
     MOV $F1, #$00   ;
     ;MOV $FA, #$85   ;   Set Timer 0 to 16.625 ms (~60 Hz)
     MOV $FA, #$50   ;   Set Timer 0 to 10 ms     (100 Hz)
@@ -1012,10 +1010,10 @@ namespace ParseSongData
                 AND !CHANNEL_REGISTER_INDEX, #$70   ;
                 OR !CHANNEL_REGISTER_INDEX, #$02    ;   DSP Address (low pitch)
                 MOV $F2, !CHANNEL_REGISTER_INDEX;   ;__
-                MOV $F3, A                          ;__ Write low pitch byte
+                %realChannelWrite()                 ;__ Write low pitch byte
                 MOV A, PitchTableHi+Y               ;__ Get high pitch byte
                 INC $F2                             ;__ DSP Address (high pitch)
-                MOV $F3, A                          ;__ Write high pitch byte
+                %realChannelWrite()                 ;__ Write high pitch byte
                 JMP KeyOn
             NoisePitch:
                 AND A, #$1F  	;
@@ -1115,7 +1113,7 @@ namespace ParseSongData
         MOV $F2, !CHANNEL_REGISTER_INDEX
         BBC0 $E0, +         ;   Store to right volume register if bit 0 set
         INC $F2             ;__
-    +   MOV $F3, A
+    +   %realChannelWrite()
         JMP POPX_ReadByte
 
     SetVolumeBoth:
@@ -1123,9 +1121,9 @@ namespace ParseSongData
         INCW CHTEMP_SONG_POINTER_L 
         AND !CHANNEL_REGISTER_INDEX, #$70
         MOV $F2, !CHANNEL_REGISTER_INDEX
-        MOV $F3, A
+        %realChannelWrite()
         INC $F2                             
-    +   MOV $F3, A
+    +   %realChannelWrite()
         JMP POPX_ReadByte
 
     ReferenceSet:
@@ -1241,12 +1239,12 @@ MainLoop:
             MOV A, CHTEMP_FLAGS
             AND A, #$04
             BEQ +
-                MOV A, #(WriteChannel_VirtualChannel&$FF)
+                MOV A, #(WriteToChannel_VirtualChannel&$FF)
             +:
-            if (WriteChannel_VirtualChannel&$FF) > 0
+            ; if (WriteToChannel_VirtualChannel&$FF) > 0    // ASAR YOU FUCKING ASSHOLE
                 CLRC
-                ADC A, #WriteChannel
-            endif
+                ADC A, #(WriteToChannel&$FF)
+            ; endif
             MOV $FFC0+2, A
         endif
 
@@ -1443,7 +1441,7 @@ namespace ParseInstrumentData
             MOV $F2, !CHANNEL_REGISTER_INDEX;
             MOV A, $F3                      ;   If GAIN is used,
             DEC $F2                         ;   set the GAIN envelope to the current value
-            MOV $F3, A                      ;
+            %realChannelWrite()             ;
             DEC $F2                         ;
             DEC $F2                         ;
             MOV $F3, #$00                   ;__
@@ -1458,16 +1456,16 @@ namespace ParseInstrumentData
             MOV A, (!TEMP_POINTER1_L)+Y             ;   Update Attack, Decay
             INCW !TEMP_POINTER1_L                   ;
             OR A, #$80                              ;
-            MOV $F3, A                              ;__
+            %realChannelWrite()                     ;__
             INC $F2                                 ;
             MOV A, (!TEMP_POINTER1_L)+Y             ;   Update Sustain, Release
-            MOV $F3, A                              ;__
+            %realChannelWrite()                     ;__
             RET
         +:
             OR !CHANNEL_REGISTER_INDEX, #$07        ;
             MOV $F2, !CHANNEL_REGISTER_INDEX        ;   Update GAIN envelope
             MOV A, (!TEMP_POINTER1_L)+Y             ;
-            MOV $F3, A                              ;__
+            %realChannelWrite()                     ;__
             RET
     UpdateSamplePointer:
 
@@ -1521,7 +1519,7 @@ namespace ParseInstrumentData
             LSR A                               ;   Write Source Number to DSP
             LSR A                               ;
             OR A, #$01                          ;
-            MOV $F3, A                          ;__
+            %realChannelWrite()                 ;__
             SET7 CHTEMP_FLAGS					;__ Next time update sample 0
             POP X
             RET
@@ -1550,7 +1548,7 @@ namespace ParseInstrumentData
             MOV A, X		                    ;
             LSR A                               ;   Write Source Number to DSP
             LSR A                               ;
-            MOV $F3, A                          ;__
+            %realChannelWrite()                 ;__
             CLR7 CHTEMP_FLAGS					;__ Next time sample 1 is updated
             POP X
             RET		
@@ -1569,11 +1567,11 @@ namespace ParseInstrumentData
             AND !CHANNEL_REGISTER_INDEX, #$70       ;
             OR !CHANNEL_REGISTER_INDEX, #$02        ;   Update low byte of pitch
             MOV $F2, !CHANNEL_REGISTER_INDEX;       ;
-            MOV $F3, A                              ;__
+            %realChannelWrite()                     ;__
             MOV A, PitchTableHi+Y                   ;
             OR !CHANNEL_REGISTER_INDEX, #$01        ;   Update high byte of pitch
             MOV $F2, !CHANNEL_REGISTER_INDEX;       ;
-            MOV $F3, A                              ;
+            %realChannelWrite()                     ;
             MOV Y, #$00                             ;__
             RET
         ++:
@@ -1581,7 +1579,7 @@ namespace ParseInstrumentData
             MOV $F2, #$6C                           ;  Update noise clock
             AND $F3, #$E0                           ;
             OR A, $F3                               ;
-            MOV $F3, A                              ;__
+            %realChannelWrite()                     ;__
             RET
 
 namespace off
@@ -2707,17 +2705,26 @@ IndexToSamplePointer:   ;TCALL 15
     .LookuptableMul18:
         db $00, $12, $24, $36
 
-WriteToChannel: ; TCALL 14
-.RealChannel:
-MOV $F3, A
-RET
-.VirtualChannel:
-MOV Y, $F2
-MOV $400+Y, A
-MOV Y, #$00
-RET
+if !SNESFM_CFG_VIRTUAL_CHANNELS > 0
+    print pc
+    print "If the low byte >= FD, uncomment the line following this"
+    ; fill $03
+
+    WriteToChannel: ; TCALL 14
+    .RealChannel:
+    MOV $F3, A
+    RET
+    .VirtualChannel:
+    MOV Y, $F2
+    MOV $400+Y, A
+    MOV Y, #$00
+    RET
+endif
 
 END_OF_CODE: ; Label to determine how much space i have left
+
+print "End of code:"
+print pc
 
 warnpc $5FFF
 
@@ -2747,7 +2754,10 @@ Includes:
         incbin "quartersinetable.bin"
 
     org $FFC0   ;For TCALLs
-        dw IndexToSamplePointer, WriteToChannel
+        dw IndexToSamplePointer
+        if !SNESFM_CFG_VIRTUAL_CHANNELS > 0
+            dw WriteToChannel
+        endif
 
     ParseInstrumentData_InstrumentPtrLo = $0A00
     ParseInstrumentData_InstrumentPtrHi = $0B00
