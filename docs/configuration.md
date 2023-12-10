@@ -222,7 +222,7 @@ With how confusing some of the configuration space usage options can be, i have 
 
 `PHASEMOD_` ommitted from option names.
 
-| `LONG` 🡒<br>`SHORT` 🡓 | <br>0     | <br>1    |
+| `LONG` ><br>`SHORT` v | 0<br>​     | 1<br>​    |
 |-:|:-:|:-:|
 | 0                      | **+0**   | **+155** |
 | 1                      | **+184** | **+309** |
@@ -231,16 +231,17 @@ With how confusing some of the configuration space usage options can be, i have 
 
 `PULSEGEN_` ommitted from option names.
 
-| `LONG` 🡒<br>`SHORT` 🡓 | <br>0     | <br>1    |
+| `LONG` ><br>`SHORT` v | 0<br>​     | 1<br>​    |
 |-:|:-:|:-:|
 | 0                      | **+0**   | **+159** |
 | 1                      | **+194** | **+352** |
 
 ### `INSGEN_REPEAT_AMOUNT` and phase modulation
 
-`PHASEMOD_ANY` shortended to `PHASEMOD`, `INSGEN_REPEAT_AMOUNT` shortened to `REPEAT`
+[`PHASEMOD_ANY`](configuration.md#enabling-any-of-these) shortended to `PHASEMOD`.  
+`INSGEN_REPEAT_AMOUNT` shortened to `REPEAT`.
 
-| `PHASEMOD` 🡒<br>`REPEAT` 🡓 |<br>0|<br>1|
+| `PHASEMOD` ><br>`REPEAT` v |0<br>​|1<br>​|
 |-:|:-:|:-:|
 |0|**+0** |**+0** |
 |1|**+20**|**+31**|
