@@ -171,35 +171,35 @@ InternalDefines:
                 !SAMPLE_USE_ADDRESS = %00001000
                 !ENVELOPE_TYPE_ADSR = %00000010
     ;Pointers to channel 1's variables (permanent storage during song playback)
-        !CH1_SONG_POINTER_L = $0800
-        !CH1_SONG_POINTER_H = $0801
+        CH1_SONG_POINTER_L = $0800
+        CH1_SONG_POINTER_H = $0801
 
-        !CH1_INSTRUMENT_INDEX = $0804
-        !CH1_INSTRUMENT_TYPE = $0805
-        !CH1_SAMPLE_POINTER_L = $0806
-        !CH1_SAMPLE_POINTER_H = $0807
+        CH1_INSTRUMENT_INDEX = $0804
+        CH1_INSTRUMENT_TYPE = $0805
+        CH1_SAMPLE_POINTER_L = $0806
+        CH1_SAMPLE_POINTER_H = $0807
 
-        !CH1_SONG_COUNTER = $0840
-        !CH1_EFFECT_COUNTER = $0841
-        !CH1_EFFECT_AMOUNT = $0842
+        CH1_SONG_COUNTER = $0840
+        CH1_EFFECT_COUNTER = $0841
+        CH1_EFFECT_AMOUNT = $0842
         ;$43 and $44 will be used by pitchbend
-        !CH1_ARPEGGIO = $0845
-        !CH1_NOTE = $0846
-        !CH1_FLAGS = $0847
+        CH1_ARPEGGIO = $0845
+        CH1_NOTE = $0846
+        CH1_FLAGS = $0847
 
-        !CH1_INSTRUMENT_TYPE_COUNTER = $0880
-        !CH1_ENVELOPE_COUNTER = $0881
-        !CH1_SAMPLE_POINTER_COUNTER = $0882
-        !CH1_ARPEGGIO_COUNTER = $0883
-        !CH1_PITCHBEND_COUNTER = $0884
-        !CH1_COUNTERS_HALT = $0887
+        CH1_INSTRUMENT_TYPE_COUNTER = $0880
+        CH1_ENVELOPE_COUNTER = $0881
+        CH1_SAMPLE_POINTER_COUNTER = $0882
+        CH1_ARPEGGIO_COUNTER = $0883
+        CH1_PITCHBEND_COUNTER = $0884
+        CH1_COUNTERS_HALT = $0887
 
-        !CH1_INSTRUMENT_TYPE_POINTER = $08C0
-        !CH1_ENVELOPE_POINTER = $08C1
-        !CH1_SAMPLE_POINTER_POINTER = $08C2
-        !CH1_ARPEGGIO_POINTER = $08C3
-        !CH1_PITCHBEND_POINTER = $08C4
-        !CH1_COUNTERS_DIRECTION = $08C7
+        CH1_INSTRUMENT_TYPE_POINTER = $08C0
+        CH1_ENVELOPE_POINTER = $08C1
+        CH1_SAMPLE_POINTER_POINTER = $08C2
+        CH1_ARPEGGIO_POINTER = $08C3
+        CH1_PITCHBEND_POINTER = $08C4
+        CH1_COUNTERS_DIRECTION = $08C7
     ;Pointers for temporary <-> permanent storage transfers
         CHTEMP_POINTER_0 = $20
         CHTEMP_POINTER_1 = $28
@@ -900,14 +900,14 @@ Begin:
     -:
         MOV Y, #$00
         MOV A, (!TEMP_POINTER0_L)+Y
-        MOV !CH1_SONG_POINTER_L+X, A
+        MOV CH1_SONG_POINTER_L+X, A
         INCW !TEMP_POINTER0_L
         MOV A, (!TEMP_POINTER0_L)+Y
-        MOV !CH1_SONG_POINTER_H+X, A
+        MOV CH1_SONG_POINTER_H+X, A
         INCW !TEMP_POINTER0_L
         MOV A, #$00
-        MOV !CH1_SONG_COUNTER+X, A
-        MOV !CH1_FLAGS+X, A
+        MOV CH1_SONG_COUNTER+X, A
+        MOV CH1_FLAGS+X, A
         ; MOV !CH1_EFFECT_COUNTER+X, A
 
 
