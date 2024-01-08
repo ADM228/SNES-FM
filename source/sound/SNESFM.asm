@@ -173,15 +173,15 @@ InternalDefines:
     ;Pointers to channel 1's variables (permanent storage during song playback)
         CH1_SONG_POINTER_L = $0800
         CH1_SONG_POINTER_H = $0801
-
+        CH1_REF0_POINTER_L = $0802
+        CH1_REF0_POINTER_H = $0803
         CH1_INSTRUMENT_INDEX = $0804
         CH1_INSTRUMENT_TYPE = $0805
         CH1_SAMPLE_POINTER_L = $0806
         CH1_SAMPLE_POINTER_H = $0807
 
         CH1_SONG_COUNTER = $0840
-        CH1_EFFECT_COUNTER = $0841
-        CH1_EFFECT_AMOUNT = $0842
+        CH1_REF0_COUNTER = $0841
         ;$43 and $44 will be used by pitchbend
         CH1_ARPEGGIO = $0845
         CH1_NOTE = $0846
@@ -202,12 +202,10 @@ InternalDefines:
         CH1_COUNTERS_DIRECTION = $08C7
     ;Pointers for temporary <-> permanent storage transfers
         CHTEMP_POINTER_0 = $20
-        CHTEMP_POINTER_1 = $28
         CHTEMP_POINTER_2 = $30
         CHTEMP_POINTER_3 = $38
 
         CH1_POINTER_0 = $0800
-        CH1_POINTER_1 = $0840
         CH1_POINTER_2 = $0880
         CH1_POINTER_3 = $08C0
 
@@ -272,12 +270,7 @@ InternalDefines:
         CHTEMP_SAMPLE_POINTER_L = $26
         CHTEMP_SAMPLE_POINTER_H = $27
 
-        CHTEMP_SONG_COUNTER = $28
-        CHTEMP_REF0_COUNTER = $29
-        ;CHTEMP_EFFECT_AMOUNT = $2A
         ;$2B and $2C will be used by pitchbend
-        CHTEMP_ARPEGGIO = $2D
-        CHTEMP_NOTE = $2E
         CHTEMP_FLAGS = $2F
 
         CHTEMP_MACRO_COUNTERS = $30
@@ -305,6 +298,7 @@ InternalDefines:
         !CHANNEL_REGISTER_INDEX = $02
         !CHANNEL_BITMASK = $03
         !TEMP_VALUE2 = $06
+        !BACKUP_X = $07
         !TEMP_POINTER0_L = $0C
         !TEMP_POINTER0_H = $0D
         !TEMP_POINTER1_L = $0E
@@ -937,7 +931,7 @@ Begin:
 
 namespace ParseSongData
     POPX_ReadByte:
-        POP X
+        MOV X, !BACKUP_X
     Start:
     ReadByte:
         MOV Y, #$00
@@ -958,7 +952,6 @@ namespace ParseSongData
 
     ; Opcode:
         ASL A
-        PUSH X
         MOV X, A
         JMP (OpcodeTable-$10+X)
 
@@ -978,9 +971,9 @@ namespace ParseSongData
     WaitCmd:
         BNE +
         MOV A, #$40
-    +   ADC A, CHTEMP_SONG_COUNTER
+    +   ADC A, CH1_SONG_COUNTER+X
         ;DEC A
-        MOV CHTEMP_SONG_COUNTER, A
+        MOV CH1_SONG_COUNTER+X, A
         BBS0 CHTEMP_FLAGS, DecrementReference
         BCC ReadByte    ; C still in effect since the ADC, indicates that the driver is REALLY falling behind
         RET
@@ -994,16 +987,17 @@ namespace ParseSongData
         JMP ReadByte
 
     Note:
-        MOV CHTEMP_NOTE, !TEMP_VALUE
+        MOV A, !TEMP_VALUE
+        MOV CH1_NOTE+X, A
         BBS4 CHTEMP_FLAGS, PitchUpdate
             ; Retrigger
             MOV $F2, #$5C       		;   Key off the needed channel
             MOV $F3, !CHANNEL_BITMASK	;__
             CALL CallInstrumentParser
+            MOV A, CH1_NOTE+X
         PitchUpdate:
-            MOV A, CHTEMP_NOTE          ;
             CLRC                    	;   Apply arpeggio
-            ADC A, CHTEMP_ARPEGGIO 		;__
+            ADC A, CH1_ARPEGGIO+X 		;__
             BBC0 CHTEMP_INSTRUMENT_TYPE, NoisePitch
                 MOV Y, A                            ;   Get low pitch byte
                 MOV A, PitchTableLo+Y               ;__
@@ -1033,7 +1027,9 @@ namespace ParseSongData
 
 
     DecrementReference:
-        DEC CHTEMP_REF0_COUNTER
+        MOV A, CH1_REF0_COUNTER+X
+        DEC A
+        MOV CH1_REF0_COUNTER+X,A 
         BNE RETJump ; very vulnerable
 
         ; Return from reference
@@ -1041,8 +1037,8 @@ namespace ParseSongData
         MOV CHTEMP_SONG_POINTER_L, CHTEMP_REF0_POINTER_L
         MOV CHTEMP_SONG_POINTER_H, CHTEMP_REF0_POINTER_H
         
-        CMP Y, CHTEMP_SONG_COUNTER
-        BPL -   ; Indicates that the driver is really falling behind
+        MOV A, CH1_SONG_COUNTER+X
+        BMI -   ; Indicates that the driver is really falling behind
 
         RET
 
@@ -1127,12 +1123,14 @@ namespace ParseSongData
         JMP POPX_ReadByte
 
     ReferenceSet:
+        MOV X, !BACKUP_X
+
         MOV CHTEMP_REF0_POINTER_L, CHTEMP_SONG_POINTER_L
         MOV CHTEMP_REF0_POINTER_H, CHTEMP_SONG_POINTER_H
 
         MOV A, (CHTEMP_REF0_POINTER_L)+Y
         INCW CHTEMP_REF0_POINTER_L
-        MOV CHTEMP_REF0_COUNTER, A
+        MOV CH1_REF0_COUNTER+X, A
         SET0 CHTEMP_FLAGS
 
         MOV A, (CHTEMP_REF0_POINTER_L)+Y    ; Y assumed to be 0 
@@ -1143,7 +1141,7 @@ namespace ParseSongData
         INCW CHTEMP_REF0_POINTER_L 
         MOV CHTEMP_SONG_POINTER_H, A
 
-        JMP POPX_ReadByte
+        JMP ReadByte
 
     ReferenceRepeat:
         MOV A, (CHTEMP_SONG_POINTER_L)+Y
@@ -1152,6 +1150,8 @@ namespace ParseSongData
         MOV !TEMP_POINTER0_L, A     ;   Neither of these instructions
         MOV !TEMP_POINTER0_H, Y     ;__ affect carry
         ADC !TEMP_POINTER0_H, #$00
+
+        MOV X, !BACKUP_X
         
         MOVW YA, CHTEMP_SONG_POINTER_L
         MOVW CHTEMP_REF0_POINTER_L, YA
@@ -1163,7 +1163,7 @@ namespace ParseSongData
         MOV Y, #$00
 
         MOV A, (!TEMP_POINTER0_L)+Y
-        MOV CHTEMP_REF0_COUNTER, A
+        MOV CH1_REF0_COUNTER+X, A
         INC Y
         SET0 CHTEMP_FLAGS
 
@@ -1174,7 +1174,7 @@ namespace ParseSongData
         MOV A, (!TEMP_POINTER0_L)+Y
         MOV CHTEMP_SONG_POINTER_H, A
 
-        JMP POPX_ReadByte
+        JMP ReadByte
 
     OpcodeTable:
         fillword POPX_ReadByte
@@ -1214,8 +1214,6 @@ MainLoop:
         -:
             MOV A, CH1_POINTER_0-1+Y
             MOV CHTEMP_POINTER_0-1+X, A
-            MOV A, CH1_POINTER_1-1+Y
-            MOV CHTEMP_POINTER_1-1+X, A
             MOV A, CH1_POINTER_2-1+Y
             MOV CHTEMP_POINTER_2-1+X, A
             MOV A, CH1_POINTER_3-1+Y
@@ -1223,8 +1221,14 @@ MainLoop:
             DEC Y
             DEC X
             BNE -
+
+        ; Special cases (will become the main)
+        MOV A, CH1_FLAGS+Y
+        MOV CHTEMP_FLAGS, A
+
         MOV A, Y        ;   Saves 2 cycles compared 
         MOV X, A        ;__ to PUSH X : POP X
+        MOV !BACKUP_X, A
 
         ; CALL UpdateEffects
         ; SETC
@@ -1249,7 +1253,9 @@ MainLoop:
         endif
 
         SETC
-        SBC CHTEMP_SONG_COUNTER, !TIMER_VALUE
+        MOV A, CH1_SONG_COUNTER+X
+        SBC A, !TIMER_VALUE
+        MOV CH1_SONG_COUNTER+X, A
         BPL +
         CALL ParseSongData_Start
     +:
@@ -1265,8 +1271,6 @@ MainLoop:
         -:
             MOV A, CHTEMP_POINTER_0-1+X
             MOV CH1_POINTER_0-1-8+Y, A
-            MOV A, CHTEMP_POINTER_1-1+X
-            MOV CH1_POINTER_1-1-8+Y, A
             MOV A, CHTEMP_POINTER_2-1+X
             MOV CH1_POINTER_2-1-8+Y, A
             MOV A, CHTEMP_POINTER_3-1+X
@@ -1274,6 +1278,9 @@ MainLoop:
             DEC Y
             DEC X
             BNE -
+        MOV A, CHTEMP_FLAGS
+        MOV CH1_FLAGS-8+Y, A
+
         MOV A, Y        ;   Saves 8 cycles compared to PUSH X : POP X : MOV A, X
     .GoToNextChannel:
         CLRC
@@ -1297,25 +1304,28 @@ namespace ParseInstrumentData
         MOV !TEMP_POINTER0_L, A
         MOV A, InstrumentPtrHi+Y
         MOV !TEMP_POINTER0_H, A
-        MOV Y, #$00
+        MOV A, #$00
+        MOV Y, A
 
         INCW !TEMP_POINTER0_L
         INCW !TEMP_POINTER0_L
 
-        PUSH X
-        MOV X, #$00
+        MOV X, A
 
         BBS3 CHTEMP_FLAGS, +
         JMP NotFirstTime
         +:
-        MOV CHTEMP_ARPEGGIO, X
+
+        MOV X, !BACKUP_X
+        MOV CH1_ARPEGGIO+X, A
+        MOV X, A
         MOV $E0, #$05
         
-        MOV CHTEMP_INSTRUMENT_TYPE_POINTER, X
-        MOV CHTEMP_ENVELOPE_POINTER, X
-        MOV CHTEMP_SAMPLE_POINTER_POINTER, X
-        MOV CHTEMP_ARPEGGIO_POINTER, X
-        MOV CHTEMP_PITCHBEND_POINTER, X
+        MOV CHTEMP_INSTRUMENT_TYPE_POINTER, A
+        MOV CHTEMP_ENVELOPE_POINTER, A
+        MOV CHTEMP_SAMPLE_POINTER_POINTER, A
+        MOV CHTEMP_ARPEGGIO_POINTER, A
+        MOV CHTEMP_PITCHBEND_POINTER, A
         
         MOV !TEMP_VALUE, #$01
         MOV !TEMP_VALUE2, #$04
@@ -1327,7 +1337,7 @@ namespace ParseInstrumentData
             DBNZ !TEMP_VALUE2, -
 
         CLR3 CHTEMP_FLAGS
-        POP X
+        MOV X, !BACKUP_X
         RET
     NotFirstTime:
 
@@ -1354,7 +1364,7 @@ namespace ParseInstrumentData
             ASL !TEMP_VALUE
             DBNZ !TEMP_VALUE2, -
         
-        POP X
+        MOV X, !BACKUP_X
         RET
 
     UpdateMacro:
@@ -1489,10 +1499,7 @@ namespace ParseInstrumentData
             MOV A, (!TEMP_POINTER1_L)+Y         ;
             MOV CHTEMP_SAMPLE_POINTER_H, A     	;__
         ++:
-            MOV A, !CHANNEL_REGISTER_INDEX		;
-            LSR A								;	Get current channel's X
-            AND A, #$38							;	(cheaper than getting it from stack)
-            MOV X, A							;__
+            MOV X, !BACKUP_X					;__
     updatePointer:       
             BBS7 CHTEMP_FLAGS, updatePointer_1  ;	If the currently playing sample is 1, update sample 0
         .0:
@@ -1554,12 +1561,13 @@ namespace ParseInstrumentData
             RET		
 
     UpdateArpeggio:
-        POP X
+        MOV X, !BACKUP_X
         MOV A, (!TEMP_POINTER1_L)+Y 			;   Update arpeggio 
-        MOV CHTEMP_ARPEGGIO, A                 	;__
-        MOV A, CHTEMP_NOTE                     	;
+        MOV CH1_ARPEGGIO+X, A                 	;__
+        MOV A, CH1_NOTE+X                     	;
         CLRC                                    ;   Apply arpeggio
-        ADC A, CHTEMP_ARPEGGIO                 	;__
+        ADC A, CH1_ARPEGGIO+X                 	;__
+        POP X
         BBC0 CHTEMP_INSTRUMENT_TYPE, ++
             AND A, #$7F
             MOV Y, A                                ;__
