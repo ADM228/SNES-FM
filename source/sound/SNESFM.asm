@@ -156,8 +156,9 @@ Documentation:
         ;   $A  |    |           |           |   Data transfer finished
         ;   $F  |    |           |           |   What? 
     ;   Sound engine documentation:
-        ;   Channel flags: n00afoir
+        ;   Channel flags: n0Iafoir
         ;   n - sample number (0 or 1)
+        ;   I - whether it is the first frame of an instrument (stops from parsing instrument data on that frame)
         ;   a - whether to disable the attack
         ;   f - whether to reset the instrument
         ;   o - in real channels: whether the channel is overridden by a virtual channel
@@ -201,11 +202,9 @@ InternalDefines:
         CH1_PITCHBEND_POINTER = $08C4
         CH1_COUNTERS_DIRECTION = $08C7
     ;Pointers for temporary <-> permanent storage transfers
-        CHTEMP_POINTER_0 = $20
         CHTEMP_POINTER_2 = $30
         CHTEMP_POINTER_3 = $38
 
-        CH1_POINTER_0 = $0800
         CH1_POINTER_2 = $0880
         CH1_POINTER_3 = $08C0
 
@@ -263,12 +262,7 @@ InternalDefines:
 
         CHTEMP_SONG_POINTER_L = $20
         CHTEMP_SONG_POINTER_H = $21
-        CHTEMP_REF0_POINTER_L = $22
-        CHTEMP_REF0_POINTER_H = $23
-        CHTEMP_INSTRUMENT_INDEX = $24
-        CHTEMP_INSTRUMENT_TYPE = $25
-        CHTEMP_SAMPLE_POINTER_L = $26
-        CHTEMP_SAMPLE_POINTER_H = $27
+		CHTEMP_INSTRUMENT_TYPE = $25
 
         ;$2B and $2C will be used by pitchbend
         CHTEMP_FLAGS = $2F
@@ -935,6 +929,7 @@ namespace ParseSongData
     Start:
     ReadByte:
         MOV Y, #$00
+    Y00ReadByte:            ; Use if Y and X not modified
         MOV A, (CHTEMP_SONG_POINTER_L)+Y 
     
     ; If the opcode >= $80, then it's either an instrument change or a waiting opcode
@@ -961,10 +956,11 @@ namespace ParseSongData
         AND A, #$7F
         LSR A
         BCC WaitCmd
-        MOV CHTEMP_INSTRUMENT_INDEX, A
+        MOV !TEMP_VALUE, A
         MOV A, CHTEMP_INSTRUMENT_SECTION_HIGHBITS
         AND A, #$C0
-        TSET CHTEMP_INSTRUMENT_INDEX, A
+        OR A, !TEMP_VALUE
+        MOV CH1_INSTRUMENT_INDEX+X, A
         CALL CallInstrumentParser
         JMP ReadByte
 
@@ -975,7 +971,7 @@ namespace ParseSongData
         ;DEC A
         MOV CH1_SONG_COUNTER+X, A
         BBS0 CHTEMP_FLAGS, DecrementReference
-        BCC ReadByte    ; C still in effect since the ADC, indicates that the driver is REALLY falling behind
+        BCC Y00ReadByte    ; C still in effect since the ADC, indicates that the driver is REALLY falling behind
         RET
 
     Inst_Section_HighBits:
@@ -984,12 +980,13 @@ namespace ParseSongData
         BBC2 !TEMP_VALUE, Inst_HighBits   ; If it is setting the high bits, call the right routine
         AND CHTEMP_INSTRUMENT_SECTION_HIGHBITS, #$FC
     --  TSET CHTEMP_INSTRUMENT_SECTION_HIGHBITS, A
-        JMP ReadByte
+        JMP Y00ReadByte
 
     Note:
         MOV A, !TEMP_VALUE
         MOV CH1_NOTE+X, A
         BBS4 CHTEMP_FLAGS, PitchUpdate
+        BBS5 CHTEMP_FLAGS, PitchUpdate
             ; Retrigger
             MOV $F2, #$5C       		;   Key off the needed channel
             MOV $F3, !CHANNEL_BITMASK	;__
@@ -1034,8 +1031,10 @@ namespace ParseSongData
 
         ; Return from reference
         CLR0 CHTEMP_FLAGS
-        MOV CHTEMP_SONG_POINTER_L, CHTEMP_REF0_POINTER_L
-        MOV CHTEMP_SONG_POINTER_H, CHTEMP_REF0_POINTER_H
+        MOV A, CH1_REF0_POINTER_H+X
+        MOV Y, A
+        MOV A, CH1_REF0_POINTER_L+X
+        MOVW CHTEMP_SONG_POINTER_L, YA
         
         MOV A, CH1_SONG_COUNTER+X
         BMI -   ; Indicates that the driver is really falling behind
@@ -1093,12 +1092,7 @@ namespace ParseSongData
         MOV CHTEMP_COUNTERS_HALT, Y
         MOV CHTEMP_COUNTERS_DIRECTION, Y
         CALL SPC_ParseInstrumentData_Start
-        CLRC
-        ADC CHTEMP_INSTRUMENT_TYPE_COUNTER, !TIMER_VALUE
-        ADC CHTEMP_ENVELOPE_COUNTER, !TIMER_VALUE
-        ADC CHTEMP_SAMPLE_POINTER_COUNTER, !TIMER_VALUE
-        ADC CHTEMP_ARPEGGIO_COUNTER, !TIMER_VALUE
-        ADC CHTEMP_PITCHBEND_COUNTER, !TIMER_VALUE
+        SET5 CHTEMP_FLAGS
 
         RET
 
@@ -1125,37 +1119,45 @@ namespace ParseSongData
     ReferenceSet:
         MOV X, !BACKUP_X
 
-        MOV CHTEMP_REF0_POINTER_L, CHTEMP_SONG_POINTER_L
-        MOV CHTEMP_REF0_POINTER_H, CHTEMP_SONG_POINTER_H
-
-        MOV A, (CHTEMP_REF0_POINTER_L)+Y
-        INCW CHTEMP_REF0_POINTER_L
+        MOV A, (CHTEMP_SONG_POINTER_L)+Y
+        INCW CHTEMP_SONG_POINTER_L
         MOV CH1_REF0_COUNTER+X, A
         SET0 CHTEMP_FLAGS
 
-        MOV A, (CHTEMP_REF0_POINTER_L)+Y    ; Y assumed to be 0 
-        INCW CHTEMP_REF0_POINTER_L 
-        MOV CHTEMP_SONG_POINTER_L, A
+        MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y assumed to be 0 
+        INCW CHTEMP_SONG_POINTER_L 
+        PUSH A
 
-        MOV A, (CHTEMP_REF0_POINTER_L)+Y    ; Y still assumed to be 0 
-        INCW CHTEMP_REF0_POINTER_L 
-        MOV CHTEMP_SONG_POINTER_H, A
+        MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y still assumed to be 0 
+        INCW CHTEMP_SONG_POINTER_L 
+        MOV Y, A    ; The high byte, for YA
+
+        MOV A, CHTEMP_SONG_POINTER_L
+        MOV CH1_REF0_POINTER_L+X, A
+        MOV A, CHTEMP_SONG_POINTER_H
+        MOV CH1_REF0_POINTER_H+X, A
+
+        POP A
+        MOVW CHTEMP_SONG_POINTER_L, YA
 
         JMP ReadByte
 
     ReferenceRepeat:
         MOV A, (CHTEMP_SONG_POINTER_L)+Y
         CLRC
-        ADC A, #$04                 ;__ 3 bytes of parameters + 1 byte for this opcode
+        ADC A, #$05                 ;__ 3 bytes of parameters + 1 byte for this opcode
         MOV !TEMP_POINTER0_L, A     ;   Neither of these instructions
         MOV !TEMP_POINTER0_H, Y     ;__ affect carry
         ADC !TEMP_POINTER0_H, #$00
 
         MOV X, !BACKUP_X
         
+        INCW CHTEMP_SONG_POINTER_L
         MOVW YA, CHTEMP_SONG_POINTER_L
-        MOVW CHTEMP_REF0_POINTER_L, YA
-        INCW CHTEMP_REF0_POINTER_L
+        MOV CH1_REF0_POINTER_L+X, A
+        MOV A, Y
+        MOV CH1_REF0_POINTER_H+X, A
+        MOV A, CHTEMP_SONG_POINTER_L    ; The high byte is correct but the low one got corrupted
 
         SUBW YA, !TEMP_POINTER0_L   ;   Get address of last
         MOVW !TEMP_POINTER0_L, YA   ;__ reference opcode's parameters
@@ -1165,6 +1167,7 @@ namespace ParseSongData
         MOV A, (!TEMP_POINTER0_L)+Y
         MOV CH1_REF0_COUNTER+X, A
         INC Y
+
         SET0 CHTEMP_FLAGS
 
         MOV A, (!TEMP_POINTER0_L)+Y
@@ -1212,8 +1215,6 @@ MainLoop:
 
         MOV X, #$08
         -:
-            MOV A, CH1_POINTER_0-1+Y
-            MOV CHTEMP_POINTER_0-1+X, A
             MOV A, CH1_POINTER_2-1+Y
             MOV CHTEMP_POINTER_2-1+X, A
             MOV A, CH1_POINTER_3-1+Y
@@ -1225,6 +1226,12 @@ MainLoop:
         ; Special cases (will become the main)
         MOV A, CH1_FLAGS+Y
         MOV CHTEMP_FLAGS, A
+        MOV A, CH1_SONG_POINTER_L+Y
+        MOV CHTEMP_SONG_POINTER_L, A
+        MOV A, CH1_SONG_POINTER_H+Y
+        MOV CHTEMP_SONG_POINTER_H, A
+        MOV A, CH1_INSTRUMENT_TYPE+Y
+        MOV CHTEMP_INSTRUMENT_TYPE, A
 
         MOV A, Y        ;   Saves 2 cycles compared 
         MOV X, A        ;__ to PUSH X : POP X
@@ -1269,8 +1276,6 @@ MainLoop:
 
         MOV X, #$08
         -:
-            MOV A, CHTEMP_POINTER_0-1+X
-            MOV CH1_POINTER_0-1-8+Y, A
             MOV A, CHTEMP_POINTER_2-1+X
             MOV CH1_POINTER_2-1-8+Y, A
             MOV A, CHTEMP_POINTER_3-1+X
@@ -1280,6 +1285,12 @@ MainLoop:
             BNE -
         MOV A, CHTEMP_FLAGS
         MOV CH1_FLAGS-8+Y, A
+        MOV A, CHTEMP_SONG_POINTER_L
+        MOV CH1_SONG_POINTER_L-8+Y, A
+        MOV A, CHTEMP_SONG_POINTER_H
+        MOV CH1_SONG_POINTER_H-8+Y, A
+        MOV A, CHTEMP_INSTRUMENT_TYPE
+        MOV CH1_INSTRUMENT_TYPE-8+Y, A
 
         MOV A, Y        ;   Saves 8 cycles compared to PUSH X : POP X : MOV A, X
     .GoToNextChannel:
@@ -1295,11 +1306,18 @@ MainLoop:
 
 namespace ParseInstrumentData
     Start:
+        BBS5 CHTEMP_FLAGS, OneOff
         BBC1 CHTEMP_FLAGS, Load
         RET
 
+    OneOff:
+        CLR5 CHTEMP_FLAGS
+        RET
+
     Load:
-        MOV Y, CHTEMP_INSTRUMENT_INDEX
+        MOV X, !BACKUP_X
+        MOV A, CH1_INSTRUMENT_INDEX+X
+        MOV Y, A
         MOV A, InstrumentPtrLo+Y
         MOV !TEMP_POINTER0_L, A
         MOV A, InstrumentPtrHi+Y
@@ -1478,7 +1496,7 @@ namespace ParseInstrumentData
             %realChannelWrite()                     ;__
             RET
     UpdateSamplePointer:
-
+        MOV X, !BACKUP_X					    ;__
         BBS3 CHTEMP_INSTRUMENT_TYPE, +			;__ If sample index is used,
             MOV A, (!TEMP_POINTER1_L)+Y         ;
             MOV Y, A                            ;
@@ -1490,30 +1508,32 @@ namespace ParseInstrumentData
             AND A, #$40                         ;
             OR A, $EF                           ;
             TCALL 15                            ;
-            MOVW CHTEMP_SAMPLE_POINTER_L, YA	;
-            MOV Y, #$00                         ;
-            JMP ++			                    ;__
+            MOVW !TEMP_POINTER1_L, YA	        ;
+            MOV CH1_SAMPLE_POINTER_L+X, A       ;
+            MOV A, Y                            ;
+            MOV CH1_SAMPLE_POINTER_H+X, A       ;
+            JMP updatePointer                   ;__
         +   MOV A, (!TEMP_POINTER1_L)+Y         ;
-            MOV CHTEMP_SAMPLE_POINTER_L, A		;   If no, just blatantly
+            PUSH A                      		;   If no, just blatantly
             INCW !TEMP_POINTER1_L               ;   Load sample pointer into memory
             MOV A, (!TEMP_POINTER1_L)+Y         ;
-            MOV CHTEMP_SAMPLE_POINTER_H, A     	;__
-        ++:
-            MOV X, !BACKUP_X					;__
+            MOV Y, A							;
+            POP A								;
+            MOVW !TEMP_POINTER1_L, YA			;__
     updatePointer:       
             BBS7 CHTEMP_FLAGS, updatePointer_1  ;	If the currently playing sample is 1, update sample 0
         .0:
-            MOV A, CHTEMP_SAMPLE_POINTER_H		;   Check if the high byte is the same
+            MOV A, !TEMP_POINTER1_H				;   Check if the high byte is the same
             CMP A, $0203+X                      ;__
             BNE updatePointer_0_withRestart		;
-            MOV A, CHTEMP_SAMPLE_POINTER_L		;	If yes, update only the low byte of the sample pointer
+            MOV A, !TEMP_POINTER1_L				;	If yes, update only the low byte of the sample pointer
             MOV $0202+X, A                      ;__ 
             POP X
             RET
             
         ..withRestart:
             MOV $0207+X, A						;   If high byte is different,
-            MOV A, CHTEMP_SAMPLE_POINTER_L		;   Update sample 1 loop pointer
+            MOV A, !TEMP_POINTER1_L				;   Update sample 1 loop pointer
             MOV $0206+X, A                      ;__
             MOV A, #$C0                         ;
             MOV $0204+X, A                      ;   Reset sample 1 start pointer to blank sample
@@ -1533,17 +1553,17 @@ namespace ParseInstrumentData
 
 
         .1:
-            MOV A, CHTEMP_SAMPLE_POINTER_H		;	Check if high byte is the same
+            MOV A, !TEMP_POINTER1_H				;	Check if high byte is the same
             CMP A, $0207+X						;__
             BNE updatePointer_1_withRestart		;
-            MOV A, CHTEMP_SAMPLE_POINTER_L		;	If yes, update only the low byte of the sample pointer
+            MOV A, !TEMP_POINTER1_L				;	If yes, update only the low byte of the sample pointer
             MOV $0206+X, A                      ;__
             POP X
             RET
             
         ..withRestart:
             MOV $0203+X, A                      ;   If high byte is different,
-            MOV A, CHTEMP_SAMPLE_POINTER_L		;   Update sample 1 loop pointer
+            MOV A, !TEMP_POINTER1_L				;   Update sample 1 loop pointer
             MOV $0202+X, A                      ;__
             MOV A, #$C0                         ;
             MOV $0200+X, A                      ;   Reset sample 1 start pointer to blank sample
