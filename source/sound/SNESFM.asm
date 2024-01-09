@@ -293,10 +293,12 @@ InternalDefines:
         !CHANNEL_BITMASK = $03
         !TEMP_VALUE2 = $06
         !BACKUP_X = $07
-        !TEMP_POINTER0_L = $0C
-        !TEMP_POINTER0_H = $0D
-        !TEMP_POINTER1_L = $0E
-        !TEMP_POINTER1_H = $0F
+        !TEMP_POINTER0_L = $0A
+        !TEMP_POINTER0_H = $0B
+        !TEMP_POINTER1_L = $0C
+        !TEMP_POINTER1_H = $0D
+        !TEMP_POINTER2_L = $0E
+        !TEMP_POINTER2_H = $0F
 
     ; S-CPU communication
         MESSAGE_CNT_TH1 = $40
@@ -1072,13 +1074,11 @@ namespace ParseSongData
     ;     JMP SPC_mainLoop_01
     Jump:
         MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y assumed to be 0 
-        INCW CHTEMP_SONG_POINTER_L 
-        PUSH A
-        MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y still assumed to be 0 
-        INCW CHTEMP_SONG_POINTER_L 
-        MOV Y, A
-        POP A
-        MOVW CHTEMP_SONG_POINTER_L, YA
+        INC Y
+        MOV X, A	; I have scrapped X anyway while jumping here
+        MOV A, (CHTEMP_SONG_POINTER_L)+Y
+        MOV CHTEMP_SONG_POINTER_L, X	;	8 cycles, faster than juggling the regs
+        MOV CHTEMP_SONG_POINTER_H, A	;__ and then doing a MOVW (9 cycles)
         JMP POPX_ReadByte
 
 
@@ -1119,25 +1119,30 @@ namespace ParseSongData
     ReferenceSet:
         MOV X, !BACKUP_X
 
-        MOV A, (CHTEMP_SONG_POINTER_L)+Y
-        INCW CHTEMP_SONG_POINTER_L
+        MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y assumed to be 0 
+        INC Y
         MOV CH1_REF0_COUNTER+X, A
         SET0 CHTEMP_FLAGS
 
-        MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y assumed to be 0 
-        INCW CHTEMP_SONG_POINTER_L 
-        PUSH A
+        MOV A, (CHTEMP_SONG_POINTER_L)+Y
+        INC Y
+        MOV !TEMP_POINTER2_L, A
 
-        MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y still assumed to be 0 
-        INCW CHTEMP_SONG_POINTER_L 
-        MOV Y, A    ; The high byte, for YA
+        MOV A, (CHTEMP_SONG_POINTER_L)+Y
+		MOV !TEMP_POINTER2_H, A
 
-        MOV A, CHTEMP_SONG_POINTER_L
+		MOV A, #$03	;	Fastest way to 
+		MOV Y, #$00	;__ do this in the West
+		ADDW YA, CHTEMP_SONG_POINTER_L
+
+        ; 3x INCW + 2x MOV A, d = 18 + 6 = 24 cycles
+        ; 2x INC Y + 2x MOV r, # + ADDW + MOV r, r = 4 + 4 + 4 + 2 = 14 cycles
+
         MOV CH1_REF0_POINTER_L+X, A
-        MOV A, CHTEMP_SONG_POINTER_H
+        MOV A, Y
         MOV CH1_REF0_POINTER_H+X, A
 
-        POP A
+        MOVW YA, !TEMP_POINTER2_L
         MOVW CHTEMP_SONG_POINTER_L, YA
 
         JMP ReadByte
@@ -1145,9 +1150,8 @@ namespace ParseSongData
     ReferenceRepeat:
         MOV A, (CHTEMP_SONG_POINTER_L)+Y
         CLRC
-        ADC A, #$05                 ;__ 3 bytes of parameters + 1 byte for this opcode
-        MOV !TEMP_POINTER0_L, A     ;   Neither of these instructions
-        MOV !TEMP_POINTER0_H, Y     ;__ affect carry
+        ADC A, #$05                 ;__ 3 bytes of parameters + 1 byte for this opcode + 1 byte for increment afterwards
+        MOVW !TEMP_POINTER0_L, YA   ;   Doesn't affect carry, works by pure concidence (Y is high byte and 0, A is the offset - low byte)
         ADC !TEMP_POINTER0_H, #$00
 
         MOV X, !BACKUP_X
@@ -1482,7 +1486,7 @@ namespace ParseInstrumentData
             OR !CHANNEL_REGISTER_INDEX, #$05        ;
             MOV $F2, !CHANNEL_REGISTER_INDEX        ;
             MOV A, (!TEMP_POINTER1_L)+Y             ;   Update Attack, Decay
-            INCW !TEMP_POINTER1_L                   ;
+            INC Y                                   ;
             OR A, #$80                              ;
             %realChannelWrite()                     ;__
             INC $F2                                 ;
@@ -1508,32 +1512,30 @@ namespace ParseInstrumentData
             AND A, #$40                         ;
             OR A, $EF                           ;
             TCALL 15                            ;
-            MOVW !TEMP_POINTER1_L, YA	        ;
+            MOVW !TEMP_POINTER2_L, YA	        ;
             MOV CH1_SAMPLE_POINTER_L+X, A       ;
             MOV A, Y                            ;
             MOV CH1_SAMPLE_POINTER_H+X, A       ;
             JMP updatePointer                   ;__
         +   MOV A, (!TEMP_POINTER1_L)+Y         ;
-            PUSH A                      		;   If no, just blatantly
-            INCW !TEMP_POINTER1_L               ;   Load sample pointer into memory
+            MOV !TEMP_POINTER2_L, A				;   If no, just blatantly
+            INC Y								;   Load sample pointer into memory
             MOV A, (!TEMP_POINTER1_L)+Y         ;
-            MOV Y, A							;
-            POP A								;
-            MOVW !TEMP_POINTER1_L, YA			;__
+            MOV !TEMP_POINTER2_H, A				;__
     updatePointer:       
             BBS7 CHTEMP_FLAGS, updatePointer_1  ;	If the currently playing sample is 1, update sample 0
         .0:
-            MOV A, !TEMP_POINTER1_H				;   Check if the high byte is the same
+            MOV A, !TEMP_POINTER2_H				;   Check if the high byte is the same
             CMP A, $0203+X                      ;__
             BNE updatePointer_0_withRestart		;
-            MOV A, !TEMP_POINTER1_L				;	If yes, update only the low byte of the sample pointer
+            MOV A, !TEMP_POINTER2_L				;	If yes, update only the low byte of the sample pointer
             MOV $0202+X, A                      ;__ 
             POP X
             RET
             
         ..withRestart:
             MOV $0207+X, A						;   If high byte is different,
-            MOV A, !TEMP_POINTER1_L				;   Update sample 1 loop pointer
+            MOV A, !TEMP_POINTER2_L				;   Update sample 1 loop pointer
             MOV $0206+X, A                      ;__
             MOV A, #$C0                         ;
             MOV $0204+X, A                      ;   Reset sample 1 start pointer to blank sample
@@ -1553,17 +1555,17 @@ namespace ParseInstrumentData
 
 
         .1:
-            MOV A, !TEMP_POINTER1_H				;	Check if high byte is the same
+            MOV A, !TEMP_POINTER2_H				;	Check if high byte is the same
             CMP A, $0207+X						;__
             BNE updatePointer_1_withRestart		;
-            MOV A, !TEMP_POINTER1_L				;	If yes, update only the low byte of the sample pointer
+            MOV A, !TEMP_POINTER2_L				;	If yes, update only the low byte of the sample pointer
             MOV $0206+X, A                      ;__
             POP X
             RET
             
         ..withRestart:
             MOV $0203+X, A                      ;   If high byte is different,
-            MOV A, !TEMP_POINTER1_L				;   Update sample 1 loop pointer
+            MOV A, !TEMP_POINTER2_L				;   Update sample 1 loop pointer
             MOV $0202+X, A                      ;__
             MOV A, #$C0                         ;
             MOV $0200+X, A                      ;   Reset sample 1 start pointer to blank sample
