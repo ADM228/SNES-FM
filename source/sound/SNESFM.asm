@@ -994,10 +994,10 @@ namespace ParseSongData
         MOV A, !TEMP_VALUE
         MOV CH1_NOTE+X, A
         BBS4 CHTEMP_FLAGS, PitchUpdate
-        BBS5 CHTEMP_FLAGS, PitchUpdate
             ; Retrigger
             MOV $F2, #$5C       		;   Key off the needed channel
             MOV $F3, !CHANNEL_BITMASK	;__
+        BBS5 CHTEMP_FLAGS, PitchUpdate
             CALL CallInstrumentParser
             MOV A, CH1_NOTE+X
         PitchUpdate:
@@ -1094,13 +1094,10 @@ namespace ParseSongData
     CallInstrumentParser:
 
         CLR1 CHTEMP_FLAGS
-        SET3 CHTEMP_FLAGS
+        OR CHTEMP_FLAGS, #%00101000
         MOV CHTEMP_COUNTERS_HALT, Y
         MOV CHTEMP_COUNTERS_DIRECTION, Y
-        CALL SPC_ParseInstrumentData_Start
-        SET5 CHTEMP_FLAGS
-
-        RET
+        JMP SPC_ParseInstrumentData_Load
 
     SetVolumeL_or_R:
         MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y assumed to be 0 
