@@ -887,17 +887,23 @@ Begin:
     MOV !CHANNEL_BITMASK, X
     DEC X
 	MOV !CHANNEL_REGISTER_INDEX, X
+    MOV Y, #$00
     -:
-        MOV Y, #$00
         MOV A, (!TEMP_POINTER0_L)+Y
         MOV CH1_SONG_POINTER_L+X, A
         INCW !TEMP_POINTER0_L
         MOV A, (!TEMP_POINTER0_L)+Y
         MOV CH1_SONG_POINTER_H+X, A
         INCW !TEMP_POINTER0_L
-        MOV A, #$00
+        MOV A, Y
         MOV CH1_SONG_COUNTER+X, A
         MOV CH1_FLAGS+X, A
+        MOV A, #$C0                         ;
+        MOV $0204+X, A                      ;
+        MOV $0200+X, A                      ;   Reset sample start pointers to blank sample
+        MOV A, #$0E                         ;
+        MOV $0205+X, A                      ;
+        MOV $0201+X, A                      ;__
         ; MOV !CH1_EFFECT_COUNTER+X, A
 
 
@@ -1537,10 +1543,7 @@ namespace ParseInstrumentData
             MOV $0207+X, A						;   If high byte is different,
             MOV A, !TEMP_POINTER2_L				;   Update sample 1 loop pointer
             MOV $0206+X, A                      ;__
-            MOV A, #$C0                         ;
-            MOV $0204+X, A                      ;   Reset sample 1 start pointer to blank sample
-            MOV A, #$0E                         ;
-            MOV $0205+X, A                      ;__
+            ; Reset to blank sample was here, if needed bring back here
             AND !CHANNEL_REGISTER_INDEX, #$70	;   
             OR !CHANNEL_REGISTER_INDEX, #$04	;   Write address to DSP
             MOV $F2, !CHANNEL_REGISTER_INDEX	;__
@@ -1567,10 +1570,7 @@ namespace ParseInstrumentData
             MOV $0203+X, A                      ;   If high byte is different,
             MOV A, !TEMP_POINTER2_L				;   Update sample 1 loop pointer
             MOV $0202+X, A                      ;__
-            MOV A, #$C0                         ;
-            MOV $0200+X, A                      ;   Reset sample 1 start pointer to blank sample
-            MOV A, #$0E                         ;
-            MOV $0201+X, A                      ;__
+            ; Reset to blank sample was here, if needed bring back here
             AND !CHANNEL_REGISTER_INDEX, #$70	;   
             OR !CHANNEL_REGISTER_INDEX, #$04	;   Write address to DSP
             MOV $F2, !CHANNEL_REGISTER_INDEX	;__
