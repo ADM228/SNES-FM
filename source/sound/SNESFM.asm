@@ -188,25 +188,24 @@ InternalDefines:
         CH1_NOTE = $0846
         CH1_FLAGS = $0847
 
+        CH1_MACRO_COUNTERS = $0880
         CH1_INSTRUMENT_TYPE_COUNTER = $0880
         CH1_ENVELOPE_COUNTER = $0881
         CH1_SAMPLE_POINTER_COUNTER = $0882
         CH1_ARPEGGIO_COUNTER = $0883
         CH1_PITCHBEND_COUNTER = $0884
-        CH1_COUNTERS_HALT = $0887
+        CH1_COUNTERS_HALT = $0887		;000paset
 
+        CH1_MACRO_POINTERS = $08C0
         CH1_INSTRUMENT_TYPE_POINTER = $08C0
         CH1_ENVELOPE_POINTER = $08C1
         CH1_SAMPLE_POINTER_POINTER = $08C2
         CH1_ARPEGGIO_POINTER = $08C3
         CH1_PITCHBEND_POINTER = $08C4
-        CH1_COUNTERS_DIRECTION = $08C7
-    ;Pointers for temporary <-> permanent storage transfers
-        CHTEMP_POINTER_2 = $30
-        CHTEMP_POINTER_3 = $38
+        CH1_COUNTERS_DIRECTION = $08C7	;000paset
 
-        CH1_POINTER_2 = $0880
-        CH1_POINTER_3 = $08C0
+        CH1_INSTRUMENT_SECTION_HIGHBITS = $0885
+
 
     ;Internal configuration
 
@@ -262,28 +261,13 @@ InternalDefines:
 
         CHTEMP_SONG_POINTER_L = $20
         CHTEMP_SONG_POINTER_H = $21
-		CHTEMP_INSTRUMENT_TYPE = $25
+		CHTEMP_INSTRUMENT_TYPE = $22
+        CHTEMP_FLAGS = $23
+        CHTEMP_INSTRUMENT_SECTION_HIGHBITS = $24
+        CHTEMP_COUNTERS_HALT = $25
+        CHTEMP_COUNTERS_DIRECTION = $26  
 
-        ;$2B and $2C will be used by pitchbend
-        CHTEMP_FLAGS = $2F
 
-        CHTEMP_MACRO_COUNTERS = $30
-        CHTEMP_INSTRUMENT_TYPE_COUNTER = $30
-        CHTEMP_ENVELOPE_COUNTER = $31
-        CHTEMP_SAMPLE_POINTER_COUNTER = $32
-        CHTEMP_ARPEGGIO_COUNTER = $33
-        CHTEMP_PITCHBEND_COUNTER = $34
-        CHTEMP_COUNTERS_HALT = $37     ;000paset
-
-        CHTEMP_MACRO_POINTERS = $38
-        CHTEMP_INSTRUMENT_TYPE_POINTER = $38
-        CHTEMP_ENVELOPE_POINTER = $39
-        CHTEMP_SAMPLE_POINTER_POINTER = $3A
-        CHTEMP_ARPEGGIO_POINTER = $3B
-        CHTEMP_PITCHBEND_POINTER = $3C
-        CHTEMP_COUNTERS_DIRECTION = $3F   ;000paset
-
-        CHTEMP_INSTRUMENT_SECTION_HIGHBITS = $35
 
 
     ;Just global variables used in song playback
@@ -897,6 +881,8 @@ Begin:
         INCW !TEMP_POINTER0_L
         MOV A, Y
         MOV CH1_SONG_COUNTER+X, A
+		MOV CH1_INSTRUMENT_SECTION_HIGHBITS+X, A
+		MOV A, #$02							;__	Bit 1 set to stop from parsing nonexistent insturment data
         MOV CH1_FLAGS+X, A
         MOV A, #$C0                         ;
         MOV $0204+X, A                      ;
@@ -1215,34 +1201,24 @@ MainLoop:
         BEQ MainLoop_WaitLoop
     .Action:
     .transferChToTemp:
-        MOV A, X
-        CLRC
-        ADC A, #$08
-        MOV Y, A
-
-        MOV X, #$08
-        -:
-            MOV A, CH1_POINTER_2-1+Y
-            MOV CHTEMP_POINTER_2-1+X, A
-            MOV A, CH1_POINTER_3-1+Y
-            MOV CHTEMP_POINTER_3-1+X, A
-            DEC Y
-            DEC X
-            BNE -
 
         ; Special cases (will become the main)
-        MOV A, CH1_FLAGS+Y
+        MOV A, CH1_FLAGS+X
         MOV CHTEMP_FLAGS, A
-        MOV A, CH1_SONG_POINTER_L+Y
+        MOV A, CH1_SONG_POINTER_L+X
         MOV CHTEMP_SONG_POINTER_L, A
-        MOV A, CH1_SONG_POINTER_H+Y
+        MOV A, CH1_SONG_POINTER_H+X
         MOV CHTEMP_SONG_POINTER_H, A
-        MOV A, CH1_INSTRUMENT_TYPE+Y
+        MOV A, CH1_INSTRUMENT_TYPE+X
         MOV CHTEMP_INSTRUMENT_TYPE, A
+        MOV A, CH1_INSTRUMENT_SECTION_HIGHBITS+X
+        MOV CHTEMP_INSTRUMENT_SECTION_HIGHBITS, A
+        MOV A, CH1_COUNTERS_HALT+X
+        MOV CHTEMP_COUNTERS_HALT, A
+        MOV A, CH1_COUNTERS_DIRECTION+X
+        MOV CHTEMP_COUNTERS_DIRECTION, A
 
-        MOV A, Y        ;   Saves 2 cycles compared 
-        MOV X, A        ;__ to PUSH X : POP X
-        MOV !BACKUP_X, A
+        MOV !BACKUP_X, X
 
         ; CALL UpdateEffects
         ; SETC
@@ -1276,32 +1252,26 @@ MainLoop:
         CALL ParseInstrumentData_Start
 
     .transferTempToCh:
+        MOV A, CHTEMP_FLAGS
+        MOV CH1_FLAGS+X, A
+        MOV A, CHTEMP_SONG_POINTER_L
+        MOV CH1_SONG_POINTER_L+X, A
+        MOV A, CHTEMP_SONG_POINTER_H
+        MOV CH1_SONG_POINTER_H+X, A
+        MOV A, CHTEMP_INSTRUMENT_TYPE
+        MOV CH1_INSTRUMENT_TYPE+X, A
+        MOV A, CHTEMP_INSTRUMENT_SECTION_HIGHBITS
+        MOV CH1_INSTRUMENT_SECTION_HIGHBITS+X, A
+        MOV A, CHTEMP_COUNTERS_HALT
+        MOV CH1_COUNTERS_HALT+X, A
+        MOV A, CHTEMP_COUNTERS_DIRECTION
+        MOV CH1_COUNTERS_DIRECTION+X, A
+
+    .GoToNextChannel:
         MOV A, X
         CLRC
-        ADC A, #$10     ; Removes the need for a Second Addition (saves 2 cycles)
-        MOV Y, A
-
-        MOV X, #$08
-        -:
-            MOV A, CHTEMP_POINTER_2-1+X
-            MOV CH1_POINTER_2-1-8+Y, A
-            MOV A, CHTEMP_POINTER_3-1+X
-            MOV CH1_POINTER_3-1-8+Y, A
-            DEC Y
-            DEC X
-            BNE -
-        MOV A, CHTEMP_FLAGS
-        MOV CH1_FLAGS-8+Y, A
-        MOV A, CHTEMP_SONG_POINTER_L
-        MOV CH1_SONG_POINTER_L-8+Y, A
-        MOV A, CHTEMP_SONG_POINTER_H
-        MOV CH1_SONG_POINTER_H-8+Y, A
-        MOV A, CHTEMP_INSTRUMENT_TYPE
-        MOV CH1_INSTRUMENT_TYPE-8+Y, A
-
-        MOV A, Y        ;   Saves 8 cycles compared to PUSH X : POP X : MOV A, X
-    .GoToNextChannel:
-        CLRC
+		ADC A, #$08
+		; This cannot set carry
         ADC !CHANNEL_REGISTER_INDEX, #$10
         MOV X, A
         ASL !CHANNEL_BITMASK
@@ -1335,22 +1305,18 @@ namespace ParseInstrumentData
         INCW !TEMP_POINTER0_L
         INCW !TEMP_POINTER0_L
 
-        MOV X, A
-
         BBS3 CHTEMP_FLAGS, +
         JMP NotFirstTime
         +:
 
         MOV X, !BACKUP_X
         MOV CH1_ARPEGGIO+X, A
-        MOV X, A
+        MOV CH1_INSTRUMENT_TYPE_POINTER+X, A
+        MOV CH1_ENVELOPE_POINTER+X, A
+        MOV CH1_SAMPLE_POINTER_POINTER+X, A
+        MOV CH1_ARPEGGIO_POINTER+X, A
+        MOV CH1_PITCHBEND_POINTER+X, A
         MOV $E0, #$05
-        
-        MOV CHTEMP_INSTRUMENT_TYPE_POINTER, A
-        MOV CHTEMP_ENVELOPE_POINTER, A
-        MOV CHTEMP_SAMPLE_POINTER_POINTER, A
-        MOV CHTEMP_ARPEGGIO_POINTER, A
-        MOV CHTEMP_PITCHBEND_POINTER, A
         
         MOV !TEMP_VALUE, #$01
         MOV !TEMP_VALUE2, #$04
@@ -1362,8 +1328,7 @@ namespace ParseInstrumentData
             DBNZ !TEMP_VALUE2, -
 
         CLR3 CHTEMP_FLAGS
-        MOV X, !BACKUP_X
-        RET
+        JMP Finish
     NotFirstTime:
 
         MOV !TEMP_VALUE, #$01
@@ -1374,9 +1339,9 @@ namespace ParseInstrumentData
             AND A, !TEMP_VALUE
             BNE +
                 SETC
-                MOV A, CHTEMP_INSTRUMENT_TYPE_COUNTER+X
+                MOV A, CH1_MACRO_COUNTERS+X
                 SBC A, !TIMER_VALUE
-                MOV CHTEMP_INSTRUMENT_TYPE_COUNTER+X, A
+                MOV CH1_MACRO_COUNTERS+X, A
                 BPL +
                     CALL UpdateMacro
                     JMP ++
@@ -1388,9 +1353,14 @@ namespace ParseInstrumentData
             INC X
             ASL !TEMP_VALUE
             DBNZ !TEMP_VALUE2, -
-        
+
+    Finish:
         MOV X, !BACKUP_X
-        RET
+        MOV A, CHTEMP_COUNTERS_HALT		;
+        EOR A, #$0F						;	If all counters are halted, parsing
+        BNE +                           ;	instrument data is not necessary anymore
+			SET1 CHTEMP_FLAGS			;__
+    	+ RET
 
     UpdateMacro:
         PUSH X
@@ -1402,16 +1372,18 @@ namespace ParseInstrumentData
         MOV !TEMP_POINTER1_H, A                 ;
         INCW !TEMP_POINTER0_L                   ;__
 
-        MOV A, UpdateMacro_InsTypeMaskTable+X
-        AND A, CHTEMP_INSTRUMENT_TYPE
+        MOV Y, !TEMP_VALUE2                     ;	Determine whether to double the pointer
+        MOV A, UpdateMacro_InsTypeMaskTable-1+Y ; -	-1 cuz the Y is never 0
+        MOV Y, #$00
+        AND A, CHTEMP_INSTRUMENT_TYPE           ;__
         BEQ +
-            MOV A, CHTEMP_MACRO_POINTERS+X      ; 
+            MOV A, CH1_MACRO_POINTERS+X         ; 
             ASL A                               ;   Get the current
             BCC ++                              ;   macro pointer (double)
                 INC Y                           ;
             JMP ++                              ;__
         +:
-            MOV A, CHTEMP_MACRO_POINTERS+X		;   Get the current macro pointer (single)
+            MOV A, CH1_MACRO_POINTERS+X         ;   Get the current macro pointer (single)
         ++:
         ADDW YA, !TEMP_POINTER1_L               ;   Get the current
         MOVW !TEMP_POINTER1_L, YA               ;__ macro pointer
@@ -1419,28 +1391,32 @@ namespace ParseInstrumentData
         MOV Y, #$00
         MOV A, (!TEMP_POINTER0_L)+Y             ;   Get the amount of steps
         INCW !TEMP_POINTER0_L                   ;__
-        CMP A, CHTEMP_MACRO_POINTERS+X
+        CMP A, CH1_MACRO_POINTERS+X
         BNE ++
             OR CHTEMP_COUNTERS_HALT, !TEMP_VALUE
-            INCW !TEMP_POINTER0_L
             JMP +
-        ++  INC CHTEMP_MACRO_POINTERS+X			;TODO: More looping types
-            MOV A, (!TEMP_POINTER0_L)+Y			;   Get the counter value
-            INCW !TEMP_POINTER0_L				;__
-            MOV CHTEMP_MACRO_COUNTERS+X, A		;__ Store counter value
+        ++  ;TODO: More looping types
+            MOV A, CH1_MACRO_POINTERS+X
+            INC A
+            MOV CH1_MACRO_POINTERS+X, A
+            MOV A, (!TEMP_POINTER0_L)+Y			;__	Get the counter value
+            MOV CH1_MACRO_COUNTERS+X, A		    ;__ Store counter value
         +
-        MOV A, X
+		INCW !TEMP_POINTER0_L
+        MOV A, !TEMP_VALUE2
         ASL A
         MOV X, A
-        JMP (UpdateMacro_ActualUpdateTable+X)
+        JMP (UpdateMacro_ActualUpdateTable-2+X) ; -2 cuz it will never be 0, therefore shifting by 1
 
-        .ActualUpdateTable:
-            dw UpdateInstrumentType
-            dw UpdateEnvelope
-            dw UpdateSamplePointer
+        .ActualUpdateTable: ; Reversed because DBNZ and shit
             dw UpdateArpeggio
-        .InsTypeMaskTable:     ; Doubles the actual pointer if the bit is set in instrument type
-            db $00, !ENVELOPE_TYPE_ADSR, !SAMPLE_USE_ADDRESS, $00, $00
+            dw UpdateSamplePointer
+            dw UpdateEnvelope
+            dw UpdateInstrumentType
+            dw $0000    ; Pitchbend, move to the beginning when implementing
+        .InsTypeMaskTable:     ; Reversed, Doubles the actual pointer if the bit is set in instrument type
+            db $00, !SAMPLE_USE_ADDRESS, !ENVELOPE_TYPE_ADSR, $00
+            db $00 ; Pitchbend, move to the beginning when implementing
 
     UpdateInstrumentType:
         POP X
@@ -1526,7 +1502,11 @@ namespace ParseInstrumentData
             MOV A, (!TEMP_POINTER1_L)+Y         ;
             MOV !TEMP_POINTER2_H, A				;__
     updatePointer:       
-            BBS7 CHTEMP_FLAGS, updatePointer_1  ;	If the currently playing sample is 1, update sample 0
+        BBC7 CHTEMP_FLAGS, +                    ;__ If the currently playing sample is 1, update sample 0
+            MOV A, X                            ;
+            OR A, #$04                          ;   Add 4 to the pointer
+            MOV X, A                            ;__
+        +
         .0:
             MOV A, !TEMP_POINTER2_H				;   Check if the high byte is the same
             CMP A, $0203+X                      ;__
@@ -1537,35 +1517,13 @@ namespace ParseInstrumentData
             RET
             
         ..withRestart:
-            MOV $0207+X, A						;   If high byte is different,
-            MOV A, !TEMP_POINTER2_L				;   Update sample 1 loop pointer
-            MOV $0206+X, A                      ;__
-            ; Reset to blank sample was here, if needed bring back here
-            AND !CHANNEL_REGISTER_INDEX, #$70	;   
-            OR !CHANNEL_REGISTER_INDEX, #$04	;   Write address to DSP
-            MOV $F2, !CHANNEL_REGISTER_INDEX	;__
-            MOV A, X		                    ;
-            LSR A                               ;   Write Source Number to DSP
-            LSR A                               ;
-            OR A, #$01                          ;
-            %realChannelWrite()                 ;__
-            SET7 CHTEMP_FLAGS					;__ Next time update sample 0
-            POP X
-            RET
-
-
-        .1:
-            MOV A, !TEMP_POINTER2_H				;	Check if high byte is the same
-            CMP A, $0207+X						;__
-            BNE updatePointer_1_withRestart		;
-            MOV A, !TEMP_POINTER2_L				;	If yes, update only the low byte of the sample pointer
-            MOV $0206+X, A                      ;__
-            POP X
-            RET
-            
-        ..withRestart:
+            MOV Y, A
+            MOV A, X
+            EOR A, #$04
+            MOV X, A
+            MOV A, Y                            
             MOV $0203+X, A                      ;   If high byte is different,
-            MOV A, !TEMP_POINTER2_L				;   Update sample 1 loop pointer
+            MOV A, !TEMP_POINTER2_L				;   Update sample loop pointer
             MOV $0202+X, A                      ;__
             ; Reset to blank sample was here, if needed bring back here
             AND !CHANNEL_REGISTER_INDEX, #$70	;   
@@ -1575,9 +1533,9 @@ namespace ParseInstrumentData
             LSR A                               ;   Write Source Number to DSP
             LSR A                               ;
             %realChannelWrite()                 ;__
-            CLR7 CHTEMP_FLAGS					;__ Next time sample 1 is updated
+            EOR CHTEMP_FLAGS, #$80				;__ Next time update the other sample
             POP X
-            RET		
+            RET
 
     UpdateArpeggio:
         MOV X, !BACKUP_X
@@ -2716,7 +2674,7 @@ IndexToSamplePointer:   ;TCALL 15
         AND A, #$03                 ;
         MOV Y, A                    ;   Set up the BRR sample subpage
         MOV A, IndexToSamplePointer_LookuptableMul18+Y
-        MOV Y, #$00                 ;
+        MOV Y, #$60                 ;
         ADDW YA, $EE                ;
         MOVW $EE, YA                ;__
         POP A                       ;
@@ -2725,8 +2683,6 @@ IndexToSamplePointer:   ;TCALL 15
         CLRC                        ;
         ADC $EF, #$48               ;__
     +:                              ;
-        CLRC                        ;   Actually make it a valid pointer
-        ADC $EF, #$60               ;__
         MOVW YA, $EE                ;   Return with pointer in YA
     RET                             ;__
     .LookuptableMul18:
