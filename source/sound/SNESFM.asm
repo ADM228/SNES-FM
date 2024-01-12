@@ -186,7 +186,9 @@ InternalDefines:
 
         CH1_SONG_COUNTER = $0840
         CH1_REF0_COUNTER = $0841
-        ;$43 and $44 will be used by pitchbend
+        CH1_PITCHBEND_IDX_SNG = $0842
+        CH1_PITCHBEND_IDX_INS = $0843
+        CH1_PITCHBEND_OFFSET = $0844    ; Bottom 4 bits - inst, top - song
         CH1_ARPEGGIO = $0845
         CH1_NOTE = $0846
         CH1_FLAGS = $0847
@@ -282,6 +284,8 @@ InternalDefines:
         !CHANNEL_BITMASK = $03
         !TEMP_VALUE2 = $06
         !BACKUP_X = $07
+        !PLAYBACK_FLAGS  = $09  ; 0000000p
+                                ; p = pitch modified
         !TEMP_POINTER0_L = $0A
         !TEMP_POINTER0_H = $0B
         !TEMP_POINTER1_L = $0C
@@ -882,15 +886,19 @@ Begin:
     -:
         MOV A, (!TEMP_POINTER0_L)+Y
         MOV CH1_SONG_POINTER_L+X, A
-        INCW !TEMP_POINTER0_L
+        INC Y
         MOV A, (!TEMP_POINTER0_L)+Y
         MOV CH1_SONG_POINTER_H+X, A
-        INCW !TEMP_POINTER0_L
-        MOV A, Y
+        INC Y
+        MOV A, #$00
         MOV CH1_SONG_COUNTER+X, A
 		MOV CH1_INSTRUMENT_SECTION_HIGHBITS+X, A
-		MOV A, #$02							;__	Bit 1 set to stop from parsing nonexistent insturment data
-        MOV CH1_FLAGS+X, A
+        MOV CH1_PITCHBEND_OFFSET+X, A
+		MOV A, #$02							;   Bit 1 set to stop from
+        MOV CH1_FLAGS+X, A                  ;__ parsing nonexistent instrument data
+        MOV A, #$80                         ;
+        MOV CH1_PITCHBEND_IDX_SNG+X, A      ;   Zero out pitchbend
+        MOV CH1_PITCHBEND_IDX_INS+X, A      ;__ TODO: A toggle for this
         MOV A, #$C0                         ;
         MOV $0204+X, A                      ;
         MOV $0200+X, A                      ;   Reset sample start pointers to blank sample
@@ -985,8 +993,11 @@ namespace ParseSongData
 
     Note:
         MOV A, !TEMP_VALUE
-        MOV CH1_NOTE+X, A
-        BBS4 CHTEMP_FLAGS, PitchUpdate
+        CMP A, CH1_NOTE+X           ;
+        BEQ +                       ;   If absolutely nothing changed
+            SET0 !PLAYBACK_FLAGS    ;   no need to update the pitch
+            MOV CH1_NOTE+X, A       ;__
+        + BBS4 CHTEMP_FLAGS, PitchUpdate
             ; Retrigger
             MOV $F2, #$5C       		;   Key off the needed channel
             MOV $F3, !CHANNEL_BITMASK	;__
@@ -994,24 +1005,7 @@ namespace ParseSongData
             CALL CallInstrumentParser
             MOV A, CH1_NOTE+X
         PitchUpdate:
-            CLRC                    	;   Apply arpeggio
-            ADC A, CH1_ARPEGGIO+X 		;__
-            BBC0 CHTEMP_INSTRUMENT_TYPE, NoisePitch
-                MOV Y, A                            ;   Get low pitch byte
-                MOV A, PitchTableLo+Y               ;__
-                AND !CHANNEL_REGISTER_INDEX, #$70   ;
-                OR !CHANNEL_REGISTER_INDEX, #$02    ;   DSP Address (low pitch)
-                MOV $F2, !CHANNEL_REGISTER_INDEX;   ;__
-                %realChannelWrite()                 ;__ Write low pitch byte
-                MOV A, PitchTableHi+Y               ;__ Get high pitch byte
-                INC $F2                             ;__ DSP Address (high pitch)
-                %realChannelWrite()                 ;__ Write high pitch byte
-                JMP KeyOn
-            NoisePitch:
-                AND A, #$1F  	;
-                MOV $F2, #$6C	;  Update noise clock
-                AND $F3, #$E0	;
-                TSET $F3, A  	;__
+            TCALL 13
         KeyOn:
             EOR CHTEMP_FLAGS, #%00010000    ;__ Reduces branching
             BBC4 CHTEMP_FLAGS, ReadByte     ;__ (Inverted)
@@ -1258,6 +1252,8 @@ MainLoop:
     +:
         CALL ParseInstrumentData_Start
 
+    TCALL 13
+
     .transferTempToCh:
         MOV A, CHTEMP_FLAGS
         MOV CH1_FLAGS+X, A
@@ -1427,25 +1423,25 @@ namespace ParseInstrumentData
 
     UpdateInstrumentType:
         POP X
+        MOV0 C, CHTEMP_INSTRUMENT_TYPE      ;__ Get the old value
         MOV A, (!TEMP_POINTER1_L)+Y         ;   Get the current value
         MOV CHTEMP_INSTRUMENT_TYPE, A      	;__
-        MOV $F2, #$3D                       ;
-        BBC0 CHTEMP_INSTRUMENT_TYPE, +		;
-            MOV A, !CHANNEL_BITMASK         ;
-            TCLR $F3, A                     ;   Update the noise enable flag
-            JMP ++                          ;
-        +:                                  ;
-            OR $F3, !CHANNEL_BITMASK        ;__ 
+        EOR0 C, CHTEMP_INSTRUMENT_TYPE      ;   Don't update if nothing changed
+        BCC ++                              ;__
+            SET0 !PLAYBACK_FLAGS                ;
+            MOV $F2, #$3D                       ;
+            BBC0 CHTEMP_INSTRUMENT_TYPE, +		;
+                MOV A, !CHANNEL_BITMASK         ;
+                TCLR $F3, A                     ;   Update the noise enable flag
+                JMP ++                          ;
+            +:                                  ;
+                OR $F3, !CHANNEL_BITMASK        ;__ 
     ++  AND !CHANNEL_REGISTER_INDEX, #$70	; 
         OR !CHANNEL_REGISTER_INDEX, #$05	;
         MOV $F2, !CHANNEL_REGISTER_INDEX	;
-        MOV A, $F3                          ;
-        XCN A                               ;   If the envelope mode isn't changed, 
-        LSR A                               ;   don't clear the envelope
-        LSR A                               ;
-        EOR A, CHTEMP_INSTRUMENT_TYPE		;
-        AND A, #$02                         ;
-        BEQ RET_                            ;__
+        MOV1 C, $F3                         ;   If the envelope mode isn't changed, 
+        EOR1 C, CHTEMP_INSTRUMENT_TYPE      ;   don't clear the envelope
+        BCC RET_                            ;__
         AND !CHANNEL_REGISTER_INDEX, #$70	; 
         BBC1 CHTEMP_INSTRUMENT_TYPE, +		;
             OR !CHANNEL_REGISTER_INDEX, #$05;   Write address to DSP (ADSR1)
@@ -1546,35 +1542,51 @@ namespace ParseInstrumentData
 
     UpdateArpeggio:
         MOV X, !BACKUP_X
-        MOV A, (!TEMP_POINTER1_L)+Y 			;   Update arpeggio 
-        MOV CH1_ARPEGGIO+X, A                 	;__
-        MOV A, CH1_NOTE+X                     	;
-        CLRC                                    ;   Apply arpeggio
-        ADC A, CH1_ARPEGGIO+X                 	;__
-        POP X
-        BBC0 CHTEMP_INSTRUMENT_TYPE, ++
-            AND A, #$7F
-            MOV Y, A                                ;__
-            MOV A, PitchTableLo+Y                   ;
-            AND !CHANNEL_REGISTER_INDEX, #$70       ;
-            OR !CHANNEL_REGISTER_INDEX, #$02        ;   Update low byte of pitch
-            MOV $F2, !CHANNEL_REGISTER_INDEX;       ;
-            %realChannelWrite()                     ;__
-            MOV A, PitchTableHi+Y                   ;
-            OR !CHANNEL_REGISTER_INDEX, #$01        ;   Update high byte of pitch
-            MOV $F2, !CHANNEL_REGISTER_INDEX;       ;
-            %realChannelWrite()                     ;
-            MOV Y, #$00                             ;__
-            RET
-        ++:
-            AND A, #$1F                             ;
-            MOV $F2, #$6C                           ;  Update noise clock
-            AND $F3, #$E0                           ;
-            OR A, $F3                               ;
-            %realChannelWrite()                     ;__
-            RET
+        MOV A, (!TEMP_POINTER1_L)+Y 			;__ Get arpeggio 
+        CMP A, CH1_ARPEGGIO+X                   ;
+        BEQ +                                   ;   If arpeggio changed, update it
+            SET0 !PLAYBACK_FLAGS                ;   and set to update the pitch
+            MOV CH1_ARPEGGIO+X, A               ;__
+        + POP X
+        RET
+
+
+
 
 namespace off
+
+UpdatePitch:
+    BBC0 !PLAYBACK_FLAGS, R
+    CLR0 !PLAYBACK_FLAGS
+    MOV A, CH1_NOTE+X                     	;
+    CLRC                                    ;   Apply arpeggio
+    ADC A, CH1_ARPEGGIO+X                 	;__
+    BBC0 CHTEMP_INSTRUMENT_TYPE, ++
+        AND A, #$7F
+        MOV Y, A                                ;__
+        ; pitchbend here
+
+        ; basic algo:
+        ; 0. get base pitch value and store it into ram
+        ; 1. add up pitchbends
+        ; 2. subtract $80 due to the add up
+        ; 3. do the multiplication
+        MOV A, PitchTableLo+Y                   ;
+        AND !CHANNEL_REGISTER_INDEX, #$70       ;
+        OR !CHANNEL_REGISTER_INDEX, #$02        ;   Update low byte of pitch
+        MOV $F2, !CHANNEL_REGISTER_INDEX;       ;
+        %realChannelWrite()                     ;__
+        MOV A, PitchTableHi+Y                   ;
+        INC $F2                                 ;   Update high byte of pitch
+        %realChannelWrite()                     ;__
+    #R: RET
+    ++:
+        AND A, #$1F                             ;
+        MOV $F2, #$6C                           ;  Update noise clock
+        AND $F3, #$E0                           ;
+        OR A, $F3                               ;
+        %realChannelWrite()                     ;__
+        RET
 
 TransferDataBlock:
     .Labels:
@@ -2751,10 +2763,10 @@ Includes:
                 PUSH A
                 MOV A, LogTableTable+X
                 INC X
-                MOV $00, A
+                MOV !TEMP_VALUE, A
                 POP A
             .LoopPart2:
-                CMP Y, $00
+                CMP Y, !TEMP_VALUE
                 BEQ +
                     MOV LogTable+Y, A
                     INC A
@@ -2774,11 +2786,9 @@ Includes:
                 INC Y
                 BRA Log2Generate_LoopPart1
     
-
-    org $0800-19   ; Log2 table for pitchbends
-        LogTableTable:
+    LogTableTable:
         db 4, 12, 20, 29, 37, 46, 56, 65, 76, 86, 97, 109, 121, 134, 149, 164, 182, 203, 229
-        LogTable = $0700
+    LogTable = $0700
 
     endif
 
@@ -2787,6 +2797,7 @@ Includes:
         if !SNESFM_CFG_VIRTUAL_CHANNELS > 0
             dw WriteToChannel
         endif
+        dw UpdatePitch
 
     ParseInstrumentData_InstrumentPtrLo = $0A00
     ParseInstrumentData_InstrumentPtrHi = $0B00
