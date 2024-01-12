@@ -103,6 +103,8 @@ Configuration:
 
     ;================ 5. Song playback options ================
 
+        !SNESFM_CFG_PITCHBEND = 1
+
         !SNESFM_CFG_VIRTUAL_CHANNELS = 1
 
     endif
@@ -116,7 +118,8 @@ Documentation:
         ;   $02 _ _ _ _ Sample Directory
         ;   $03			$00 - $7F: Effect IDs
         ;   |__ _ _ _ _ $80 - $FF: Basic effect time counters
-        ;   $04-$07 _ _ Effect q
+        ;   $04-$06 _ _ Effect q
+        ;   $07 _ _ _ _ Log table for pitchbends
         ;   $08 _ _ _ _ Permanent storage of flags, counters and pointers for note stuff for "real" channels
         ;   $09 _ _ _ _ Same but for virtual channels
         ;   $0A _ _ _ _ Low bytes of instrument data pointers
@@ -238,6 +241,8 @@ InternalDefines:
 
         !SNESFM_CFG_INSGEN_REPEAT_AMOUNT ?= 0
         !SNESFM_CFG_INSGEN_ARITHMETIC_AMOUNT ?= 0
+
+        !SNESFM_CFG_PITCHBEND ?= 0
 
         !SNESFM_CFG_VIRTUAL_CHANNELS ?= 0
 
@@ -372,6 +377,8 @@ if !SNESFM_CFG_PITCHTABLE_GEN >= 1
     MOV Y, #$21
     CALL GeneratePitchTable_Start
 endif
+
+    CALL Log2Generate
 
 SineSetup:
 
@@ -2735,6 +2742,45 @@ Includes:
     org $0F00
 		SineTable:
         incbin "quartersinetable.bin"
+    if !SNESFM_CFG_PITCHBEND
+        Log2Generate:
+            MOV X, #$00
+            MOV A, #(256-115)
+            MOV Y, #$00
+            .LoopPart1:
+                PUSH A
+                MOV A, LogTableTable+X
+                INC X
+                MOV $00, A
+                POP A
+            .LoopPart2:
+                CMP Y, $00
+                BEQ +
+                    MOV LogTable+Y, A
+                    INC A
+                    INC Y
+                    BNE Log2Generate_LoopPart2
+            MOV Y, #$80
+            .InvertLoop:
+                MOV A, LogTable-1+Y
+                EOR A, #$FF
+                INC A
+                MOV LogTable-1+Y, A
+                DBNZ Y, Log2Generate_InvertLoop
+            RET
+
+            +:
+                MOV LogTable+Y, A
+                INC Y
+                BRA Log2Generate_LoopPart1
+    
+
+    org $0800-19   ; Log2 table for pitchbends
+        LogTableTable:
+        db 4, 12, 20, 29, 37, 46, 56, 65, 76, 86, 97, 109, 121, 134, 149, 164, 182, 203, 229
+        LogTable = $0700
+
+    endif
 
     org $FFC0   ;For TCALLs
         dw IndexToSamplePointer
