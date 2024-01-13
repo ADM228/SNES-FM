@@ -1175,12 +1175,28 @@ namespace ParseSongData
 
 		JMP ReadByte
 
+    if !SNESFM_CFG_PITCHBEND
+    FinePitch:
+        MOV X, !BACKUP_X
+        MOV A, (CHTEMP_SONG_POINTER_L)+Y
+		CMP A, CH1_PITCHBEND_IDX_SNG+X
+        BEQ +
+            MOV CH1_PITCHBEND_IDX_SNG+X, A
+            SET0 !PLAYBACK_FLAGS
+		+ INCW CHTEMP_SONG_POINTER_L
+        JMP Y00ReadByte
+    endif
+
 	OpcodeTable:
 		fillword POPX_ReadByte
 		dw NoAttack         ; $68, Disable attack
 		dw POPX_ReadByte    ; $69, Arp table
 		dw POPX_ReadByte    ; $6A, Pitch table
-		dw POPX_ReadByte    ; $6B, Fine pitch
+        if !SNESFM_CFG_PITCHBEND
+		dw FinePitch        ; $6B, Fine pitch
+        else
+        dw POPX_ReadByte
+        endif
 		fill 2*4
 
 		dw SetVolumeL_or_R  ; $70, Set left volume
