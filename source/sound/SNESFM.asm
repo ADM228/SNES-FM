@@ -103,7 +103,8 @@ Configuration:
 
 	;================ 5. Song playback options ================
 
-		!SNESFM_CFG_PITCHBEND = 1
+		!SNESFM_CFG_INSTRUMENT_PITCHBEND = 1
+		!SNESFM_CFG_PITCHBEND_EFFECTS = 1	; To be made automatically later
 
 		!SNESFM_CFG_VIRTUAL_CHANNELS = 1
 
@@ -116,12 +117,9 @@ Documentation:
 		;   |__ _ _ _ _ $C0 - $EF: Operating space of subroutines (how exactly described before every subroutine)
 		;   $01 _ _ _ _ Stack
 		;   $02 _ _ _ _ Sample Directory
-		;   $03			$00 - $7F: Effect IDs
-		;   |__ _ _ _ _ $80 - $FF: Basic effect time counters
-		;   $04-$06 _ _ Effect q
-		;   $07 _ _ _ _ Log table for pitchbends
-		;   $08 _ _ _ _ Permanent storage of flags, counters and pointers for note stuff for "real" channels
-		;   $09 _ _ _ _ Same but for virtual channels
+		;   $03-$04 _ _ Permanent storage of flags, counters and pointers for note stuff for "real" channels
+		;   $05-$06 _ _ Same but for virtual channels
+		;   $09 _ _ _ _ Log table for pitchbends
 		;   $0A _ _ _ _ Low bytes of instrument data pointers
 		;   $0B _ _ _ _ High bytes of instrument data pointers
 		;   $0C _ _ _ _ 7/8 multiplication lookup table
@@ -175,42 +173,48 @@ InternalDefines:
 				!SAMPLE_USE_ADDRESS = %00001000
 				!ENVELOPE_TYPE_ADSR = %00000010
 	;Pointers to channel 1's variables (permanent storage during song playback)
-		CH1_SONG_POINTER_L = $0800
-		CH1_SONG_POINTER_H = $0801
-		CH1_REF0_POINTER_L = $0802
-		CH1_REF0_POINTER_H = $0803
-		CH1_INSTRUMENT_INDEX = $0804
-		CH1_INSTRUMENT_TYPE = $0805
-		CH1_SAMPLE_POINTER_L = $0806
-		CH1_SAMPLE_POINTER_H = $0807
+		CH1_SONG_POINTER_L = $0300
+		CH1_SONG_POINTER_H = $0301
+		CH1_REF0_POINTER_L = $0302
+		CH1_REF0_POINTER_H = $0303
+		CH1_INSTRUMENT_INDEX = $0304
+		CH1_INSTRUMENT_TYPE = $0305
+		CH1_SAMPLE_POINTER_L = $0306
+		CH1_SAMPLE_POINTER_H = $0307
 
-		CH1_SONG_COUNTER = $0840
-		CH1_REF0_COUNTER = $0841
-		CH1_PITCHBEND_IDX_SNG = $0842
-		CH1_PITCHBEND_IDX_INS = $0843
-		CH1_PITCHBEND_OFFSET = $0844    ; Bottom 4 bits - inst, top - song
-		CH1_ARPEGGIO = $0845
-		CH1_NOTE = $0846
-		CH1_FLAGS = $0847
+		CH1_SONG_COUNTER = $0340
+		CH1_REF0_COUNTER = $0341
+		CH1_PITCHBEND_L = $0342
+		CH1_PITCHBEND_H = $0343
+		CH1_ARPEGGIO = $0344
+		CH1_NOTE = $0345
+	
+		CH1_FLAGS = $0347
 
-		CH1_MACRO_COUNTERS = $0880
-		CH1_INSTRUMENT_TYPE_COUNTER = $0880
-		CH1_ENVELOPE_COUNTER = $0881
-		CH1_SAMPLE_POINTER_COUNTER = $0882
-		CH1_ARPEGGIO_COUNTER = $0883
-		CH1_PITCHBEND_COUNTER = $0884
-		CH1_COUNTERS_HALT = $0887		;000paset
+		CH1_MACRO_COUNTERS = $0380
+		CH1_INSTRUMENT_TYPE_COUNTER = $0380
+		CH1_ENVELOPE_COUNTER = $0381
+		CH1_SAMPLE_POINTER_COUNTER = $0382
+		CH1_ARPEGGIO_COUNTER = $0383
+		CH1_PITCHBEND_COUNTER = $0384
+		CH1_COUNTERS_HALT = $0387		;000paset
 
-		CH1_MACRO_POINTERS = $08C0
-		CH1_INSTRUMENT_TYPE_POINTER = $08C0
-		CH1_ENVELOPE_POINTER = $08C1
-		CH1_SAMPLE_POINTER_POINTER = $08C2
-		CH1_ARPEGGIO_POINTER = $08C3
-		CH1_PITCHBEND_POINTER = $08C4
-		CH1_COUNTERS_DIRECTION = $08C7	;000paset
+		CH1_MACRO_POINTERS = $03C0
+		CH1_INSTRUMENT_TYPE_POINTER = $03C0
+		CH1_ENVELOPE_POINTER = $03C1
+		CH1_SAMPLE_POINTER_POINTER = $03C2
+		CH1_ARPEGGIO_POINTER = $03C3
+		CH1_PITCHBEND_POINTER = $03C4
+		CH1_COUNTERS_DIRECTION = $03C7	;000paset
 
-		CH1_INSTRUMENT_SECTION_HIGHBITS = $0885
+		CH1_INSTRUMENT_SECTION_HIGHBITS = $0385
 
+		CH1_PITCH_EFFECT_ID = $0400
+		CH1_PITCH_EFFECT_CNT = $0401
+		CH1_PITCH_EFFECT_ACC_L = $0402
+		CH1_PITCH_EFFECT_ACC_H = $0403
+		CH1_PITCH_EFFECT_VAL_L = $0404
+		CH1_PITCH_EFFECT_VAL_H = $0405
 
 	;Internal configuration
 
@@ -244,7 +248,10 @@ InternalDefines:
 		!SNESFM_CFG_INSGEN_REPEAT_AMOUNT ?= 0
 		!SNESFM_CFG_INSGEN_ARITHMETIC_AMOUNT ?= 0
 
-		!SNESFM_CFG_PITCHBEND ?= 0
+		!SNESFM_CFG_INSTRUMENT_PITCHBEND ?= 0
+		!SNESFM_CFG_PITCHBEND_EFFECTS ?= 0	; To be made automatically later
+		!SNESFM_CFG_PITCHBEND_ANY = (!SNESFM_CFG_INSTRUMENT_PITCHBEND)|(!SNESFM_CFG_PITCHBEND_EFFECTS)
+		!SNESFM_CFG_PITCHBEND_BOTH = (!SNESFM_CFG_INSTRUMENT_PITCHBEND)&(!SNESFM_CFG_PITCHBEND_EFFECTS)
 
 		!SNESFM_CFG_VIRTUAL_CHANNELS ?= 0
 
@@ -421,7 +428,7 @@ EffectSetup:
 RAMClear:
 	MOV A, Y
 	-:
-		MOV $0800+Y, A
+		MOV $0300+Y, A
 		MOV $0200+Y, A
 		DBNZ Y, -
 
@@ -893,14 +900,23 @@ Begin:
 		MOV A, #$00
 		MOV CH1_SONG_COUNTER+X, A
 		MOV CH1_INSTRUMENT_SECTION_HIGHBITS+X, A
-		MOV CH1_PITCHBEND_OFFSET+X, A
+		if !SNESFM_CFG_PITCHBEND_ANY
+			if !SNESFM_CFG_PITCHBEND_EFFECTS	;
+				MOV CH1_PITCH_EFFECT_VAL_H+X, A	;
+			endif								;
+			if !SNESFM_CFG_INSTRUMENT_PITCHBEND	;
+				MOV CH1_PITCHBEND_H+X, A		;	
+			endif								;
+			MOV A, #$80							;   Zero out pitchbend
+			if !SNESFM_CFG_PITCHBEND_EFFECTS	;
+				MOV CH1_PITCH_EFFECT_VAL_L+X, A	;
+			endif								;
+			if !SNESFM_CFG_INSTRUMENT_PITCHBEND	;
+				MOV CH1_PITCHBEND_L+X, A		;
+			endif								;__
+		endif
 		MOV A, #$02							;   Bit 1 set to stop from
 		MOV CH1_FLAGS+X, A                  ;__ parsing nonexistent instrument data
-		if !SNESFM_CFG_PITCHBEND
-			MOV A, #$80							;
-			MOV CH1_PITCHBEND_IDX_SNG+X, A		;   Zero out pitchbend
-			MOV CH1_PITCHBEND_IDX_INS+X, A		;__
-		endif
 		MOV A, #$C0							;
 		MOV $0204+X, A                      ;
 		MOV $0200+X, A                      ;   Reset sample start pointers to blank sample
@@ -1175,27 +1191,36 @@ namespace ParseSongData
 
 		JMP ReadByte
 
-    if !SNESFM_CFG_PITCHBEND
+    if !SNESFM_CFG_PITCHBEND_EFFECTS
     FinePitch:
-        MOV X, !BACKUP_X
-        MOV A, (CHTEMP_SONG_POINTER_L)+Y
-		CMP A, CH1_PITCHBEND_IDX_SNG+X
-        BEQ +
-            MOV CH1_PITCHBEND_IDX_SNG+X, A
-            SET0 !PLAYBACK_FLAGS
+		MOV A, X						;
+        MOV X, !BACKUP_X				;	Store pitch effect ID
+		MOV CH1_PITCH_EFFECT_ID+X, A	;__
+
+        MOV A, (CHTEMP_SONG_POINTER_L)+Y	;
+		CMP A, CH1_PITCH_EFFECT_VAL_L+X		;
+        BEQ +								;	Update low byte of pitch if needed
+            MOV CH1_PITCH_EFFECT_VAL_L+X, A	;
+            SET0 !PLAYBACK_FLAGS			;__
+		+ MOV A, Y							;
+		CMP A, CH1_PITCH_EFFECT_VAL_H+X		;
+		BEQ +								;	Zero out high byte of pitch if needed
+			MOV CH1_PITCH_EFFECT_VAL_H+X, A	;
+			SET0 !PLAYBACK_FLAGS			;__
 		+ INCW CHTEMP_SONG_POINTER_L
         JMP Y00ReadByte
     endif
 
 	OpcodeTable:
 		fillword POPX_ReadByte
+
 		dw NoAttack         ; $68, Disable attack
 		dw POPX_ReadByte    ; $69, Arp table
+        if !SNESFM_CFG_PITCHBEND_EFFECTS
 		dw POPX_ReadByte    ; $6A, Pitch table
-        if !SNESFM_CFG_PITCHBEND
 		dw FinePitch        ; $6B, Fine pitch
         else
-        dw POPX_ReadByte
+		fill 2*2			; $6A-$6B, Pitch effects
         endif
 		fill 2*4
 
@@ -1588,56 +1613,115 @@ UpdatePitch:
 		%realChannelWrite()                     ;__
 	#R:	RET
 	.TonePitch:
+		; Defines
+		!L000_NOTE_VALUE = !TEMP_VALUE2
+		!L000_BASE_PITCH_L = !TEMP_POINTER0_L
+		!L000_BASE_PITCH_H = !TEMP_POINTER0_H
+		!L000_TBL_INDEX = !TEMP_POINTER1_H
+		!L000_HIGH_RESULT = !TEMP_POINTER2_L
+
 		AND !CHANNEL_REGISTER_INDEX, #$70       ;
 		OR !CHANNEL_REGISTER_INDEX, #$02        ;   DSP Address: Low pitch
 		MOV $F2, !CHANNEL_REGISTER_INDEX;       ;__
-		if !SNESFM_CFG_PITCHBEND
-			MOV !TEMP_VALUE2, A
+		if !SNESFM_CFG_PITCHBEND_ANY
 
-			; TODO: Toggle for adding up the bends
+			MOV !L000_NOTE_VALUE, A
+
+			if !SNESFM_CFG_PITCHBEND_BOTH
+
 			MOV Y, #$00
-			MOV !TEMP_POINTER0_H, Y
+			MOV A, CH1_PITCHBEND_L+X		;
+			CLRC							;	Add up the low bytes
+			ADC A, CH1_PITCH_EFFECT_VAL_L+X	;__
+			BCS +							;
+				DEC Y						;	If value is less than #$80, dec base
+				SETC						;__
+			+ SBC A, #$80					;__	Subtract the #$80 hassle-free
+			MOV !L000_TBL_INDEX, A			;	Neither of these
+			MOV A, Y						;__	affect carry
+			ADC A, CH1_PITCHBEND_H+X		;
+			CLRC							;	Add up the high bytes, with the overflow
+			ADC A, CH1_PITCH_EFFECT_VAL_H+X	;__
+			; How the fuck that worked:
+				; MOV, CLRC, ADC - The usual business
+				; C is set if an overflow occured, 
+				; Then i DEC Y if that happens,
+				; So Y is -1 if the value < $100; and 0 if >= $100
 
-			MOV A, CH1_PITCHBEND_IDX_INS+X  ;
-			MOV !TEMP_POINTER0_L, A         ;
-			MOV A, CH1_PITCHBEND_IDX_SNG+X  ;   Add up the pitchbends,
-			ADDW YA, !TEMP_POINTER0_L       ;   subtract $80
-			MOV !TEMP_POINTER0_L, #$80      ;
-			SUBW YA, !TEMP_POINTER0_L       ;__
-			CMPW YA, !TEMP_POINTER0_L       ;   If no pitchbend, dont process
-			BEQ UpdatePitch_NoBend          ;__
-				MOV !TEMP_POINTER1_H, A         ;
-				MOV A, Y                        ;
-				ASL A                           ;
-				CLRC                            ;
-				ADC A, !TEMP_VALUE2         	;__
-				CMP !TEMP_POINTER1_H, #$80		;	If just note with no 
-				BEQ UpdatePitch_DefNoBend		;__	pitchbend don't process any more
+				; Then #$80 is subtracted,
+				; and carry stores whether a borrow occured
+				; If a borrow did not occur, 
+				; 1 should be added back to Y 
+				; so that it becomes mathematically correct.
 
+				; But the ADC adds carry, and that can be used
+				; While loading the first byte, the carry is added
+
+				; Result: 44/46 cycles instead of 54 and not dealing with words
+			ASL A							;
+			CLRC							;	Add up the note immediately
+			ADC A, !L000_NOTE_VALUE			;__
+
+			MOV Y, !L000_TBL_INDEX
+			BEQ UpdatePitch_OneDown
+			CMP Y, #$80
+			BEQ UpdatePitch_NoBend
+			
+			else	; not !SNESFM_CFG_PITCHBEND_BOTH
+
+			if !SNESFM_CFG_INSTRUMENT_PITCHBEND
+
+			MOV A, CH1_PITCHBEND_L+X			; 
+			MOV Y, A							;	Get instrument pitchbend
+			MOV A, CH1_PITCHBEND_H+X			;__ 
+
+			elseif !SNESFM_CFG_PITCHBEND_EFFECTS
+
+			MOV A, CH1_PITCH_EFFECT_VAL_L+X		; 
+			MOV Y, A							;	Get effect pitchbend
+			MOV A, CH1_PITCH_EFFECT_VAL_H+X		;__
+
+			endif
+
+			ASL A								;
+			CLRC								;	Add it
+			ADC A, !L000_NOTE_VALUE				;	to note
+			MOV !L000_NOTE_VALUE, A				;__
+
+			CMP Y, #$80
+			BEQ UpdatePitch_NoBend
+			CMP Y, #$00
+			BEQ UpdatePitch_OneDown
+
+			endif
+
+			MOV !L000_TBL_INDEX, Y
+
+			
 				; At this point there is definitely multiplication to be done
 
 				CALL UpdatePitch_ClampPitch		;
-				MOV A, PitchTableLo+Y			;
-				MOV !TEMP_POINTER0_L, A			;	Store the (base) pitch value in TMP0
+				; MOV A, PitchTableLo+Y <- Done by clampPitch
+				MOV !L000_BASE_PITCH_L, A			;	Store the (base) pitch value in TMP0
 				MOV A, PitchTableHi+Y			;
-				MOV !TEMP_POINTER0_H, A			;__
+				MOV !L000_BASE_PITCH_H, A			;__
 
-				MOV Y, !TEMP_POINTER1_H
+				MOV Y, !L000_TBL_INDEX
 
 				MOV A, LogTable+Y			;
 				PUSH A						;
-				MOV Y, !TEMP_POINTER0_H		;	Multiply high byte
+				MOV Y, !L000_BASE_PITCH_H	;	Multiply high byte
 				MUL YA  					;
-				MOVW !TEMP_POINTER2_L, YA	;__
+				MOVW !L000_HIGH_RESULT, YA	;__
 				POP A						;
-				MOV Y, !TEMP_POINTER0_L		;	Multiply low byte
+				MOV Y, !L000_BASE_PITCH_L	;	Multiply low byte
 				MUL YA						;__
 				CMP A, #$80					;
 				MOV A, Y					;	Round the number
 				ADC A, #$00					;__
 
 				MOV Y, #$00					;
-				ADDW YA, !TEMP_POINTER2_L	;	Get sum of both bytes
+				ADDW YA, !L000_HIGH_RESULT	;	Get sum of both bytes
 				MOV !TEMP_POINTER2_H, Y		;__
 
 				LSR !TEMP_POINTER2_H 		;
@@ -1648,13 +1732,13 @@ UpdatePitch:
 				ROR A						;
 				MOV Y, !TEMP_POINTER2_H		;__
 
-				CMP !TEMP_POINTER1_H, #$00
+				CMP !L000_TBL_INDEX, #$00
 				BMI +
 					EOR A, #$FF					;
 					EOR !TEMP_POINTER2_H, #$FF	;	Invert the negatives
 					MOV Y, !TEMP_POINTER2_H		;__
-				+:							;__
-				ADDW YA, !TEMP_POINTER0_L
+				+:
+				ADDW YA, !L000_BASE_PITCH_L
 
 				MOV !TEMP_POINTER0_L, Y		;	Update low byte of pitch
 				%realChannelWrite()			;__
@@ -1662,14 +1746,14 @@ UpdatePitch:
 				MOV A, !TEMP_POINTER0_L		;	Update high byte of pitch
 				%realChannelWrite()			;__
 				RET
-				
+                	
+            .OneDown:
+            DEC A
 			.NoBend:
-			MOV A, !TEMP_VALUE2
-			.DefNoBend:
 		endif
 			CALL UpdatePitch_ClampPitch
-			MOV A, PitchTableLo+Y                   ;	Update low byte of pitch
-			%realChannelWrite()                     ;__
+			; MOV A, PitchTableLo+Y <- Done by clampPitch
+			%realChannelWrite()                     ;__	Update low byte of pitch
 			MOV A, PitchTableHi+Y                   ;
 			INC $F2                                 ;   Update high byte of pitch
 			%realChannelWrite()                     ;__
@@ -1679,10 +1763,11 @@ UpdatePitch:
 		CMP A, #$60                             ;
 		BMI +                                   ;
 			MOV Y, #$00                         ;   Clamp values to 00..5F
-			CMP A, #$C0                         ;
+			CMP A, #$B0                         ;
 			BPL +                               ;
 				MOV Y, #$5F                     ;__
-		+ RET
+		+ MOV A, PitchTableLo+Y					;__	I always do this immediately after anyway
+		RET
 
 TransferDataBlock:
 	.Labels:
@@ -2850,7 +2935,7 @@ Includes:
 	org $0F00
 		SineTable:
 		incbin "quartersinetable.bin"
-	if !SNESFM_CFG_PITCHBEND
+	if !SNESFM_CFG_PITCHBEND_ANY
 		Log2Generate:
 			MOV X, #$00
 			MOV A, #(256-115)
@@ -2884,7 +2969,7 @@ Includes:
 	
 	LogTableTable:
 		db 4, 12, 20, 29, 37, 46, 56, 65, 76, 86, 97, 109, 121, 134, 149, 164, 182, 203, 229
-	LogTable = $0700
+	LogTable = $0900
 
 	endif
 
