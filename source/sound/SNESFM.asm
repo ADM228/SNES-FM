@@ -323,6 +323,8 @@ InternalDefines:
 		INSDATA_TMP_PTR_1_L = $6E
 		INSDATA_TMP_PTR_1_H = $6F
 
+		L001_PrevPitch_Lo	= $EE
+
 warnings enable W1008
 ;
 
@@ -386,6 +388,9 @@ Init:       ;init routine by KungFuFurby
 if !SNESFM_CFG_PITCHTABLE_GEN >= 1
 	MOV A, #$7D
 	MOV Y, #$21
+	MOVW L001_PrevPitch_Lo, YA
+	MOV A, #$39
+	MOV Y, #$0F
 	CALL GeneratePitchTable_Start
 endif
 
@@ -1836,8 +1841,7 @@ SendCPUMsg:
 WaitCPUMsg:
 	-:
 		MOV A, $F4
-		CMP A, MESSAGE_CNT_TH1
-		BNE -
+		CBNE MESSAGE_CNT_TH1, -
 	INC MESSAGE_CNT_TH1
 	MOV A, $F5
 	AND A, #$F0
@@ -2745,79 +2749,143 @@ GeneratePitchTable:
 		; Inputs:
 		; YA = base pitch value of C7
 	.Defines:
-		GenPitch_CounterA      = $EA
-		GenPitch_NewPitch_Lo   = $EC
-		GenPitch_NewPitch_Hi   = $ED
-		GenPitch_PrevPitch_Lo  = $EE
-		GenPitch_PrevPitch_Hi  = $EF
+		!GenPitch_Ratio_Lo	= $E8
+		!GenPitch_Ratio_Hi	= $E9
+
+		!L001_CounterA		= $EA
+
+		!L001_NewPitch_Lo	= $EB
+		!L001_NewPitch_Md	= $EC
+		!L001_NewPitch_Hi	= $ED
+
+		!L001_PrevPitch_Lo	= $EE
+		!L001_PrevPitch_Hi	= $EF
+
 		!GenPitch_RatioMult = 196   ;   196/185 ≈ 2^(1/12) - the ratio for 1 semitone
 		!GenPitch_RatioDiv = 185    ;__
+
+		!GenPitch_Ratio12Lo = #$39
+		!GenPitch_Ratio12Hi = #$0F
 	
 	.Start:
+
+		MOVW !GenPitch_Ratio_Lo, YA
+		MOV !L001_CounterA, X
+		
+		MOVW YA, !L001_PrevPitch_Lo
 		MOV PitchTableLo+(7*12), A
 		MOV PitchTableHi+(7*12), Y
-		MOV GenPitch_PrevPitch_Lo, A
-		MOV GenPitch_PrevPitch_Hi, Y
+
 		MOV X, #$00
 	
+	; .OldSemitoneUpLoop:
+	; 	MOV !L001_CounterA, X
+
+	; 	MOV Y, !L001_PrevPitch_Lo		;
+	; 	MOV A, #!GenPitch_RatioMult     ;
+	; 	MUL YA                          ;   Multiply low byte
+	; 	MOV !L001_NewPitch_Lo, A		;
+	; 	MOV !L001_NewPitch_Hi, Y		;__
+
+	; 	MOV !L001_PrevPitch_Lo, #$00 	;
+	; 	MOV Y, !L001_PrevPitch_Hi    	;
+	; 	MOV A, #!GenPitch_RatioMult     ;   Multiply high byte
+	; 	MUL YA                          ;__
+	; 	ADDW YA, !L001_NewPitch_Hi   	; The next byte is 0, so it adds only the high byte as the mid byte
+
+	; 	MOV X, #!GenPitch_RatioDiv      ;   YA very conveniently stores the high and mid bytes
+	; 	DIV YA, X                       ;   Divide mid and high bytes
+	; 	MOV !L001_NewPitch_Hi, A     	;__
+
+	; 	MOV A, !L001_NewPitch_Lo     	;   Y very conveniently stores the remainder as the high byte
+	; 	MOV X, #!GenPitch_RatioDiv      ;   Divide low byte with remainder as high byte
+	; 	DIV YA, X                       ;__
+	; 	CMP Y, #!GenPitch_RatioDiv/2    ;   Round the number
+	; 	ADC A, #$00                     ;__
+
+	; 	MOV X, !L001_CounterA        	;
+	; 	MOV PitchTableLo+(7*12)+1+X, A  ;   Store low byte
+	; 	MOV !L001_PrevPitch_Lo, A    	;__
+	; 	MOV A, !L001_NewPitch_Hi     	;
+	; 	MOV PitchTableHi+(7*12)+1+X, A  ;   Store high byte
+	; 	MOV !L001_PrevPitch_Hi, A    	;__
+
+	; 	INC X
+	; 	CMP X, #11
+	; 	BNE GeneratePitchTable_OldSemitoneUpLoop
+
+		; old: 123 cycles
+		; new: 150-158 cycles
+		
+
 	.SemitoneUpLoop:
-		MOV GenPitch_CounterA, X
+		MOV Y, !L001_PrevPitch_Hi		;
+		MOV A, !GenPitch_Ratio_Hi		;	Multiply Hi * Hi
+		MUL YA							;
+		MOVW !L001_NewPitch_Md, YA		;__
 
-		MOV Y, GenPitch_PrevPitch_Lo    ;
-		MOV A, #!GenPitch_RatioMult     ;
-		MUL YA                          ;   Multiply low byte
-		MOV GenPitch_NewPitch_Lo, A     ;
-		MOV GenPitch_NewPitch_Hi, Y     ;__
+		MOV Y, !L001_PrevPitch_Lo		;
+		MOV A, !GenPitch_Ratio_Lo		;	Multiply Lo * Lo
+		MUL YA							;__
+		ASL A							;-	Equal to CMP #$80 but 1 less byte
+		MOV A, Y						;
+		ADC A, #$00						;	Round the lowest byte out
+		BCC +							;
+			INCW !L001_NewPitch_Md		;
+		+ MOV !L001_NewPitch_Lo, A		;__
 
-		MOV GenPitch_PrevPitch_Lo, #$00 ;
-		MOV Y, GenPitch_PrevPitch_Hi    ;
-		MOV A, #!GenPitch_RatioMult     ;   Multiply high byte
-		MUL YA                          ;__
-		ADDW YA, GenPitch_NewPitch_Hi   ; The next byte is 0, so it adds only the high byte as the mid byte
+		MOV Y, !L001_PrevPitch_Lo		;
+		MOV A, !GenPitch_Ratio_Hi		;
+		MUL YA							;	Multiply Lo * Hi
+		ADDW YA, !L001_NewPitch_Lo		;
+		ADC !L001_NewPitch_Hi, #$00		;
+		MOVW !L001_NewPitch_Lo, YA		;__
 
-		MOV X, #!GenPitch_RatioDiv      ;   YA very conveniently stores the high and mid bytes
-		DIV YA, X                       ;   Divide mid and high bytes
-		MOV GenPitch_NewPitch_Hi, A     ;__
+		MOV Y, !L001_PrevPitch_Hi		;
+		MOV A, !GenPitch_Ratio_Lo		;
+		MUL YA							;__	Multiply Hi * Lo
+		ADDW YA, !L001_NewPitch_Lo		;	Add final Mid&Lo bytes
+		MOV !L001_NewPitch_Md, Y	 	;__
+		ASL A							;-	Equal to CMP #$80 but 1 byte less
+		BCC +							;	Round low byte
+			INCW !L001_NewPitch_Md		;__
+		+ 
 
-		MOV A, GenPitch_NewPitch_Lo     ;   Y very conveniently stores the remainder as the high byte
-		MOV X, #!GenPitch_RatioDiv      ;   Divide low byte with remainder as high byte
-		DIV YA, X                       ;__
-		CMP Y, #!GenPitch_RatioDiv/2    ;   Round the number
-		ADC A, #$00                     ;__
-
-		MOV X, GenPitch_CounterA        ;
-		MOV PitchTableLo+(7*12)+1+X, A  ;   Store low byte
-		MOV GenPitch_PrevPitch_Lo, A    ;__
-		MOV A, GenPitch_NewPitch_Hi     ;
-		MOV PitchTableHi+(7*12)+1+X, A  ;   Store high byte
-		MOV GenPitch_PrevPitch_Hi, A    ;__
-
+		ASL !L001_NewPitch_Md			;__	Round mid byte (CMP #$80 but 1 byte and 1 cycle less)
+		ADC !L001_PrevPitch_Lo, !L001_NewPitch_Md
+		ADC !L001_PrevPitch_Hi, !L001_NewPitch_Hi
+		
+		MOV A, !L001_PrevPitch_Lo		;	Store the low pitch byte
+		MOV PitchTableLo+(7*12)+1+X, A	;__
+		MOV A, !L001_PrevPitch_Hi		;	Store the high pitch byte
+		MOV PitchTableHi+(7*12)+1+X, A	;__
+		
 		INC X
-		CMP X, #11
+		CMP X, !L001_CounterA
 		BNE GeneratePitchTable_SemitoneUpLoop
 
 	.BitShiftStart:
-		MOV GenPitch_CounterA, #12
+		MOV !L001_CounterA, #12
 
 	.BitShiftBigLoop:
 		CLRC
 		MOV A, #6*12
-		ADC A, GenPitch_CounterA
+		ADC A, !L001_CounterA
 		MOV X, A
 		MOV A, PitchTableHi+12-1+X
-		MOV GenPitch_NewPitch_Hi, A
+		MOV !L001_NewPitch_Hi, A
 		MOV A, PitchTableLo+12-1+X
 		
 
 		..BitShiftLoop:
-			LSR GenPitch_NewPitch_Hi        ;
+			LSR !L001_NewPitch_Hi        ;
 			ROR A                           ;
 			ADC A, #$00                     ;
-			ADC GenPitch_NewPitch_Hi, #$00  ;__
+			ADC !L001_NewPitch_Hi, #$00  ;__
 			MOV Y, A
 
 			MOV PitchTableLo-1+X, A
-			MOV A, GenPitch_NewPitch_Hi
+			MOV A, !L001_NewPitch_Hi
 			MOV PitchTableHi-1+X, A
 
 			MOV A, X
@@ -2829,7 +2897,7 @@ GeneratePitchTable:
 			MOV A, Y
 			JMP GeneratePitchTable_BitShiftBigLoop_BitShiftLoop
 		+:
-		DBNZ GenPitch_CounterA, GeneratePitchTable_BitShiftBigLoop
+		DBNZ !L001_CounterA, GeneratePitchTable_BitShiftBigLoop
 	
 	.OverflowCorrection:
 		MOV X, #7*12+11
