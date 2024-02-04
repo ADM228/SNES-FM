@@ -23,8 +23,9 @@ Configuration:
 		; 1. General sample generation options
 		; 2. Phase modulation options
 		; 3. Pulse generation options
-		; 4. Other generation options
-		; 5. Song playback options
+		; 4. Pitch table generation options
+		; 5. Other generation options
+		; 6. Song playback options
 		;__
 
 	!SNESFM_CFG_EXTERNAL ?= 0
@@ -74,7 +75,59 @@ Configuration:
 		; Enables generation of short pulse wave samples.
 		!SNESFM_CFG_PULSEGEN_SHORT = 1
 
-	;=============== 4. Other generation options ==============
+	;============ 4. Pitch table generation options ===========
+
+		; Whether to generate pitch tables on the SPC700
+		; itself. If disabled, you will be responsible for
+		; supplying the pitch table yourself (at location
+		; $0E00 - $0EBF, the first 96 bytes being low bytes and
+		; the last 96 being high bytes, the topmost note is a
+		; B7, close to the max pitch on the SNES).
+		!SNESFM_CFG_PITCHTABLE_GEN = 1
+
+		; Arithmetic method used for generating the pitch
+		; tables' uppermost octave.
+		; When it's set to 0, it proceeds to
+		;	1. Multiply the 16-bit pitch by an 8-bit multiplier
+		;	2. Divide the 24-bit result by an 8-bit divisor
+		; When it's set to 1 (or above), it proceeds to
+		;	1. Multiply the 16-bit pitch by a 16-bit multiplier
+		;	2. Take the upper 2 bytes of the 32-bit result and
+		;		add them to the pitch
+		; The latter pitch generation method can account for
+		; more different tone scales (e.g. TET17), but takes
+		; about 20% more time per note, while the former method
+		; was created with regard to TET12, and is the default.
+		!SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD = 0
+
+		; Whether to enable different ratios for pitch table
+		; generation per song. If set to 0, the pitch table
+		; will always be generated with the same ratio, but
+		; still allow different base points per song. If set to
+		; 1 (or above), you can specify different pitch ratios
+		; per song (e.g. one song in TET12 and another in 
+		; TET17), which is also slower.
+		!SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS = 0
+
+		; The ratios for the generation of the pitch table. If
+		; dynamic ratios are enabled, this ratio will be the
+		; default one (the one initialized at boot and used by
+		; songs if not told otherwise), if disabled, it's just
+		; the ratio that the pitch tables are generated in.
+		; When the ARITHMETIC_METHOD is 0, the HIGHRATIO is the
+		; multiplier, and LOWRATIO is the divisor; when it's 1,
+		; it's just the bytes of the 16-bit multiplier. Set to
+		; the ratio for TET12 by default.
+		!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO = 196
+		!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO = 185
+
+		; The amount of notes per octave in the pitch table. 
+		; The total amount of notes always stays at 96, so at
+		; higher values you lose more of the bass.
+		; !!!! DOES NOT AUTOMATICALLY SET THE RATIO OPTIONS!!!!
+		!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT = 12
+
+	;=============== 5. Other generation options ==============
 
 		; Amount of space for repeating opcode parameters in 
 		; the instrument generation routine. Lesser values will
@@ -93,15 +146,7 @@ Configuration:
 		; instrument data. 
 		!SNESFM_CFG_INSGEN_ARITHMETIC_AMOUNT = 4
 
-		; Whether to generate pitch tables on the SPC700
-		; itself. If disabled, you will be responsible for
-		; supplying the pitch table yourself (at location
-		; $0E00 - $0EBF, the first 96 bytes being low bytes and
-		; the last 96 being high bytes, the topmost note is a
-		; B7, close to the max pitch on the SNES).
-		!SNESFM_CFG_PITCHTABLE_GEN = 1
-
-	;================ 5. Song playback options ================
+	;================ 6. Song playback options ================
 
 		!SNESFM_CFG_INSTRUMENT_PITCHBEND = 1
 		!SNESFM_CFG_PITCHBEND_EFFECTS = 1	; To be made automatically later
@@ -243,7 +288,25 @@ InternalDefines:
 
 		!SNESFM_CFG_RESAMPLE ?= 0
 
-		!SNESFM_CFG_PITCHTABLE_GEN ?= 0
+		!SNESFM_CFG_PITCHTABLE_GEN ?= 1
+		if !SNESFM_CFG_PITCHTABLE_GEN >= 1
+			!SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS ?= 0
+			!SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD ?= 0
+			; Default ratios for TET12
+			if !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD == 0
+				!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO ?= 196
+				!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO ?= 185
+			else
+				!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO ?= $0F
+				!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO ?= $39
+			endif
+			!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT ?= 12
+		endif
+
+		; TODO: make support for this
+		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS >= 1
+			error "Sorry, dynamic ratios not supported rn"
+		endif
 
 		!SNESFM_CFG_INSGEN_REPEAT_AMOUNT ?= 0
 		!SNESFM_CFG_INSGEN_ARITHMETIC_AMOUNT ?= 0
