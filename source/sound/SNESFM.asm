@@ -2975,55 +2975,35 @@ GeneratePitchTable:
 	endif	; !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD
 
 	.BitShiftStart:
-		MOV !L001_CounterA, #12
+		MOV Y, #(96-!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT)
 
-	.BitShiftBigLoop:
-		CLRC
-		MOV A, #6*12
-		ADC A, !L001_CounterA
-		MOV X, A
-		MOV A, PitchTableHi+12-1+X
-		MOV !L001_NewPitch_Hi, A
-		MOV A, PitchTableLo+12-1+X
-
-
-		..BitShiftLoop:
-			LSR !L001_NewPitch_Hi        ;
-			ROR A                        ;
-			ADC A, #$00                  ;
-			ADC !L001_NewPitch_Hi, #$00  ;__
-			MOV Y, A
-
-			MOV PitchTableLo-1+X, A
-			MOV A, !L001_NewPitch_Hi
-			MOV PitchTableHi-1+X, A
-
-			MOV A, X
-			SETC
-			SBC A, #12
-			BMI +
-			MOV X, A
-
-			MOV A, Y
-			JMP GeneratePitchTable_BitShiftBigLoop_BitShiftLoop
-		+:
-		DBNZ !L001_CounterA, GeneratePitchTable_BitShiftBigLoop
+	.BitShiftLoop:
+		MOV A, PitchTableHi+!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT-1+Y	;	Get high byte
+		LSR A															;	Shift it
+		MOV X, A														;__	It's now in X
+		MOV A, PitchTableLo+!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT-1+Y	;	Get low byte
+		ROR A															;__	Shift it
+		ADC A, #$00														;__	Round it
+		MOV PitchTableLo-1+Y, A											;__	Store it
+		MOV A, X														;	Get high back into A
+		ADC A, #$00														;	Round it
+		MOV PitchTableHi-1+Y, A											;__	Store it
+		DBNZ Y, GeneratePitchTable_BitShiftLoop
 
 	.OverflowCorrection:
-		MOV X, #7*12+11
+		MOV Y, #96
 
 		..Loop:
-			MOV A, PitchTableHi+X       ;
+			MOV A, PitchTableHi-1+X		;
 			CMP A, #$40                 ;   If the value isn't overflowing, exit
 			BMI GeneratePitchTable_End  ;__
 
 			MOV A, #$3F                 ;
-			MOV PitchTableHi+X, A       ;   Cap the pitch value
+			MOV PitchTableHi-1+X, A		;   Cap the pitch value
 			MOV A, #$FF                 ;
-			MOV PitchTableLo+X, A       ;__
+			MOV PitchTableLo-1+X, A		;__
 
-			DEC X
-			BPL GeneratePitchTable_OverflowCorrection_Loop
+			DBNZ Y, GeneratePitchTable_OverflowCorrection_Loop
 
 	.End:
 		RET
