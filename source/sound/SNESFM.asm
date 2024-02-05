@@ -10,7 +10,7 @@ warnings disable W1008
 Configuration:
 	; SNESFM can be configured in 2 different ways:
 		;
-		; 1. Right here, in the configuration section - just 
+		; 1. Right here, in the configuration section - just
 		; comment/uncomment the defines below to disable/enable features.
 		;
 		; 2. Externally, by specifying the defines somewhere else
@@ -52,7 +52,7 @@ Configuration:
 		; it while disabling sample generation.
 		!SNESFM_CFG_INSDATA_CUSTOM_SAMPLES = 1
 
-	
+
 	;=============== 2. Phase modulation options ==============
 
 		; Dictates whether to generate phase modulated
@@ -105,9 +105,13 @@ Configuration:
 		; will always be generated with the same ratio, but
 		; still allow different base points per song. If set to
 		; 1 (or above), you can specify different pitch ratios
-		; per song (e.g. one song in TET12 and another in 
+		; per song (e.g. one song in TET12 and another in
 		; TET17), which is also slower.
 		!SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS = 0
+
+		; Whether to enable different note counts per octave in
+		; the pitch table. It will take more time to generate.
+		!SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_NOTE_COUNTS = 0
 
 		; The ratios for the generation of the pitch table. If
 		; dynamic ratios are enabled, this ratio will be the
@@ -121,7 +125,7 @@ Configuration:
 		!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO = 196
 		!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO = 185
 
-		; The amount of notes per octave in the pitch table. 
+		; The amount of notes per octave in the pitch table.
 		; The total amount of notes always stays at 96, so at
 		; higher values you lose more of the bass.
 		; !!!! DOES NOT AUTOMATICALLY SET THE RATIO OPTIONS!!!!
@@ -129,12 +133,12 @@ Configuration:
 
 	;=============== 5. Other generation options ==============
 
-		; Amount of space for repeating opcode parameters in 
+		; Amount of space for repeating opcode parameters in
 		; the instrument generation routine. Lesser values will
 		; slightly reduce code size and execution time at the
-		; cost of possibly increasing the size of instrument 
+		; cost of possibly increasing the size of instrument
 		; data. Can range from 0 to 4. Should be supplied by
-		; the tool that compiled the instrument data. 
+		; the tool that compiled the instrument data.
 		!SNESFM_CFG_INSGEN_REPEAT_AMOUNT = 4
 
 		; Amount of space for doing arithmetic opcode
@@ -143,7 +147,7 @@ Configuration:
 		; execution time at the cost of possibly increasing the
 		; size of instrument data. Can range from 0 to 4.
 		; Should be supplied by the tool that compiled the
-		; instrument data. 
+		; instrument data.
 		!SNESFM_CFG_INSGEN_ARITHMETIC_AMOUNT = 4
 
 	;================ 6. Song playback options ================
@@ -186,21 +190,21 @@ Documentation:
 		;   $2  |    |           |           |   Got the data
 		;   $3  |    |           |           |   Have started compiling instruments
 		;   $4  |     20-bit tick counter    |   Currently playing song, here's what tick it is
-		;   $F  |    |           |           |   What? 
+		;   $F  |    |           |           |   What?
 		;       === To SPC: ===
 		;   Id  | P1 |    Pt2    |    Pt3    |   Meaning
 		;   $0  |    |           |           |   Read yo message
 		;   $1  |    |           |           |   Stop song
 		;   $2  |    |           |  Channels |   Mute channels
-		;   $3  |     20-bit tick counter    |   Seek to tick 
+		;   $3  |     20-bit tick counter    |   Seek to tick
 		;   $4  |    |           |           |   Prepare to get some song data and gimme the location
 		;   $5  |    |           |           |   Prepare to get some instrument data and gimme the location
 		;   $6  |    |           |           |   Play the song you have received
-		;   $7  |    |           |   SFX ID  |   Play sound effect 
-		;   $8  |    | instrument|  note ID  |   Play just a note  
+		;   $7  |    |           |   SFX ID  |   Play sound effect
+		;   $8  |    | instrument|  note ID  |   Play just a note
 		;   $9  |    |    16 bits of data    |   Get a load of this data
 		;   $A  |    |           |           |   Data transfer finished
-		;   $F  |    |           |           |   What? 
+		;   $F  |    |           |           |   What?
 	;   Sound engine documentation:
 		;   Channel flags: n0Iafoir
 		;   n - sample number (0 or 1)
@@ -208,7 +212,7 @@ Documentation:
 		;   a - whether to disable the attack
 		;   f - whether to reset the instrument
 		;   o - in real channels: whether the channel is overridden by a virtual channel
-		;       in virtual channels: whether the channel is enabled 
+		;       in virtual channels: whether the channel is enabled
 		;   i - whether to not parse instrument data
 		;   r - whether a reference is in effect
 InternalDefines:
@@ -233,7 +237,7 @@ InternalDefines:
 		CH1_PITCHBEND_H = $0343
 		CH1_ARPEGGIO = $0344
 		CH1_NOTE = $0345
-	
+
 		CH1_FLAGS = $0347
 
 		CH1_MACRO_COUNTERS = $0380
@@ -291,6 +295,7 @@ InternalDefines:
 		!SNESFM_CFG_PITCHTABLE_GEN ?= 1
 		if !SNESFM_CFG_PITCHTABLE_GEN >= 1
 			!SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS ?= 0
+			!SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_NOTE_COUNTS ?= 0
 			!SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD ?= 0
 			; Default ratios for TET12
 			if !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD == 0
@@ -304,8 +309,8 @@ InternalDefines:
 		endif
 
 		; TODO: make support for this
-		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS >= 1
-			error "Sorry, dynamic ratios not supported rn"
+		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_NOTE_COUNTS >= 1
+			error "Sorry, dynamic note counts not supported rn"
 		endif
 
 		!SNESFM_CFG_INSGEN_REPEAT_AMOUNT ?= 0
@@ -342,7 +347,7 @@ InternalDefines:
 		CHTEMP_FLAGS = $23
 		CHTEMP_INSTRUMENT_SECTION_HIGHBITS = $24
 		CHTEMP_COUNTERS_HALT = $25
-		CHTEMP_COUNTERS_DIRECTION = $26  
+		CHTEMP_COUNTERS_DIRECTION = $26
 
 
 
@@ -377,7 +382,7 @@ InternalDefines:
 		INSBLOCK_PTR_H  = $63
 
 		INSDATA_OPCODE  = $64
-		
+
 		INSDATA_INS_CNT     = $69
 		INSDATA_TMP_CNT     = $6A
 		INSDATA_TMP_VALUE   = $6B
@@ -386,7 +391,7 @@ InternalDefines:
 		INSDATA_TMP_PTR_1_L = $6E
 		INSDATA_TMP_PTR_1_H = $6F
 
-		L001_PrevPitch_Lo	= $EE
+		!GenPitch_Ratio_Lo	= $E8
 
 warnings enable W1008
 ;
@@ -433,7 +438,7 @@ Init:       ;init routine by KungFuFurby
 
 	INC A           ; Set A to 0
 
-	MOVW $F4, YA    ;   Clear output ports 
+	MOVW $F4, YA    ;   Clear output ports
 	MOVW $F6, YA    ;__
 	MOV MESSAGE_CNT_TH1, A
 	MOV $F1, #$30   ;__ Clear input ports
@@ -449,11 +454,13 @@ Init:       ;init routine by KungFuFurby
 	MOV $F1, #$07   ;__
 
 if !SNESFM_CFG_PITCHTABLE_GEN >= 1
+	if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS >= 1
+		MOV A, #!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO
+		MOV Y, #!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO
+		MOVW !GenPitch_Ratio_Lo, YA
+	endif
 	MOV A, #$7D
 	MOV Y, #$21
-	MOVW L001_PrevPitch_Lo, YA
-	MOV A, #$39
-	MOV Y, #$0F
 	CALL GeneratePitchTable_Start
 endif
 
@@ -474,7 +481,7 @@ SineSetup:
 		MOV $0F41+Y, A
 		DEC Y
 		DBNZ Y, SineSetup_loopCopy
-	
+
 	MOV Y, #$3F
 
 	.loopInvert:
@@ -721,7 +728,7 @@ namespace CompileInstruments
 	RET
 
 	if !SNESFM_CFG_PHASEMOD_ANY >= 1
-	PhaseModPart1:      
+	PhaseModPart1:
 		MOV INSDATA_TMP_CNT, #OPCODE_ARGUMENT+5
 		MOV A, INSDATA_OPCODE
 		BPL +   ; If bit 7 is set in both the counter and the opcode it has 1 less argument
@@ -743,7 +750,7 @@ namespace CompileInstruments
 			MOV OPCODE_ARGUMENT+0, A
 			INCW INSDATA_PTR_L
 		if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
-		+ 
+		+
 		ASL INSDATA_TMP_VALUE
 		BCS ++
 		endif
@@ -778,7 +785,7 @@ namespace CompileInstruments
 	endif   ; !SNESFM_CFG_PHASEMOD_ANY
 
 	if !SNESFM_CFG_PULSEGEN_ANY >= 1
-	PulseGen: 
+	PulseGen:
 		MOV X, #OPCODE_ARGUMENT
 		CALL CopyArguments
 
@@ -817,20 +824,20 @@ namespace CompileInstruments
 		endif
 	endif   ; !SNESFM_CFG_PULSEGEN
 
-	BRRGen: 
+	BRRGen:
 		MOV X, #OPCODE_ARGUMENT
 		CALL CopyArguments
 		BBC7 INSDATA_OPCODE, +  ;   Ironically this takes the same cycles as MOV1
 			OR BRR_FLAGS, #$10  ;__ when it sets the bit, and 3 less if it doesn't
 		+ JMP SPC_ConvertToBRR  ;__ = CALL : RET
 
-	ConserveArgs: 
+	ConserveArgs:
 		MOV A, INSDATA_OPCODE   ;
 		XCN A                   ;
 		LSR A                   ;   Get pointer into dp
 		AND A, #$03             ;
 		MOV X, A                ;__
-		
+
 		MOV A, (INSDATA_PTR_L)+Y
 		MOV REPEAT_BITMASK+X, A
 		INCW INSDATA_PTR_L
@@ -873,7 +880,7 @@ namespace CompileInstruments
 
 		RET
 
-		
+
 	InstrumentRawDataBlock:
 		MOV A, (INSDATA_PTR_L)+Y
 		MOV INSBLOCK_PTR_L, A
@@ -973,7 +980,7 @@ Begin:
 				MOV CH1_PITCH_EFFECT_VAL_H+X, A	;
 			endif								;
 			if !SNESFM_CFG_INSTRUMENT_PITCHBEND	;
-				MOV CH1_PITCHBEND_H+X, A		;	
+				MOV CH1_PITCHBEND_H+X, A		;
 			endif								;
 			MOV A, #$80							;   Zero out pitchbend
 			if !SNESFM_CFG_PITCHBEND_EFFECTS	;
@@ -995,10 +1002,10 @@ Begin:
 
 
 		; MOV Y, #$00
-		; MOV A, (CHTEMP_SONG_POINTER_L)+Y 
+		; MOV A, (CHTEMP_SONG_POINTER_L)+Y
 		; INCW CHTEMP_SONG_POINTER_L
 		; MOV !CH1_EFFECT_POINTER_L+X, A
-		; MOV A, (CHTEMP_SONG_POINTER_L)+Y 
+		; MOV A, (CHTEMP_SONG_POINTER_L)+Y
 		; INCW CHTEMP_SONG_POINTER_L
 		; MOV !CH1_EFFECT_POINTER_H+X, A
 
@@ -1025,8 +1032,8 @@ namespace ParseSongData
 	ReadByte:
 		MOV Y, #$00
 	Y00ReadByte:            ; Use if Y and X not modified
-		MOV A, (CHTEMP_SONG_POINTER_L)+Y 
-	
+		MOV A, (CHTEMP_SONG_POINTER_L)+Y
+
 	; If the opcode >= $80, then it's either an instrument change or a waiting opcode
 		BMI Inst_Or_Wait
 
@@ -1096,9 +1103,9 @@ namespace ParseSongData
 			EOR CHTEMP_FLAGS, #%00010000    ;__ Reduces branching
 			BBC4 CHTEMP_FLAGS, ReadByte     ;__ (Inverted)
 				MOV $F2, #$5C       		;   Key off nothing (so no overrides happen)
-				MOV $F3, #$00       		;__ 
+				MOV $F3, #$00       		;__
 				MOV $F2, #$4C       		;   Key on the needed channel
-				MOV $F3, !CHANNEL_BITMASK	;__ 
+				MOV $F3, !CHANNEL_BITMASK	;__
 				CLR4 CHTEMP_FLAGS           ;__ Do attack
 			-   JMP ReadByte
 
@@ -1107,7 +1114,7 @@ namespace ParseSongData
 	DecrementReference:
 		MOV A, CH1_REF0_COUNTER+X
 		DEC A
-		MOV CH1_REF0_COUNTER+X,A 
+		MOV CH1_REF0_COUNTER+X,A
 		BNE RETJump ; very vulnerable
 
 		; Return from reference
@@ -1116,7 +1123,7 @@ namespace ParseSongData
 		MOV Y, A
 		MOV A, CH1_REF0_POINTER_L+X
 		MOVW CHTEMP_SONG_POINTER_L, YA
-		
+
 		MOV A, CH1_SONG_COUNTER+X
 		BMI -   ; Indicates that the driver is really falling behind
 
@@ -1152,7 +1159,7 @@ namespace ParseSongData
 	;     POP A
 	;     JMP SPC_mainLoop_01
 	Jump:
-		MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y assumed to be 0 
+		MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y assumed to be 0
 		INC Y
 		MOV X, A	; I have scrapped X anyway while jumping here
 		MOV A, (CHTEMP_SONG_POINTER_L)+Y
@@ -1173,8 +1180,8 @@ namespace ParseSongData
 		JMP SPC_ParseInstrumentData_Load
 
 	SetVolumeL_or_R:
-		MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y assumed to be 0 
-		INCW CHTEMP_SONG_POINTER_L 
+		MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y assumed to be 0
+		INCW CHTEMP_SONG_POINTER_L
 		AND !CHANNEL_REGISTER_INDEX, #$70
 		MOV $F2, !CHANNEL_REGISTER_INDEX
 		BBC0 $E0, +         ;   Store to right volume register if bit 0 set
@@ -1184,18 +1191,18 @@ namespace ParseSongData
 
 	SetVolumeBoth:
 		MOV A, (CHTEMP_SONG_POINTER_L)+Y
-		INCW CHTEMP_SONG_POINTER_L 
+		INCW CHTEMP_SONG_POINTER_L
 		AND !CHANNEL_REGISTER_INDEX, #$70
 		MOV $F2, !CHANNEL_REGISTER_INDEX
 		%realChannelWrite()
-		INC $F2                             
+		INC $F2
 	+   %realChannelWrite()
 		JMP POPX_ReadByte
 
 	ReferenceSet:
 		MOV X, !BACKUP_X
 
-		MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y assumed to be 0 
+		MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y assumed to be 0
 		INC Y
 		MOV CH1_REF0_COUNTER+X, A
 		SET0 CHTEMP_FLAGS
@@ -1207,7 +1214,7 @@ namespace ParseSongData
 		MOV A, (CHTEMP_SONG_POINTER_L)+Y
 		MOV !TEMP_POINTER2_H, A
 
-		MOV A, #$03	;	Fastest way to 
+		MOV A, #$03	;	Fastest way to
 		MOV Y, #$00	;__ do this in the West
 		ADDW YA, CHTEMP_SONG_POINTER_L
 
@@ -1231,7 +1238,7 @@ namespace ParseSongData
 		ADC !TEMP_POINTER0_H, #$00
 
 		MOV X, !BACKUP_X
-		
+
 		INCW CHTEMP_SONG_POINTER_L
 		MOVW YA, CHTEMP_SONG_POINTER_L
 		MOV CH1_REF0_POINTER_L+X, A
@@ -1431,10 +1438,10 @@ namespace ParseInstrumentData
 		MOV CH1_ARPEGGIO_POINTER+X, A
 		MOV CH1_PITCHBEND_POINTER+X, A
 		MOV $E0, #$05
-		
+
 		MOV !TEMP_VALUE, #$01
 		MOV !TEMP_VALUE2, #$04
-		
+
 		-:
 			CALL UpdateMacro
 			INC X
@@ -1460,7 +1467,7 @@ namespace ParseInstrumentData
 					CALL UpdateMacro
 					JMP ++
 			+
-				CLRC    
+				CLRC
 				ADC !TEMP_POINTER0_L, #$04
 				ADC !TEMP_POINTER0_H, #$00
 			++
@@ -1481,7 +1488,7 @@ namespace ParseInstrumentData
 		MOV Y, #$00
 		MOV A, (!TEMP_POINTER0_L)+Y             ;
 		MOV !TEMP_POINTER1_L, A                 ;
-		INCW !TEMP_POINTER0_L                   ;   Get base 
+		INCW !TEMP_POINTER0_L                   ;   Get base
 		MOV A, (!TEMP_POINTER0_L)+Y             ;   macro pointer
 		MOV !TEMP_POINTER1_H, A                 ;
 		INCW !TEMP_POINTER0_L                   ;__
@@ -1491,7 +1498,7 @@ namespace ParseInstrumentData
 		MOV Y, #$00
 		AND A, CHTEMP_INSTRUMENT_TYPE           ;__
 		BEQ +
-			MOV A, CH1_MACRO_POINTERS+X         ; 
+			MOV A, CH1_MACRO_POINTERS+X         ;
 			ASL A                               ;   Get the current
 			BCC ++                              ;   macro pointer (double)
 				INC Y                           ;
@@ -1546,14 +1553,14 @@ namespace ParseInstrumentData
 				TCLR $F3, A                     ;   Update the noise enable flag
 				JMP ++                          ;
 			+:                                  ;
-				OR $F3, !CHANNEL_BITMASK        ;__ 
-	++  AND !CHANNEL_REGISTER_INDEX, #$70	; 
+				OR $F3, !CHANNEL_BITMASK        ;__
+	++  AND !CHANNEL_REGISTER_INDEX, #$70	;
 		OR !CHANNEL_REGISTER_INDEX, #$05	;
 		MOV $F2, !CHANNEL_REGISTER_INDEX	;
-		MOV1 C, $F3                         ;   If the envelope mode isn't changed, 
+		MOV1 C, $F3                         ;   If the envelope mode isn't changed,
 		EOR1 C, CHTEMP_INSTRUMENT_TYPE      ;   don't clear the envelope
 		BCC RET_                            ;__
-		AND !CHANNEL_REGISTER_INDEX, #$70	; 
+		AND !CHANNEL_REGISTER_INDEX, #$70	;
 		BBC1 CHTEMP_INSTRUMENT_TYPE, +		;
 			OR !CHANNEL_REGISTER_INDEX, #$05;   Write address to DSP (ADSR1)
 			MOV $F2, !CHANNEL_REGISTER_INDEX;__
@@ -1615,7 +1622,7 @@ namespace ParseInstrumentData
 			INC Y								;   Load sample pointer into memory
 			MOV A, (!TEMP_POINTER1_L)+Y         ;
 			MOV !TEMP_POINTER2_H, A				;__
-	updatePointer:       
+	updatePointer:
 		BBC7 CHTEMP_FLAGS, +                    ;__ If the currently playing sample is 1, update sample 0
 			MOV A, X                            ;
 			OR A, #$04                          ;   Add 4 to the pointer
@@ -1626,21 +1633,21 @@ namespace ParseInstrumentData
 			CMP A, $0203+X                      ;__
 			BNE updatePointer_0_withRestart		;
 			MOV A, !TEMP_POINTER2_L				;	If yes, update only the low byte of the sample pointer
-			MOV $0202+X, A                      ;__ 
+			MOV $0202+X, A                      ;__
 			POP X
 			RET
-			
+
 		..withRestart:
-			MOV Y, A
-			MOV A, X
-			EOR A, #$04
-			MOV X, A
-			MOV A, Y                            
+			MOV Y, A							;
+			MOV A, X							;
+			EOR A, #$04							;	Swap byte offset
+			MOV X, A							;
+			MOV A, Y							;__
 			MOV $0203+X, A                      ;   If high byte is different,
 			MOV A, !TEMP_POINTER2_L				;   Update sample loop pointer
 			MOV $0202+X, A                      ;__
 			; Reset to blank sample was here, if needed bring back here
-			AND !CHANNEL_REGISTER_INDEX, #$70	;   
+			AND !CHANNEL_REGISTER_INDEX, #$70	;
 			OR !CHANNEL_REGISTER_INDEX, #$04	;   Write address to DSP
 			MOV $F2, !CHANNEL_REGISTER_INDEX	;__
 			MOV A, X		                    ;
@@ -1653,7 +1660,7 @@ namespace ParseInstrumentData
 
 	UpdateArpeggio:
 		MOV X, !BACKUP_X
-		MOV A, (!TEMP_POINTER1_L)+Y 			;__ Get arpeggio 
+		MOV A, (!TEMP_POINTER1_L)+Y 			;__ Get arpeggio
 		CMP A, CH1_ARPEGGIO+X                   ;
 		BEQ +                                   ;   If arpeggio changed, update it
 			SET0 !PLAYBACK_FLAGS                ;   and set to update the pitch
@@ -1712,14 +1719,14 @@ UpdatePitch:
 			ADC A, CH1_PITCH_EFFECT_VAL_H+X	;__
 			; How the fuck that worked:
 				; MOV, CLRC, ADC - The usual business
-				; C is set if an overflow occured, 
+				; C is set if an overflow occured,
 				; Then i DEC Y if that happens,
 				; So Y is -1 if the value < $100; and 0 if >= $100
 
 				; Then #$80 is subtracted,
 				; and carry stores whether a borrow occured
-				; If a borrow did not occur, 
-				; 1 should be added back to Y 
+				; If a borrow did not occur,
+				; 1 should be added back to Y
 				; so that it becomes mathematically correct.
 
 				; But the ADC adds carry, and that can be used
@@ -1734,18 +1741,18 @@ UpdatePitch:
 			BEQ UpdatePitch_OneDown
 			CMP Y, #$80
 			BEQ UpdatePitch_NoBend
-			
+
 			else	; not !SNESFM_CFG_PITCHBEND_BOTH
 
 			if !SNESFM_CFG_INSTRUMENT_PITCHBEND
 
-			MOV A, CH1_PITCHBEND_L+X			; 
+			MOV A, CH1_PITCHBEND_L+X			;
 			MOV Y, A							;	Get instrument pitchbend
-			MOV A, CH1_PITCHBEND_H+X			;__ 
+			MOV A, CH1_PITCHBEND_H+X			;__
 
 			elseif !SNESFM_CFG_PITCHBEND_EFFECTS
 
-			MOV A, CH1_PITCH_EFFECT_VAL_L+X		; 
+			MOV A, CH1_PITCH_EFFECT_VAL_L+X		;
 			MOV Y, A							;	Get effect pitchbend
 			MOV A, CH1_PITCH_EFFECT_VAL_H+X		;__
 
@@ -1765,7 +1772,7 @@ UpdatePitch:
 
 			MOV !L000_TBL_INDEX, Y
 
-			
+
 				; At this point there is definitely multiplication to be done
 
 				CALL UpdatePitch_ClampPitch		;
@@ -1814,7 +1821,7 @@ UpdatePitch:
 				MOV A, !TEMP_POINTER0_L		;	Update high byte of pitch
 				%realChannelWrite()			;__
 				RET
-                	
+
             .OneDown:
             DEC A
 			.NoBend:
@@ -1869,7 +1876,7 @@ TransferDataBlock:
 
 		CMP A, #$90
 		BNE TransferDataBlock_POPA_RET
-		
+
 		; Push the 2 bytes where they need to be
 		MOV A, $F6
 		MOV (TDB_TMP_PTR_L)+Y, A
@@ -1948,7 +1955,7 @@ PulseGenLabels:
 
 	PUL_OUT_PTR_L   = $EE
 	PUL_OUT_PTR_H   = $EF
-endif   ; !SNESFM_CFG_PULSEGEN_ANY 
+endif   ; !SNESFM_CFG_PULSEGEN_ANY
 
 if !SNESFM_CFG_PULSEGEN_LONG >= 1
 GeneratePulse_128:
@@ -2005,10 +2012,10 @@ GeneratePulse_128:
 		MOV PUL_OUT_PTR_L, A		;__
 		MOV A, PUL_DUTY             ;
 		LSR A                       ;   Get the actual fraction,
-		MOV A, PUL_FLAGS            ;   while also getting 
+		MOV A, PUL_FLAGS            ;   while also getting
 		ROR A                       ;   z flag into carry
 		AND A, #$FE                 ;__
-		BCC +                       ;   If z flag is set, 
+		BCC +                       ;   If z flag is set,
 		LSR A                       ;__ halve the fraction
 	+   EOR A, PUL_OUT_PTR_L		;__ Invert the fraction as needed
 		MOV Y, A
@@ -2068,7 +2075,7 @@ GeneratePulse_32:
 	;       $D0 - Output page
 	;       $D1 - Duty cycle: ppdddddd
 	;           pp - subpage number
-	;           dddddd - Duty cycle 
+	;           dddddd - Duty cycle
 	;       $D2 - Flags: ddddddsz
 	;           dddddd - Duty cycle (fractional part, highest bit of fractional part in $D1)
 	;           s - starting value (0 - 0/-1, 1 - 1)
@@ -2119,10 +2126,10 @@ GeneratePulse_32:
 	MOV PUL_OUT_PTR_L, A		;__
 	MOV A, PUL_DUTY             ;
 	LSR A                       ;   Get the actual fraction,
-	MOV A, PUL_FLAGS            ;   while also getting 
+	MOV A, PUL_FLAGS            ;   while also getting
 	ROR A                       ;   z flag into carry
 	AND A, #$FE                 ;__
-	BCC +                       ;   If z flag is set, 
+	BCC +                       ;   If z flag is set,
 	LSR A                       ;__ halve the fraction
 	+   EOR A, PUL_OUT_PTR_L    ;__ Invert the fraction as needed
 	MOV Y, A
@@ -2217,7 +2224,7 @@ PhaseModulation_128:
 	.loop:
 		INC MOD_MOD_INDEX_L             ;
 		MOV A, (MOD_MOD_INDEX_L+X)      ;   Get high byte
-		BMI PhaseModulation_128_loop_negative 
+		BMI PhaseModulation_128_loop_negative
 		MOV Y, MOD_MOD_STRENGTH         ;
 		MUL YA                          ;   Multiply high byte by modulation strength
 		MOVW MOD_MAIN_TEMP_L, YA        ;__
@@ -2254,10 +2261,10 @@ PhaseModulation_128:
 		ROL MOD_MAIN_TEMP_H
 		ASL A
 		ROL MOD_MAIN_TEMP_H
-		MOV A, MOD_MAIN_TEMP_H  ;   Replaced a third ASL A : ROL MMTH, 
+		MOV A, MOD_MAIN_TEMP_H  ;   Replaced a third ASL A : ROL MMTH,
 		ASL A                   ;__ as well as MOV A, MMTH : AND A, #$FE
 		CLRC
-		ADC A, MOD_OUT_INDEX_L 
+		ADC A, MOD_OUT_INDEX_L
 
 		MOV MOD_MAIN_TEMP_H, MOD_CAR_PAGE
 		MOV MOD_MAIN_TEMP_L, A
@@ -2328,7 +2335,7 @@ PhaseModulation_32:
 	.loop:
 		INC MOD_MOD_INDEX_L
 		MOV A, (MOD_MOD_INDEX_L+X)
-		BMI PhaseModulation_32_loop_negative 
+		BMI PhaseModulation_32_loop_negative
 		MOV Y, MOD_MOD_STRENGTH
 		MUL YA
 		MOVW MOD_MAIN_TEMP_L, YA
@@ -2362,7 +2369,7 @@ PhaseModulation_32:
 
 		ASL A
 		CLRC
-		ADC A, MOD_OUT_INDEX_L 
+		ADC A, MOD_OUT_INDEX_L
 		AND A, #$3E
 		CLRC
 		ADC A, MOD_CAR_INDEX_L
@@ -2443,10 +2450,10 @@ ConvertToBRR:
 		;   Inputs:
 		;       $D0 - PCM sample page
 		;       $D1 - BRR output index
-		;       $D2 - Flags: fsixppbb 
+		;       $D2 - Flags: fsixppbb
 		;               f - whether to use filter mode 1
 		;               s - short sample mode (32 samples instead of 128)
-		;               i - high bit of output index 
+		;               i - high bit of output index
 		;               x - extended sample length mode (more than 1 sample)
 		;               pp - PCM sample subpage number (0-3, if s is set)
 		;               bb - BRR output subpage number (0-3, if s is set)
@@ -2456,7 +2463,7 @@ ConvertToBRR:
 		;               b - whether it is the first block
 		;               f - whether to use filter mode 1
 		;               n - negative flag
-		;       $E4-$E5 - Ending pointer 
+		;       $E4-$E5 - Ending pointer
 		;       $E6-$EB - 3 sample points
 		;       $F8-$F9 - Temporary space for 1 sample point
 		;       $EC-$ED - Input pointer
@@ -2496,7 +2503,7 @@ ConvertToBRR:
 		CLRC                            ;
 		ADC A, BRR_IN0_PTR_L            ;
 		MOV BRR_END_PTR_L, A            ;__
-		MOV BRR_LSMPT_L, #$00           ;   
+		MOV BRR_LSMPT_L, #$00           ;
 		MOV BRR_LSMPT_H, #$00           ;__ smppoint = 0
 		MOV Y, BRR_OUT_INDEX            ;
 		MOV A, BRR_FLAGS                ;
@@ -2527,8 +2534,8 @@ ConvertToBRR:
 		if !SNESFM_CFG_SAMPLE_USE_FILTER1 >= 1
 		.SetupFilter:
 			BBS7 BRR_TEMP_FLAGS, ConvertToBRR_FirstBlock    ;   If this is the first block, Or filter 0 is forced,
-			BBS7 BRR_FLAGS, ConvertToBRR_FirstBlock         ;__ Skip doing filter 1 entirely   
-			
+			BBS7 BRR_FLAGS, ConvertToBRR_FirstBlock         ;__ Skip doing filter 1 entirely
+
 			MOV X, #$00
 			CLR4 BRR_TEMP_FLAGS
 			MOV BRR_SMPPT_L, BRR_LSMPT_L    ;   OG Python code:
@@ -2536,7 +2543,7 @@ ConvertToBRR:
 			BBC7 BRR_SMPPT_H, +        	    ;
 				SET4 BRR_TEMP_FLAGS         ;   Inverting negative numbers
 				EOR BRR_SMPPT_L, #$FF       ;
-				EOR BRR_SMPPT_H, #$FF       ;__     
+				EOR BRR_SMPPT_H, #$FF       ;__
 			+:
 			POP A
 			MOV BRR_CSMPT_H, A
@@ -2556,7 +2563,7 @@ ConvertToBRR:
 	.FilterLoop:
 		MOV Y, BRR_SMPPT_L          ;                                       #
 		MOV A, $0D00+Y              ;                                       #
-		BBS4 BRR_TEMP_FLAGS, +      ;                                       #                        
+		BBS4 BRR_TEMP_FLAGS, +      ;                                       #
 			CLRC                    ;   Python code:                        #
 			ADC A, BRR_CSMPT_L      ;   currentsmppoint += smppoint_L*15/16 #
 			MOV BRR_CSMPT_L, A      ;   (for positive numbers)              #
@@ -2597,8 +2604,8 @@ ConvertToBRR:
 			EOR BRR_SMPPT_L, #$FF   ;                                       #
 			EOR BRR_SMPPT_H, #$FF   ;__                                     #
 	+   CMP X, #$20                 ;   Loop                                #
-		BNE ConvertToBRR_FilterLoop ;__ 
-	
+		BNE ConvertToBRR_FilterLoop ;__
+
 		MOVW YA, BRR_SMPPT_L
 		MOVW BRR_LSMPT_L, YA
 		BBC4 BRR_TEMP_FLAGS, ConvertToBRR_BRREncoding
@@ -2614,18 +2621,18 @@ ConvertToBRR:
 			MOV X, #$00
 		endif   ; !SNESFM_CFG_SAMPLE_USE_FILTER1
 		..OuterLoop:
-			MOV A, (X+)   
-			MOV BRR_SMPPT_L, A         
+			MOV A, (X+)
+			MOV BRR_SMPPT_L, A
 			MOV A, (X+)
 			BPL +
 				EOR BRR_SMPPT_L, #$FF
 				EOR A, #$FF
 			+:
-			MOV BRR_SMPPT_H, A         
+			MOV BRR_SMPPT_H, A
 		..MaximumFilter1:
-			MOV A, (X+)  
-			MOV BRR_CSMPT_L, A         
-			MOV A, (X+)  
+			MOV A, (X+)
+			MOV BRR_CSMPT_L, A
+			MOV A, (X+)
 			BPL +
 				EOR BRR_CSMPT_L, #$FF
 				EOR A, #$FF
@@ -2781,17 +2788,17 @@ ConvertToBRR:
 	.AfterEncoding:
 		CLR7 BRR_TEMP_FLAGS
 		CMP BRR_END_PTR_L, BRR_IN0_PTR_L;   If this is the last block, end
-		BEQ ConvertToBRR_End        	;__   
+		BEQ ConvertToBRR_End        	;__
 		if !SNESFM_CFG_SAMPLE_USE_FILTER1 >= 1
 			BBS7 BRR_FLAGS, ++
-			+   CMP X, #$20                     ;   
+			+   CMP X, #$20                     ;
 				BNE +                           ;
-				MOV A, $1E                      ;   If we just used filter mode 1, 
+				MOV A, $1E                      ;   If we just used filter mode 1,
 				PUSH A                          ;   currentsmppoint = BRRBuffer[last]
 				MOV A, $1F                      ;
 				PUSH A                          ;__
 			++  JMP ConvertToBRR_SetupCopy
-			+:                                  ;   If we just used filter mode 0,   
+			+:                                  ;   If we just used filter mode 0,
 				MOV BRR_LSMPT_L, $3E            ;   smppoint = BRRBuffer[last]
 				MOV BRR_LSMPT_H, $3F            ;__
 				MOV A, #$00                     ;
@@ -2817,79 +2824,109 @@ GeneratePitchTable:
 
 		!L001_CounterA		= $EA
 
-		!L001_NewPitch_Lo	= $EB
-		!L001_NewPitch_Md	= $EC
-		!L001_NewPitch_Hi	= $ED
+		if !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD == 0
+			!L001_NewPitch_Lo = $EC
+			!L001_NewPitch_Hi = $ED
+		else
+			!L001_NewPitch_Lo	= $EB
+			!L001_NewPitch_Md	= $EC
+			!L001_NewPitch_Hi	= $ED
+		endif
 
 		!L001_PrevPitch_Lo	= $EE
 		!L001_PrevPitch_Hi	= $EF
 
-		!GenPitch_RatioMult = 196   ;   196/185 ≈ 2^(1/12) - the ratio for 1 semitone
-		!GenPitch_RatioDiv = 185    ;__
-
-		!GenPitch_Ratio12Lo = #$39
-		!GenPitch_Ratio12Hi = #$0F
-	
 	.Start:
 
-		MOVW !GenPitch_Ratio_Lo, YA
+		MOVW !L001_PrevPitch_Lo, YA
+		MOV PitchTableLo+96-!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT, A
+		MOV PitchTableHi+96-!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT, Y
+
 		MOV !L001_CounterA, X
-		
-		MOVW YA, !L001_PrevPitch_Lo
-		MOV PitchTableLo+(7*12), A
-		MOV PitchTableHi+(7*12), Y
+
+		; TODO: Dynamic pitch counts implement here
 
 		MOV X, #$00
-	
-	; .OldSemitoneUpLoop:
-	; 	MOV !L001_CounterA, X
 
-	; 	MOV Y, !L001_PrevPitch_Lo		;
-	; 	MOV A, #!GenPitch_RatioMult     ;
-	; 	MUL YA                          ;   Multiply low byte
-	; 	MOV !L001_NewPitch_Lo, A		;
-	; 	MOV !L001_NewPitch_Hi, Y		;__
+	if !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD == 0
+	; old method, 123 cycles
 
-	; 	MOV !L001_PrevPitch_Lo, #$00 	;
-	; 	MOV Y, !L001_PrevPitch_Hi    	;
-	; 	MOV A, #!GenPitch_RatioMult     ;   Multiply high byte
-	; 	MUL YA                          ;__
-	; 	ADDW YA, !L001_NewPitch_Hi   	; The next byte is 0, so it adds only the high byte as the mid byte
+	.SemitoneUpLoop:
+		MOV !L001_CounterA, X
 
-	; 	MOV X, #!GenPitch_RatioDiv      ;   YA very conveniently stores the high and mid bytes
-	; 	DIV YA, X                       ;   Divide mid and high bytes
-	; 	MOV !L001_NewPitch_Hi, A     	;__
+		MOV Y, !L001_PrevPitch_Lo		;
+		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0	;
+			MOV A, #!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO	;
+		else												;	Get multiplier
+			MOV A, !GenPitch_Ratio_Hi						;
+		endif												;__
+		MUL YA                          ;
+		MOV !L001_NewPitch_Lo, A		;	Multiply low byte
+		MOV !L001_NewPitch_Hi, Y		;__
 
-	; 	MOV A, !L001_NewPitch_Lo     	;   Y very conveniently stores the remainder as the high byte
-	; 	MOV X, #!GenPitch_RatioDiv      ;   Divide low byte with remainder as high byte
-	; 	DIV YA, X                       ;__
-	; 	CMP Y, #!GenPitch_RatioDiv/2    ;   Round the number
-	; 	ADC A, #$00                     ;__
+		MOV !L001_PrevPitch_Lo, #$00 	;
+		MOV Y, !L001_PrevPitch_Hi		;
+		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0	;
+			MOV A, #!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO	;
+		else												;	Get multiplier
+			MOV A, !GenPitch_Ratio_Hi						;
+		endif												;__
+		MUL YA                          ;__	Multiply high byte
+		ADDW YA, !L001_NewPitch_Hi   	; The next byte is 0, so it adds only the high byte as the mid byte
 
-	; 	MOV X, !L001_CounterA        	;
-	; 	MOV PitchTableLo+(7*12)+1+X, A  ;   Store low byte
-	; 	MOV !L001_PrevPitch_Lo, A    	;__
-	; 	MOV A, !L001_NewPitch_Hi     	;
-	; 	MOV PitchTableHi+(7*12)+1+X, A  ;   Store high byte
-	; 	MOV !L001_PrevPitch_Hi, A    	;__
+		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0	;
+			MOV X, #!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO		;
+		else												;	Get divisor
+			MOV X, !GenPitch_Ratio_Lo						;
+		endif												;__
+		DIV YA, X                       ;   YA very conveniently stores the high and mid bytes
+		MOV !L001_NewPitch_Hi, A     	;__	Divide mid and high bytes
 
-	; 	INC X
-	; 	CMP X, #11
-	; 	BNE GeneratePitchTable_OldSemitoneUpLoop
+		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0	;
+			MOV X, #!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO		;
+		else												;	Get divisor
+			MOV X, !GenPitch_Ratio_Lo						;
+		endif												;__
+		MOV A, !L001_NewPitch_Lo     	;   Y very conveniently stores the remainder as the high byte
+		DIV YA, X                       ;__	Divide low byte with remainder as high byte
+		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0	;
+			CMP Y, #!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO/2   ;
+		else												;	Round the number
+			; How the fuck do i implement this?				;
+		endif												;
+		ADC A, #$00                     					;__
 
-		; old: 123 cycles
-		; new: 150-158 cycles
-		
+		MOV X, !L001_CounterA        										;
+		MOV PitchTableLo+96+1-!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT+X, A	;   Store low byte
+		MOV !L001_PrevPitch_Lo, A    										;__
+		MOV A, !L001_NewPitch_Hi     										;
+		MOV PitchTableHi+96+1-!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT+X, A  	;   Store high byte
+		MOV !L001_PrevPitch_Hi, A    										;__
+
+		INC X
+		CMP X, #!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT-1
+		BNE GeneratePitchTable_SemitoneUpLoop
+
+	else	; !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD
+	; new method, 150-158 cycles
 
 	.SemitoneUpLoop:
 		MOV Y, !L001_PrevPitch_Hi		;
-		MOV A, !GenPitch_Ratio_Hi		;	Multiply Hi * Hi
-		MUL YA							;
+		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0	;
+			MOV A, #!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO	;
+		else												;	Get multiplier
+			MOV A, !GenPitch_Ratio_Hi						;
+		endif												;__
+		MUL YA							;	Multiply Hi * Hi
 		MOVW !L001_NewPitch_Md, YA		;__
 
 		MOV Y, !L001_PrevPitch_Lo		;
-		MOV A, !GenPitch_Ratio_Lo		;	Multiply Lo * Lo
-		MUL YA							;__
+		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0	;
+			MOV A, #!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO		;
+		else												;	Get multiplier
+			MOV A, !GenPitch_Ratio_Lo						;
+		endif												;__
+		MUL YA							;__	Multiply Lo * Lo
 		ASL A							;-	Equal to CMP #$80 but 1 less byte
 		MOV A, Y						;
 		ADC A, #$00						;	Round the lowest byte out
@@ -2898,34 +2935,44 @@ GeneratePitchTable:
 		+ MOV !L001_NewPitch_Lo, A		;__
 
 		MOV Y, !L001_PrevPitch_Lo		;
-		MOV A, !GenPitch_Ratio_Hi		;
+		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0	;
+			MOV A, #!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO	;
+		else												;	Get multiplier
+			MOV A, !GenPitch_Ratio_Hi						;
+		endif												;__
 		MUL YA							;	Multiply Lo * Hi
 		ADDW YA, !L001_NewPitch_Lo		;
 		ADC !L001_NewPitch_Hi, #$00		;
 		MOVW !L001_NewPitch_Lo, YA		;__
 
 		MOV Y, !L001_PrevPitch_Hi		;
-		MOV A, !GenPitch_Ratio_Lo		;
+		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0	;
+			MOV A, #!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO		;
+		else												;	Get multiplier
+			MOV A, !GenPitch_Ratio_Lo						;
+		endif												;__
 		MUL YA							;__	Multiply Hi * Lo
 		ADDW YA, !L001_NewPitch_Lo		;	Add final Mid&Lo bytes
 		MOV !L001_NewPitch_Md, Y	 	;__
 		ASL A							;-	Equal to CMP #$80 but 1 byte less
 		BCC +							;	Round low byte
 			INCW !L001_NewPitch_Md		;__
-		+ 
+		+
 
 		ASL !L001_NewPitch_Md			;__	Round mid byte (CMP #$80 but 1 byte and 1 cycle less)
 		ADC !L001_PrevPitch_Lo, !L001_NewPitch_Md
 		ADC !L001_PrevPitch_Hi, !L001_NewPitch_Hi
-		
-		MOV A, !L001_PrevPitch_Lo		;	Store the low pitch byte
-		MOV PitchTableLo+(7*12)+1+X, A	;__
-		MOV A, !L001_PrevPitch_Hi		;	Store the high pitch byte
-		MOV PitchTableHi+(7*12)+1+X, A	;__
-		
+
+		MOV A, !L001_PrevPitch_Lo											;	Store the low pitch byte
+		MOV PitchTableLo+96+1-!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT+X, A	;__
+		MOV A, !L001_PrevPitch_Hi											;	Store the high pitch byte
+		MOV PitchTableHi+96+1-!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT+X, A	;__
+
 		INC X
-		CMP X, !L001_CounterA
+		CMP X, #!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT-1
 		BNE GeneratePitchTable_SemitoneUpLoop
+
+	endif	; !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD
 
 	.BitShiftStart:
 		MOV !L001_CounterA, #12
@@ -2938,12 +2985,12 @@ GeneratePitchTable:
 		MOV A, PitchTableHi+12-1+X
 		MOV !L001_NewPitch_Hi, A
 		MOV A, PitchTableLo+12-1+X
-		
+
 
 		..BitShiftLoop:
 			LSR !L001_NewPitch_Hi        ;
-			ROR A                           ;
-			ADC A, #$00                     ;
+			ROR A                        ;
+			ADC A, #$00                  ;
 			ADC !L001_NewPitch_Hi, #$00  ;__
 			MOV Y, A
 
@@ -2961,7 +3008,7 @@ GeneratePitchTable:
 			JMP GeneratePitchTable_BitShiftBigLoop_BitShiftLoop
 		+:
 		DBNZ !L001_CounterA, GeneratePitchTable_BitShiftBigLoop
-	
+
 	.OverflowCorrection:
 		MOV X, #7*12+11
 
@@ -3097,7 +3144,7 @@ Includes:
 				MOV LogTable+Y, A
 				INC Y
 				BRA Log2Generate_LoopPart1
-	
+
 	LogTableTable:
 		db 4, 12, 20, 29, 37, 46, 56, 65, 76, 86, 97, 109, 121, 134, 149, 164, 182, 203, 229
 	LogTable = $0900
