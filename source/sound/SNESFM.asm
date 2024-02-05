@@ -2994,14 +2994,14 @@ GeneratePitchTable:
 		MOV Y, #96
 
 		..Loop:
-			MOV A, PitchTableHi-1+X		;
+			MOV A, PitchTableHi-1+Y		;
 			CMP A, #$40                 ;   If the value isn't overflowing, exit
 			BMI GeneratePitchTable_End  ;__
 
 			MOV A, #$3F                 ;
-			MOV PitchTableHi-1+X, A		;   Cap the pitch value
+			MOV PitchTableHi-1+Y, A		;   Cap the pitch value
 			MOV A, #$FF                 ;
-			MOV PitchTableLo-1+X, A		;__
+			MOV PitchTableLo-1+Y, A		;__
 
 			DBNZ Y, GeneratePitchTable_OverflowCorrection_Loop
 
