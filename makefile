@@ -48,7 +48,7 @@ ${ASAR_DIR}/src/asar/*:
 	mkdir -p "${ASAR_DIR}"
 	wget -c "${ASAR_URL}" -O - | tar -xz --strip-components=1 -C "${ASAR_DIR}"
 
-${ASAR_DIR}/asar/${ASAR_EXECUTABLE}: ${ASAR_DIR}/src/asar/*
+${ASAR_DIR}/asar/bin/${ASAR_EXECUTABLE}: ${ASAR_DIR}/src/asar/*
 	cd "${ASAR_DIR}" && cmake src > /dev/null && $(MAKE) > /dev/null
 
 .PHONY: clean asar SNESFM Demo build debug rem_asar force_update_asar
