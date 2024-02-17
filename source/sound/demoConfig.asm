@@ -23,5 +23,3 @@
     !SNESFM_CFG_VIRTUAL_CHANNELS = 1
 
     incsrc "SNESFM.asm"
-
-    startpos SPC_Init

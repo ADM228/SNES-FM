@@ -1,4 +1,8 @@
-arch spc700-inline
+norom
+
+org 0
+
+arch spc700
 
 dpbase $0000
 optimize dp always
@@ -6,7 +10,7 @@ optimize dp always
 namespace nested on
 namespace SPC
 
-warnings disable W1008
+spcblock $5000 nspc
 Configuration:
 	; SNESFM can be configured in 2 different ways:
 		;
@@ -401,48 +405,50 @@ InternalDefines:
 
 		!GenPitch_Ratio_Lo	= $E8
 
-warnings enable W1008
+	; Labels, previously scattered around in includes
+		PitchTableLo = $0E00
+		PitchTableHi = $0E60
+
 ;
 
-org $5000
 Init:       ;init routine by KungFuFurby
 ;------------Clear DSP Registers------------
 ;DSP register initialization will now take place.
-.clear_DSP:
+.clear:
 	clrp                    ;Zero direct page flag.
 	mov A, #$6C             ;Stop all channels first.
 	mov Y, #$FF             ;KOFF will be cleared
 	movw $F2, YA            ;later on, though.
 	inc Y
 	mov A, #$7F
-.clear_DSP_loop:
+..loop:
 	movw $F2, YA            ;Clear DSP register.
 	mov Y, #$00
 	cmp A, #$6C+1
-	bne Init_clear_not_flg
+	bne ..not_flg
 	mov Y, #%01100000
 
-.clear_not_flg:
+..not_flg:
 	cmp A, #$6D+1
-	bne Init_clear_not_esa
+	bne ..not_esa
 ;For ESA, set to $80.
 ;(Max EDL is $0F, which consumes $7800 bytes.
 ;ESA is set to $80 in case echo writes are accidentally on.)
 	mov Y, #$80
 
-.clear_not_esa:
+..not_esa:
 	dec A
-	bpl Init_clear_DSP_loop
+	bpl ..loop
 
 .set_vol:
 	MOV A, #$3C
 	MOV Y, #$7F
 	SETC
-.set_vol_loop:
+..loop:
 	MOVW $F2, YA
 	; SETC      ; not needed as it's set in the beginning, and when it clears we need to exit
 	SBC A, #$10
-	BCS Init_set_vol_loop
+	BCS ..loop
 
 	INC A           ; Set A to 0
 
@@ -488,7 +494,7 @@ SineSetup:
 		INC X
 		MOV $0F41+Y, A
 		DEC Y
-		DBNZ Y, SineSetup_loopCopy
+		DBNZ Y, .loopCopy
 
 	MOV Y, #$3F
 
@@ -499,7 +505,7 @@ SineSetup:
 		MOV A, $0F40+Y
 		EOR A, #$FF
 		MOV $0FC0+Y, A
-		DBNZ Y, SineSetup_loopInvert
+		DBNZ Y, .loopInvert
 
 EffectSetup:
 	MOV Y, #$00
@@ -527,15 +533,16 @@ SetVolume:
 		MOV $F3, X
 		CLRC
 		ADC A, #$10
-		DBNZ Y, SetVolume_loopVolumeSetup
+		DBNZ Y, .loopVolumeSetup
 
 	MOV MESSAGE_CNT_TH1, #$01
 	MOV TDB_OUT_PTR_L, #$00
 	MOV TDB_OUT_PTR_H, #$10
 	CALL TransferDataBlock
 
-namespace CompileInstruments
-	Start:
+; namespace CompileInstruments
+	CompileInstruments:
+	.Start:
 		MOV Y, #$00
 		MOV INSDATA_PTR_L, Y
 		MOV INSDATA_PTR_H, #$10
@@ -561,7 +568,7 @@ namespace CompileInstruments
 
 		endif   ; !SNESFM_CFG_SAMPLE_GENERATE
 
-	ReadByte:
+	.ReadByte:
 		MOV A, (INSDATA_PTR_L)+Y
 		INCW INSDATA_PTR_L
 
@@ -570,9 +577,9 @@ namespace CompileInstruments
 		MOV INSDATA_OPCODE, A
 		AND A, #$1F
 		MOV X, A
-		MOV A, ArgCountTable+X
+		MOV A, .ArgCountTable+X
 		MOV INSDATA_TMP_CNT, A
-		BEQ Jump
+		BEQ .Jump
 		AND A, INSDATA_OPCODE
 		BPL +   ; If bit 7 is set in both the counter and the opcode it has 1 less argument
 			INC INSDATA_TMP_CNT
@@ -583,13 +590,13 @@ namespace CompileInstruments
 		ADC INSDATA_TMP_CNT, #OPCODE_ARGUMENT
 
 		if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
-			CALL RepeatBitmask
+			CALL .RepeatBitmask
 		endif
 
 		MOV X, #OPCODE_ARGUMENT
 
 
-	GetArguments:
+	.GetArguments:
 		MOV A, (INSDATA_PTR_L)+Y
 		if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
 		ASL INSDATA_TMP_VALUE
@@ -599,15 +606,15 @@ namespace CompileInstruments
 			INCW INSDATA_PTR_L
 		+ INC X
 		CMP X, INSDATA_TMP_CNT
-		BNE GetArguments
+		BNE .GetArguments
 
-	Jump:
+	.Jump:
 		MOV A, INSDATA_OPCODE
 
 		endif   ; !SNESFM_CFG_SAMPLE_GENERATE
 
 		CALL +
-		JMP ReadByte
+		JMP .ReadByte
 	+
 
 		AND A, #$1F
@@ -615,15 +622,15 @@ namespace CompileInstruments
 		MOV X, A
 
 		if !SNESFM_CFG_SAMPLE_GENERATE >= 1
-			JMP (JumpTable+X)
+			JMP (.JumpTable+X)
 		else
-			JMP (JumpTable-($1D*2)+X)
+			JMP (.JumpTable-($1D*2)+X)
 		endif
 
 
 	if !SNESFM_CFG_SAMPLE_GENERATE >= 1
 
-	ArgCountTable:
+	.ArgCountTable:
 		fillbyte $00
 		db $02, $00, $00, $03
 		fill ($1A-1-$03)
@@ -631,36 +638,38 @@ namespace CompileInstruments
 
 	endif   ; !SNESFM_CFG_SAMPLE_GENERATE
 
-	JumpTable:
-		fillword RETJump
+	.JumpTable: 
 		if !SNESFM_CFG_SAMPLE_GENERATE >= 1
-			dw CopyResample
+			dw .CopyResample
 			if !SNESFM_CFG_PHASEMOD_ANY >= 1
-				dw PhaseModPart1, PhaseModPart2
+				dw .PhaseModPart1, .PhaseModPart2
 			else
-				fill 2*2
+				dw .RETJump, .RETJump
 			endif
 
 			if !SNESFM_CFG_PULSEGEN_ANY >= 1
-				dw PulseGen
+				dw .PulseGen
 			else
-				fill 2*1
+				dw .RETJump
 			endif
-			fill ($1A-1-$03)*2
-			dw BRRGen
-			dw RETJump
+			; fill ($1A-1-$03)*2 WHYYYYYYYYYYYYYYYYYYYYYYY
+			for i = $03..($1A-1)
+				dw .RETJump
+			endfor
+			dw .BRRGen
+			dw .RETJump
 			if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
-				dw ConserveArgs
+				dw .ConserveArgs
 			else
-				fill 2*1
+				dw .RETJump
 			endif
 		endif   ; !SNESFM_CFG_SAMPLE_GENERATE
-		dw NewInstrument, InstrumentRawDataBlock, End
+		dw .NewInstrument, .InstrumentRawDataBlock, .End
 
 	if !SNESFM_CFG_SAMPLE_GENERATE >= 1
 
 	if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
-	RepeatBitmask:
+	.RepeatBitmask:
 		if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 2
 			MOV A, REPEAT_BITMASK+0
 			OR  A, REPEAT_BITMASK+1
@@ -700,43 +709,43 @@ namespace CompileInstruments
 		RET
 	endif   ; !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
 
-	CopyResample:
+	.CopyResample:
 		if !SNESFM_CFG_RESAMPLE >= 1
 			MOV A, INSDATA_OPCODE
-			BMI CopyResample_Resample
+			BMI ..Resample
 		endif
 		MOV A, OPCODE_ARGUMENT+0        ;   Self-modifying code is
-		MOV CopyResample_CopyLoop+2, A  ;   faster than (dp)+Y
+		MOV ..CopyLoop+2, A  			;   faster than (dp)+Y
 		MOV A, OPCODE_ARGUMENT+1        ;   (8 cycles vs 2*256 cycles)
-		MOV CopyResample_CopyLoop+4, A  ;__
+		MOV ..CopyLoop+4, A  			;__
 
-		.CopyLoop:
+		..CopyLoop:
 			MOV A, $4000+Y
 			MOV $4000+Y, A
-			DBNZ Y, CopyResample_CopyLoop
+			DBNZ Y, ..CopyLoop
 		RET
 
 		if !SNESFM_CFG_RESAMPLE >= 1
-		.Resample:
+		..Resample:
 			ASL A
 			AND A, #$C0
 			MOV LTS_OUT_SUBPAGE, A
 			MOVW YA, OPCODE_ARGUMENT+0
 			MOVW LTS_IN_PAGE, YA
-			CALL SPC_LongToShort
+			CALL LongToShort
 			MOV Y, #$00
 			RET
 		endif
 
-	CopyArguments:
+	.CopyArguments:
 		MOV A, (X+)
 		MOV $D0-OPCODE_ARGUMENT-1+X, A
 		CMP X, INSDATA_TMP_CNT
-		BNE CopyArguments
+		BNE .CopyArguments
 	RET
 
 	if !SNESFM_CFG_PHASEMOD_ANY >= 1
-	PhaseModPart1:
+	.PhaseModPart1:
 		MOV INSDATA_TMP_CNT, #OPCODE_ARGUMENT+5
 		MOV A, INSDATA_OPCODE
 		BPL +   ; If bit 7 is set in both the counter and the opcode it has 1 less argument
@@ -745,7 +754,7 @@ namespace CompileInstruments
 		INC INSDATA_OPCODE  ; Set the opcode to its meta version
 
 		if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
-			CALL RepeatBitmask
+			CALL .RepeatBitmask
 		endif
 
 		MOV X, #OPCODE_ARGUMENT+2
@@ -768,41 +777,41 @@ namespace CompileInstruments
 				INCW INSDATA_PTR_L
 			+ MOV OPCODE_ARGUMENT+1, A
 		++:
-		JMP GetArguments
+		JMP .GetArguments
 
-	PhaseModPart2:
+	.PhaseModPart2:
 		MOV X, #OPCODE_ARGUMENT
-		CALL CopyArguments
+		CALL .CopyArguments
 		if !SNESFM_CFG_PHASEMOD_BOTH >= 1
 			BBS7 INSDATA_OPCODE, +
-				CALL SPC_PhaseModulation_128
+				CALL PhaseModulation_128
 				MOV Y, #$00
 				RET
-			+   CALL SPC_PhaseModulation_32
+			+   CALL PhaseModulation_32
 				MOV Y, #$00
 				RET
 		elseif !SNESFM_CFG_PHASEMOD_LONG >= 1
-			CALL SPC_PhaseModulation_128
+			CALL PhaseModulation_128
 			MOV Y, #$00
 			RET
 		elseif !SNESFM_CFG_PHASEMOD_SHORT >= 1
-			CALL SPC_PhaseModulation_32
+			CALL PhaseModulation_32
 			MOV Y, #$00
 			RET
 		endif
 	endif   ; !SNESFM_CFG_PHASEMOD_ANY
 
 	if !SNESFM_CFG_PULSEGEN_ANY >= 1
-	PulseGen:
+	.PulseGen:
 		MOV X, #OPCODE_ARGUMENT
-		CALL CopyArguments
+		CALL .CopyArguments
 
 		if !SNESFM_CFG_PULSEGEN_BOTH >= 1
 			MOV A, INSDATA_OPCODE
 			BMI +
 		endif
 		if !SNESFM_CFG_PULSEGEN_BOTH+!SNESFM_CFG_PULSEGEN_LONG >= 1
-				CALL SPC_GeneratePulse_128
+				CALL GeneratePulse_128
 				DEC Y   ; Y is always 1
 				RET
 		endif
@@ -826,20 +835,20 @@ namespace CompileInstruments
 				AND A, #$C0
 				TSET PUL_DUTY, A
 
-				CALL SPC_GeneratePulse_32
+				CALL GeneratePulse_32
 				DEC Y
 				RET
 		endif
 	endif   ; !SNESFM_CFG_PULSEGEN
 
-	BRRGen:
+	.BRRGen:
 		MOV X, #OPCODE_ARGUMENT
-		CALL CopyArguments
+		CALL .CopyArguments
 		BBC7 INSDATA_OPCODE, +  ;   Ironically this takes the same cycles as MOV1
 			OR BRR_FLAGS, #$10  ;__ when it sets the bit, and 3 less if it doesn't
-		+ JMP SPC_ConvertToBRR  ;__ = CALL : RET
+		+ JMP ConvertToBRR  	;__ = CALL : RET
 
-	ConserveArgs:
+	.ConserveArgs:
 		MOV A, INSDATA_OPCODE   ;
 		XCN A                   ;
 		LSR A                   ;   Get pointer into dp
@@ -856,14 +865,14 @@ namespace CompileInstruments
 		RET
 	endif   ; !SNESFM_CFG_SAMPLE_GENERATE
 
-	NewInstrument:
+	.NewInstrument:
 		; Adjust pointer
 		MOV A, #$EA     ;   Constant #$FFEA = -22
 		DEC Y           ;__
 		ADDW YA, INSDATA_TMP_PTR_0_L    ;
 		MOVW INSDATA_TMP_PTR_0_L, YA    ;__ Get pointer
-		MOV ByteTransferLoop+4, A       ;   Store it into lo byte of 2nd MOV
-		MOV ByteTransferLoop+5, Y       ;__ Store it into hi byte of 2nd MOV
+		MOV .ByteTransferLoop+4, A      ;   Store it into lo byte of 2nd MOV
+		MOV .ByteTransferLoop+5, Y      ;__ Store it into hi byte of 2nd MOV
 		MOV X, INSDATA_INS_CNT          ;
 		MOV InstrumentPtrLo+X, A        ;
 		MOV A, Y                        ;   Store it in instrument table 
@@ -871,11 +880,11 @@ namespace CompileInstruments
 		INC INSDATA_INS_CNT             ;__
 
 		MOVW YA, INSDATA_PTR_L
-		MOV ByteTransferLoop+1, A   ; Lo byte of 1st MOV
-		MOV ByteTransferLoop+2, Y   ; Hi byte of 1st MOV
+		MOV .ByteTransferLoop+1, A   	; Lo byte of 1st MOV
+		MOV .ByteTransferLoop+2, Y   	; Hi byte of 1st MOV
 
 		MOV Y, #22-1
-		CALL ByteTransferLoop
+		CALL .ByteTransferLoop
 		; Y is 0 after DBNZ
 		MOV A, (INSDATA_PTR_L)+Y
 		MOV (INSDATA_TMP_PTR_0_L)+Y, A
@@ -889,7 +898,7 @@ namespace CompileInstruments
 		RET
 
 
-	InstrumentRawDataBlock:
+	.InstrumentRawDataBlock:
 		MOV A, (INSDATA_PTR_L)+Y
 		MOV INSBLOCK_PTR_L, A
 		MOV INSDATA_TMP_PTR_0_L, A
@@ -910,27 +919,27 @@ namespace CompileInstruments
 
 		MOV Y, #$00
 
-		.BigLoop:
+		..BigLoop:
 			MOVW YA, INSDATA_PTR_L
-			MOV ByteTransferLoop+1, A   ; Lo byte of 1st MOV
-			MOV ByteTransferLoop+2, Y   ; Hi byte of 1st MOV
+			MOV .ByteTransferLoop+1, A		; Lo byte of 1st MOV
+			MOV .ByteTransferLoop+2, Y		; Hi byte of 1st MOV
 
 			MOVW YA, INSDATA_TMP_PTR_1_L
-			MOV ByteTransferLoop+4, A   ; Lo byte of 2nd MOV
-			MOV ByteTransferLoop+5, Y   ; Hi byte of 2nd MOV
+			MOV .ByteTransferLoop+4, A		; Lo byte of 2nd MOV
+			MOV .ByteTransferLoop+5, Y		; Hi byte of 2nd MOV
 
 			DEC INSDATA_TMP_PTR_0_H
 			BMI +
 				; If >=$FF bytes left
 				MOV Y, #$00
-				CALL ByteTransferLoop
+				CALL .ByteTransferLoop
 				INC INSDATA_PTR_H
 				INC INSDATA_TMP_PTR_1_H
-				JMP InstrumentRawDataBlock_BigLoop
+				JMP ..BigLoop
 
 			+:
 				MOV Y, INSDATA_TMP_PTR_0_L
-				CALL ByteTransferLoop
+				CALL .ByteTransferLoop
 				; Y is 0 after DBNZ
 				MOV A, (INSDATA_PTR_L)+Y
 				MOV (INSDATA_TMP_PTR_1_L)+Y, A
@@ -947,16 +956,16 @@ namespace CompileInstruments
 				MOV Y, #$00
 				MOV INSDATA_INS_CNT, Y
 				RET
-		ByteTransferLoop:
+		.ByteTransferLoop:
 			MOV A, $1000+Y
 			MOV $4F00+Y, A
-			DBNZ Y, ByteTransferLoop
-		#RETJump:
+			DBNZ Y, .ByteTransferLoop
+		#.RETJump:
 		RET
 
 
-	End:
-namespace off
+	.End:
+
 Begin:
 
 	MOV A, #$00
@@ -1033,97 +1042,97 @@ Begin:
 	JMP MainLoop_WaitLoop
 
 
-namespace ParseSongData
-	POPX_ReadByte:
+ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
+	.POPX_ReadByte:
 		MOV X, !BACKUP_X
-	Start:
-	ReadByte:
+	.Start:
+	.ReadByte:
 		MOV Y, #$00
-	Y00ReadByte:            ; Use if Y and X not modified
+	.Y00ReadByte:           ; Use if Y and X not modified
 		MOV A, (CHTEMP_SONG_POINTER_L)+Y
 
 	; If the opcode >= $80, then it's either an instrument change or a waiting opcode
-		BMI Inst_Or_Wait
+		BMI .Inst_Or_Wait
 
 		MOV !TEMP_VALUE, A
 		INCW CHTEMP_SONG_POINTER_L
 		SETC
 		SBC A, #$60
-		BMI Note
+		BMI .Note
 
 	; Detect if the opcode is modified by its highest bits
 		CMP A, #$08
-		BMI Inst_Section_HighBits
+		BMI .Inst_Section_HighBits
 
 	; Opcode:
 		ASL A
 		MOV X, A
-		JMP (OpcodeTable-$10+X)
+		JMP (.OpcodeTable-$10+X)
 
 
-	Inst_Or_Wait:
+	.Inst_Or_Wait:
 		INCW CHTEMP_SONG_POINTER_L
 		AND A, #$7F
 		LSR A
-		BCC WaitCmd
+		BCC .WaitCmd
 		MOV !TEMP_VALUE, A
 		MOV A, CHTEMP_INSTRUMENT_SECTION_HIGHBITS
 		AND A, #$C0
 		OR A, !TEMP_VALUE
 		MOV CH1_INSTRUMENT_INDEX+X, A
-		CALL CallInstrumentParser
-		JMP ReadByte
+		CALL .CallInstrumentParser
+		JMP .ReadByte
 
-	WaitCmd:
+	.WaitCmd:
 		BNE +
 		MOV A, #$40
 	+   ADC A, CH1_SONG_COUNTER+X
 		;DEC A
 		MOV CH1_SONG_COUNTER+X, A
-		BBS0 CHTEMP_FLAGS, DecrementReference
-		BCC Y00ReadByte    ; C still in effect since the ADC, indicates that the driver is REALLY falling behind
+		BBS0 CHTEMP_FLAGS, .DecrementReference
+		BCC .Y00ReadByte    ; C still in effect since the ADC, indicates that the driver is REALLY falling behind
 		RET
 
-	Inst_Section_HighBits:
+	.Inst_Section_HighBits:
 		MOV !TEMP_VALUE, A
 		AND A, #$03
-		BBC2 !TEMP_VALUE, Inst_HighBits   ; If it is setting the high bits, call the right routine
+		BBC2 !TEMP_VALUE, .Inst_HighBits	; If it is setting the high bits, call the right routine
 		AND CHTEMP_INSTRUMENT_SECTION_HIGHBITS, #$FC
 	--  TSET CHTEMP_INSTRUMENT_SECTION_HIGHBITS, A
-		JMP Y00ReadByte
+		JMP .Y00ReadByte
 
-	Note:
+	.Note:
 		MOV A, !TEMP_VALUE
-		CMP A, CH1_NOTE+X           ;
-		BEQ +                       ;   If absolutely nothing changed
-			SET0 !PLAYBACK_FLAGS    ;   no need to update the pitch
+		CMP A, CH1_NOTE+X			;
+		BEQ +						;   If absolutely nothing changed
+			SET0 !PLAYBACK_FLAGS	;   no need to update the pitch
 			MOV CH1_NOTE+X, A       ;__
-		+ BBS4 CHTEMP_FLAGS, PitchUpdate
+		+ BBS4 CHTEMP_FLAGS, .PitchUpdate
 			; Retrigger
 			MOV $F2, #$5C       		;   Key off the needed channel
 			MOV $F3, !CHANNEL_BITMASK	;__
-		BBS5 CHTEMP_FLAGS, PitchUpdate
-			CALL CallInstrumentParser
+		BBS5 CHTEMP_FLAGS, .PitchUpdate
+			CALL .CallInstrumentParser
 			MOV A, CH1_NOTE+X
-		PitchUpdate:
+		.PitchUpdate:
 			TCALL 13
-		KeyOn:
+		.KeyOn:
 			EOR CHTEMP_FLAGS, #%00010000    ;__ Reduces branching
-			BBC4 CHTEMP_FLAGS, ReadByte     ;__ (Inverted)
+			BBC4 CHTEMP_FLAGS, .ReadByte    ;__ (Inverted)
 				MOV $F2, #$5C       		;   Key off nothing (so no overrides happen)
 				MOV $F3, #$00       		;__
 				MOV $F2, #$4C       		;   Key on the needed channel
 				MOV $F3, !CHANNEL_BITMASK	;__
 				CLR4 CHTEMP_FLAGS           ;__ Do attack
-			-   JMP ReadByte
+			-   JMP .ReadByte
 
 
 
-	DecrementReference:
+	.DecrementReference:
 		MOV A, CH1_REF0_COUNTER+X
 		DEC A
 		MOV CH1_REF0_COUNTER+X,A
-		BNE RETJump ; very vulnerable
+		BNE .RETJump ; very vulnerable
 
 		; Return from reference
 		CLR0 CHTEMP_FLAGS
@@ -1137,7 +1146,7 @@ namespace ParseSongData
 
 		RET
 
-	Inst_HighBits:
+	.Inst_HighBits:
 		XCN A
 		ASL A
 		ASL A
@@ -1145,16 +1154,16 @@ namespace ParseSongData
 		JMP --
 
 
-	NoAttack:
+	.NoAttack:
 		SET4 CHTEMP_FLAGS
-		JMP POPX_ReadByte
+		JMP .POPX_ReadByte
 
 
-	Keyoff:
+	.Keyoff:
 		SET1 CHTEMP_FLAGS
 		MOV $F2, #$5C
 		MOV $F3, !CHANNEL_BITMASK
-		JMP POPX_ReadByte
+		JMP .POPX_ReadByte
 
 	; End:
 	;     SET0 CHTEMP_FLAGS
@@ -1166,28 +1175,28 @@ namespace ParseSongData
 	;     POP A
 	;     POP A
 	;     JMP SPC_mainLoop_01
-	Jump:
+	.Jump:
 		MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y assumed to be 0
 		INC Y
 		MOV X, A	; I have scrapped X anyway while jumping here
 		MOV A, (CHTEMP_SONG_POINTER_L)+Y
 		MOV CHTEMP_SONG_POINTER_L, X	;	8 cycles, faster than juggling the regs
 		MOV CHTEMP_SONG_POINTER_H, A	;__ and then doing a MOVW (9 cycles)
-		JMP POPX_ReadByte
+		JMP .POPX_ReadByte
 
 
-	RETJump:
+	.RETJump:
 		RET
 
-	CallInstrumentParser:
+	.CallInstrumentParser:
 
 		CLR1 CHTEMP_FLAGS
 		OR CHTEMP_FLAGS, #%00101000
 		MOV CHTEMP_COUNTERS_HALT, Y
 		MOV CHTEMP_COUNTERS_DIRECTION, Y
-		JMP SPC_ParseInstrumentData_Load
+		JMP ParseInstrumentData_Load
 
-	SetVolumeL_or_R:
+	.SetVolumeL_or_R:
 		MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y assumed to be 0
 		INCW CHTEMP_SONG_POINTER_L
 		AND !CHANNEL_REGISTER_INDEX, #$70
@@ -1195,9 +1204,9 @@ namespace ParseSongData
 		BBC0 $E0, +         ;   Store to right volume register if bit 0 set
 		INC $F2             ;__
 	+   %realChannelWrite()
-		JMP POPX_ReadByte
+		JMP .POPX_ReadByte
 
-	SetVolumeBoth:
+	.SetVolumeBoth:
 		MOV A, (CHTEMP_SONG_POINTER_L)+Y
 		INCW CHTEMP_SONG_POINTER_L
 		AND !CHANNEL_REGISTER_INDEX, #$70
@@ -1205,9 +1214,9 @@ namespace ParseSongData
 		%realChannelWrite()
 		INC $F2
 	+   %realChannelWrite()
-		JMP POPX_ReadByte
+		JMP .POPX_ReadByte
 
-	ReferenceSet:
+	.ReferenceSet:
 		MOV X, !BACKUP_X
 
 		MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y assumed to be 0
@@ -1236,9 +1245,9 @@ namespace ParseSongData
 		MOVW YA, !TEMP_POINTER2_L
 		MOVW CHTEMP_SONG_POINTER_L, YA
 
-		JMP ReadByte
+		JMP .ReadByte
 
-	ReferenceRepeat:
+	.ReferenceRepeat:
 		MOV A, (CHTEMP_SONG_POINTER_L)+Y
 		CLRC
 		ADC A, #$05                 ;__ 3 bytes of parameters + 1 byte for this opcode + 1 byte for increment afterwards
@@ -1272,10 +1281,10 @@ namespace ParseSongData
 		MOV A, (!TEMP_POINTER0_L)+Y
 		MOV CHTEMP_SONG_POINTER_H, A
 
-		JMP ReadByte
+		JMP .ReadByte
 
     if !SNESFM_CFG_PITCHBEND_EFFECTS
-    FinePitch:
+    .FinePitch:
 		MOV A, X						;
         MOV X, !BACKUP_X				;	Store pitch effect ID
 		MOV CH1_PITCH_EFFECT_ID+X, A	;__
@@ -1291,45 +1300,44 @@ namespace ParseSongData
 			MOV CH1_PITCH_EFFECT_VAL_H+X, A	;
 			SET0 !PLAYBACK_FLAGS			;__
 		+ INCW CHTEMP_SONG_POINTER_L
-        JMP Y00ReadByte
+        JMP .Y00ReadByte
     endif
 
-	OpcodeTable:
-		fillword POPX_ReadByte
-
-		dw NoAttack         ; $68, Disable attack
-		dw POPX_ReadByte    ; $69, Arp table
+	.OpcodeTable:
+		dw .NoAttack		; $68, Disable attack
+		dw .POPX_ReadByte	; $69, Arp table
         if !SNESFM_CFG_PITCHBEND_EFFECTS
-		dw POPX_ReadByte    ; $6A, Pitch table
-		dw FinePitch        ; $6B, Fine pitch
+		dw .POPX_ReadByte	; $6A, Pitch table
+		dw .FinePitch		; $6B, Fine pitch
         else
-		fill 2*2			; $6A-$6B, Pitch effects
+		dw .POPX_ReadByte, .POPX_ReadByte	; $6A-$6B, Pitch effects
         endif
-		fill 2*4
+		for i = 0..3
+			dw .POPX_ReadByte
+		endfor
 
-		dw SetVolumeL_or_R  ; $70, Set left volume
-		dw SetVolumeL_or_R  ; $71, Set right volume
-		dw SetVolumeBoth    ; $72, Set both volumes
-		dw POPX_ReadByte    ; $73, Left volume slide
-		dw POPX_ReadByte    ; $74, Right volume slide
-		dw POPX_ReadByte    ; $75, Both volume slide
-		fill 2*6
-		dw Keyoff           ; $7C, Keyoff
-		dw ReferenceRepeat  ; $7D, Repeat last reference
-		dw ReferenceSet     ; $7E, Set reference
-		dw Jump             ; $7F, Loop/Jump
-
-namespace off
+		dw .SetVolumeL_or_R	; $70, Set left volume
+		dw .SetVolumeL_or_R	; $71, Set right volume
+		dw .SetVolumeBoth	; $72, Set both volumes
+		dw .POPX_ReadByte	; $73, Left volume slide
+		dw .POPX_ReadByte	; $74, Right volume slide
+		dw .POPX_ReadByte	; $75, Both volume slide
+		for i = 0..5
+			dw .POPX_ReadByte
+		endfor
+		dw .Keyoff			; $7C, Keyoff
+		dw .ReferenceRepeat	; $7D, Repeat last reference
+		dw .ReferenceSet	; $7E, Set reference
+		dw .Jump			; $7F, Loop/Jump
 
 MainLoop:
 	.WaitLoop:
 		MOV !TIMER_VALUE, $FD
 		MOV A, !TIMER_VALUE
-		BEQ MainLoop_WaitLoop
+		BEQ .WaitLoop
 	.Action:
 	.transferChToTemp:
 
-		; Special cases (will become the main)
 		MOV A, CH1_FLAGS+X
 		MOV CHTEMP_FLAGS, A
 		MOV A, CH1_SONG_POINTER_L+X
@@ -1404,23 +1412,23 @@ MainLoop:
 		ADC !CHANNEL_REGISTER_INDEX, #$10
 		MOV X, A
 		ASL !CHANNEL_BITMASK
-		BNE MainLoop_Action
+		BNE .Action
 
 		MOV X, #$00
 		INC !CHANNEL_BITMASK
-		JMP MainLoop_WaitLoop
+		JMP .WaitLoop
 
-namespace ParseInstrumentData
-	Start:
-		BBS5 CHTEMP_FLAGS, OneOff
-		BBC1 CHTEMP_FLAGS, Load
+ParseInstrumentData:
+	.Start:
+		BBS5 CHTEMP_FLAGS, .OneOff
+		BBC1 CHTEMP_FLAGS, .Load
 		RET
 
-	OneOff:
+	.OneOff:
 		CLR5 CHTEMP_FLAGS
 		RET
 
-	Load:
+	.Load:
 		MOV X, !BACKUP_X
 		MOV A, CH1_INSTRUMENT_INDEX+X
 		MOV Y, A
@@ -1435,7 +1443,7 @@ namespace ParseInstrumentData
 		INCW !TEMP_POINTER0_L
 
 		BBS3 CHTEMP_FLAGS, +
-		JMP NotFirstTime
+		JMP .NotFirstTime
 		+:
 
 		MOV X, !BACKUP_X
@@ -1451,14 +1459,14 @@ namespace ParseInstrumentData
 		MOV !TEMP_VALUE2, #$04
 
 		-:
-			CALL UpdateMacro
+			CALL .UpdateMacro
 			INC X
 			ASL !TEMP_VALUE
 			DBNZ !TEMP_VALUE2, -
 
 		CLR3 CHTEMP_FLAGS
-		JMP Finish
-	NotFirstTime:
+		JMP .Finish
+	.NotFirstTime:
 
 		MOV !TEMP_VALUE, #$01
 		MOV !TEMP_VALUE2, #$04
@@ -1472,7 +1480,7 @@ namespace ParseInstrumentData
 				SBC A, !TIMER_VALUE
 				MOV CH1_MACRO_COUNTERS+X, A
 				BPL +
-					CALL UpdateMacro
+					CALL .UpdateMacro
 					JMP ++
 			+
 				CLRC
@@ -1483,7 +1491,7 @@ namespace ParseInstrumentData
 			ASL !TEMP_VALUE
 			DBNZ !TEMP_VALUE2, -
 
-	Finish:
+	.Finish:
 		MOV X, !BACKUP_X
 		MOV A, CHTEMP_COUNTERS_HALT		;
 		EOR A, #$0F						;	If all counters are halted, parsing
@@ -1491,7 +1499,7 @@ namespace ParseInstrumentData
 			SET1 CHTEMP_FLAGS			;__
 		+ RET
 
-	UpdateMacro:
+	.UpdateMacro:
 		PUSH X
 		MOV Y, #$00
 		MOV A, (!TEMP_POINTER0_L)+Y             ;
@@ -1502,7 +1510,7 @@ namespace ParseInstrumentData
 		INCW !TEMP_POINTER0_L                   ;__
 
 		MOV Y, !TEMP_VALUE2                     ;	Determine whether to double the pointer
-		MOV A, UpdateMacro_InsTypeMaskTable-1+Y ; -	-1 cuz the Y is never 0
+		MOV A, ..InsTypeMaskTable-1+Y 			; -	-1 cuz the Y is never 0
 		MOV Y, #$00
 		AND A, CHTEMP_INSTRUMENT_TYPE           ;__
 		BEQ +
@@ -1535,19 +1543,19 @@ namespace ParseInstrumentData
 		MOV A, !TEMP_VALUE2
 		ASL A
 		MOV X, A
-		JMP (UpdateMacro_ActualUpdateTable-2+X) ; -2 cuz it will never be 0, therefore shifting by 1
+		JMP (..ActualUpdateTable-2+X) 			; -2 cuz it will never be 0, therefore shifting by 1
 
-		.ActualUpdateTable: ; Reversed because DBNZ and shit
-			dw UpdateArpeggio
-			dw UpdateSamplePointer
-			dw UpdateEnvelope
-			dw UpdateInstrumentType
+		..ActualUpdateTable: ; Reversed because DBNZ and shit
+			dw .UpdateArpeggio
+			dw .UpdateSamplePointer
+			dw .UpdateEnvelope
+			dw .UpdateInstrumentType
 			dw $0000    ; Pitchbend, move to the beginning when implementing
-		.InsTypeMaskTable:     ; Reversed, Doubles the actual pointer if the bit is set in instrument type
+		..InsTypeMaskTable:     ; Reversed, Doubles the actual pointer if the bit is set in instrument type
 			db $00, !SAMPLE_USE_ADDRESS, !ENVELOPE_TYPE_ADSR, $00
 			db $00 ; Pitchbend, move to the beginning when implementing
 
-	UpdateInstrumentType:
+	.UpdateInstrumentType:
 		POP X
 		MOV0 C, CHTEMP_INSTRUMENT_TYPE      ;__ Get the old value
 		MOV A, (!TEMP_POINTER1_L)+Y         ;   Get the current value
@@ -1567,7 +1575,7 @@ namespace ParseInstrumentData
 		MOV $F2, !CHANNEL_REGISTER_INDEX	;
 		MOV1 C, $F3                         ;   If the envelope mode isn't changed,
 		EOR1 C, CHTEMP_INSTRUMENT_TYPE      ;   don't clear the envelope
-		BCC RET_                            ;__
+		BCC .RET_                            ;__
 		AND !CHANNEL_REGISTER_INDEX, #$70	;
 		BBC1 CHTEMP_INSTRUMENT_TYPE, +		;
 			OR !CHANNEL_REGISTER_INDEX, #$05;   Write address to DSP (ADSR1)
@@ -1575,7 +1583,7 @@ namespace ParseInstrumentData
 			MOV $F3, #$80                   ;   If ADSR is used,
 			INC $F2                         ;   Clear out the ADSR envelope
 			MOV $F3, #$00                   ;__
-		#RET_ RET
+		#.RET_ RET
 		+:                                  ;
 			OR !CHANNEL_REGISTER_INDEX, #$08;
 			MOV $F2, !CHANNEL_REGISTER_INDEX;
@@ -1587,7 +1595,7 @@ namespace ParseInstrumentData
 			MOV $F3, #$00                   ;__
 		RET
 
-	UpdateEnvelope:
+	.UpdateEnvelope:
 		POP X
 		AND !CHANNEL_REGISTER_INDEX, #$70           ;
 		BBC1 CHTEMP_INSTRUMENT_TYPE, +             	;
@@ -1607,7 +1615,7 @@ namespace ParseInstrumentData
 			MOV A, (!TEMP_POINTER1_L)+Y             ;
 			%realChannelWrite()                     ;__
 			RET
-	UpdateSamplePointer:
+	.UpdateSamplePointer:
 		MOV X, !BACKUP_X					    ;__
 		BBS3 CHTEMP_INSTRUMENT_TYPE, +			;__ If sample index is used,
 			MOV A, (!TEMP_POINTER1_L)+Y         ;
@@ -1624,22 +1632,21 @@ namespace ParseInstrumentData
 			MOV CH1_SAMPLE_POINTER_L+X, A       ;
 			MOV A, Y                            ;
 			MOV CH1_SAMPLE_POINTER_H+X, A       ;
-			JMP updatePointer                   ;__
+			JMP .updatePointer                   ;__
 		+   MOV A, (!TEMP_POINTER1_L)+Y         ;
 			MOV !TEMP_POINTER2_L, A				;   If no, just blatantly
 			INC Y								;   Load sample pointer into memory
 			MOV A, (!TEMP_POINTER1_L)+Y         ;
 			MOV !TEMP_POINTER2_H, A				;__
-	updatePointer:
+	.updatePointer:
 		BBC7 CHTEMP_FLAGS, +                    ;__ If the currently playing sample is 1, update sample 0
 			MOV A, X                            ;
 			OR A, #$04                          ;   Add 4 to the pointer
 			MOV X, A                            ;__
 		+
-		.0:
 			MOV A, !TEMP_POINTER2_H				;   Check if the high byte is the same
 			CMP A, $0203+X                      ;__
-			BNE updatePointer_0_withRestart		;
+			BNE ..withRestart					;
 			MOV A, !TEMP_POINTER2_L				;	If yes, update only the low byte of the sample pointer
 			MOV $0202+X, A                      ;__
 			POP X
@@ -1666,7 +1673,7 @@ namespace ParseInstrumentData
 			POP X
 			RET
 
-	UpdateArpeggio:
+	.UpdateArpeggio:
 		MOV X, !BACKUP_X
 		MOV A, (!TEMP_POINTER1_L)+Y 			;__ Get arpeggio
 		CMP A, CH1_ARPEGGIO+X                   ;
@@ -1676,18 +1683,13 @@ namespace ParseInstrumentData
 		+ POP X
 		RET
 
-
-
-
-namespace off
-
 UpdatePitch:
 	BBC0 !PLAYBACK_FLAGS, R
 	CLR0 !PLAYBACK_FLAGS
 	MOV A, CH1_NOTE+X                     	;
 	CLRC                                    ;   Apply arpeggio
 	ADC A, CH1_ARPEGGIO+X                 	;__
-	BBS0 CHTEMP_INSTRUMENT_TYPE, UpdatePitch_TonePitch
+	BBS0 CHTEMP_INSTRUMENT_TYPE, .TonePitch
 	.NoisePitch:
 		AND A, #$1F                             ;
 		MOV $F2, #$6C                           ;  Update noise clock
@@ -1747,9 +1749,9 @@ UpdatePitch:
 			ADC A, !L000_NOTE_VALUE			;__
 
 			MOV Y, !L000_TBL_INDEX
-			BEQ UpdatePitch_OneDown
+			BEQ .OneDown
 			CMP Y, #$80
-			BEQ UpdatePitch_NoBend
+			BEQ .NoBend
 
 			else	; not !SNESFM_CFG_PITCHBEND_BOTH
 
@@ -1773,9 +1775,9 @@ UpdatePitch:
 			MOV !L000_NOTE_VALUE, A				;__
 
 			CMP Y, #$80
-			BEQ UpdatePitch_NoBend
+			BEQ .NoBend
 			CMP Y, #$00
-			BEQ UpdatePitch_OneDown
+			BEQ .OneDown
 
 			endif
 
@@ -1784,7 +1786,7 @@ UpdatePitch:
 
 				; At this point there is definitely multiplication to be done
 
-				CALL UpdatePitch_ClampPitch		;
+				CALL .ClampPitch		;
 				; MOV A, PitchTableLo+Y <- Done by clampPitch
 				MOV !L000_BASE_PITCH_L, A			;	Store the (base) pitch value in TMP0
 				MOV A, PitchTableHi+Y			;
@@ -1835,7 +1837,7 @@ UpdatePitch:
             DEC A
 			.NoBend:
 		endif
-			CALL UpdatePitch_ClampPitch
+			CALL .ClampPitch
 			; MOV A, PitchTableLo+Y <- Done by clampPitch
 			%realChannelWrite()                     ;__	Update low byte of pitch
 			MOV A, PitchTableHi+Y                   ;
@@ -1874,17 +1876,17 @@ TransferDataBlock:
 		PUSH A
 		AND A, #$E0     ;   Both opcodes 4x and 5x
 		CMP A, #$40     ;__ are valid
-		BNE TransferDataBlock_POPA_RET
+		BNE .POPA_RET
 
 		MOV A, #$10
 		CALL SendCPUMsg
 	.GetWord:
 		CALL WaitCPUMsg
 		CMP A, #$A0
-		BEQ TransferDataBlock_End
+		BEQ .End
 
 		CMP A, #$90
-		BNE TransferDataBlock_POPA_RET
+		BNE .POPA_RET
 
 		; Push the 2 bytes where they need to be
 		MOV A, $F6
@@ -1897,7 +1899,7 @@ TransferDataBlock:
 		; Affirm having received data
 		MOV A, #$20
 		CALL SendCPUMsg
-		JMP TransferDataBlock_GetWord
+		JMP .GetWord
 
 	.POPA_RET
 		POP A : RET
@@ -2233,7 +2235,7 @@ PhaseModulation_128:
 	.loop:
 		INC MOD_MOD_INDEX_L             ;
 		MOV A, (MOD_MOD_INDEX_L+X)      ;   Get high byte
-		BMI PhaseModulation_128_loop_negative
+		BMI .loop_negative
 		MOV Y, MOD_MOD_STRENGTH         ;
 		MUL YA                          ;   Multiply high byte by modulation strength
 		MOVW MOD_MAIN_TEMP_L, YA        ;__
@@ -2246,7 +2248,7 @@ PhaseModulation_128:
 		CLRC
 		ADC A, MOD_MAIN_TEMP_L
 		ADC MOD_MAIN_TEMP_H, #$00
-		JMP PhaseModulation_128_loop_afterMul
+		JMP .loop_afterMul
 	.loop_negative:
 		EOR A, #$FF
 		MOV Y, MOD_MOD_STRENGTH
@@ -2288,7 +2290,7 @@ PhaseModulation_128:
 		CLRC
 		ADC MOD_MOD_INDEX_L, #$02
 		MOV A, MOD_OUT_INDEX_L
-		BNE PhaseModulation_128_loop
+		BNE .loop
 	RET
 
 endif   ; !SNESFM_CFG_PHASEMOD_LONG
@@ -2344,7 +2346,7 @@ PhaseModulation_32:
 	.loop:
 		INC MOD_MOD_INDEX_L
 		MOV A, (MOD_MOD_INDEX_L+X)
-		BMI PhaseModulation_32_loop_negative
+		BMI .loop_negative
 		MOV Y, MOD_MOD_STRENGTH
 		MUL YA
 		MOVW MOD_MAIN_TEMP_L, YA
@@ -2357,7 +2359,7 @@ PhaseModulation_32:
 		MOV Y, #$00
 		ADDW YA, MOD_MAIN_TEMP_L
 		MOV A, Y
-		JMP PhaseModulation_32_loop_afterMul
+		JMP .loop_afterMul
 	.loop_negative:
 		EOR A, #$FF
 		MOV Y, MOD_MOD_STRENGTH
@@ -2399,7 +2401,7 @@ PhaseModulation_32:
 		CLRC 
 		ADC MOD_MOD_INDEX_L, MOD_MOD_PTR_OFF
 		CMP MOD_OUT_INDEX_L, MOD_END_INDEX_L
-		BNE PhaseModulation_32_loop
+		BNE .loop
 	RET
 
 endif   ; !SNESFM_CFG_PHASEMOD_SHORT
@@ -2423,11 +2425,11 @@ LongToShort:
 		LTS_OUT_SUBPAGE = $D2
 	.Start:
 		MOV A, LTS_IN_PAGE
-		MOV LongToShort_Loop+2, A       ; High byte of 1st IN MOV
-		MOV LongToShort_Loop+3+3+2, A   ; High byte of 2nd IN MOV
+		MOV .Loop+2, A			; High byte of 1st IN MOV
+		MOV .Loop+3+3+2, A		; High byte of 2nd IN MOV
 		MOV A, LTS_OUT_PAGE
-		MOV LongToShort_Loop+3+2, A     ; High byte of 1st OUT MOV
-		MOV LongToShort_Loop+3+3+3+2, A ; High byte of 2nd OUT MOV
+		MOV .Loop+3+2, A		; High byte of 1st OUT MOV
+		MOV .Loop+3+3+3+2, A	; High byte of 2nd OUT MOV
 
 		MOV Y, #$F8
 
@@ -2447,7 +2449,7 @@ LongToShort:
 		SBC A, #$08
 		MOV Y, A
 		CMP Y, #$F8
-		BNE LongToShort_Loop
+		BNE .Loop
 	.End:
 		RET
 
@@ -2538,12 +2540,12 @@ ConvertToBRR:
 		MOV A, BRR_CSMPT_H              ;   BRRBuffer[i]=currentsmppoint#
 		MOV (X+), A                     ;                               #
 		CMP X, #$40                     ;   Loop                        #
-		BNE ConvertToBRR_CopyLoop   	;__                             #
+		BNE .CopyLoop   				;__                             #
 
 		if !SNESFM_CFG_SAMPLE_USE_FILTER1 >= 1
 		.SetupFilter:
-			BBS7 BRR_TEMP_FLAGS, ConvertToBRR_FirstBlock    ;   If this is the first block, Or filter 0 is forced,
-			BBS7 BRR_FLAGS, ConvertToBRR_FirstBlock         ;__ Skip doing filter 1 entirely
+			BBS7 BRR_TEMP_FLAGS, .FirstBlock    ;   If this is the first block, Or filter 0 is forced,
+			BBS7 BRR_FLAGS, .FirstBlock         ;__ Skip doing filter 1 entirely
 
 			MOV X, #$00
 			CLR4 BRR_TEMP_FLAGS
@@ -2558,7 +2560,7 @@ ConvertToBRR:
 			MOV BRR_CSMPT_H, A
 			POP A
 			MOV BRR_CSMPT_L, A
-			JMP ConvertToBRR_FilterLoop
+			JMP .FilterLoop
 		endif   ; !SNESFM_CFG_SAMPLE_USE_FILTER1
 
 	.FirstBlock:
@@ -2566,7 +2568,7 @@ ConvertToBRR:
 		MOV BRR_MAXM0_L, #$FF
 		MOV BRR_MAXM0_H, #$7F
 		MOV X, #$20
-		JMP ConvertToBRR_BRREncoding_OuterLoop
+		JMP .BRREncoding_OuterLoop
 
 	if !SNESFM_CFG_SAMPLE_USE_FILTER1 >= 1
 	.FilterLoop:
@@ -2613,11 +2615,11 @@ ConvertToBRR:
 			EOR BRR_SMPPT_L, #$FF   ;                                       #
 			EOR BRR_SMPPT_H, #$FF   ;__                                     #
 	+   CMP X, #$20                 ;   Loop                                #
-		BNE ConvertToBRR_FilterLoop ;__
+		BNE .FilterLoop 			;__
 
 		MOVW YA, BRR_SMPPT_L
 		MOVW BRR_LSMPT_L, YA
-		BBC4 BRR_TEMP_FLAGS, ConvertToBRR_BRREncoding
+		BBC4 BRR_TEMP_FLAGS, .BRREncoding
 		EOR BRR_LSMPT_L, #$FF
 		EOR BRR_LSMPT_H, #$FF
 		CLR4 BRR_TEMP_FLAGS
@@ -2654,19 +2656,19 @@ ConvertToBRR:
 			+:
 			MOV A, X
 			AND A, #$1F
-			BNE ConvertToBRR_BRREncoding_MaximumFilter1
+			BNE ..MaximumFilter1
 			if !SNESFM_CFG_SAMPLE_USE_FILTER1 >= 1
 				CMP X, #$40
 				BEQ +
 					MOVW YA, BRR_SMPPT_L
 					MOVW BRR_MAXM0_L, YA
 					;Set up the routine for maximum in the OG PCM buffer
-					JMP  ConvertToBRR_BRREncoding_OuterLoop
+					JMP  ..OuterLoop
 				+:
 					MOV X, #$00
 					MOVW YA, BRR_SMPPT_L
 					CMPW YA, BRR_MAXM0_L
-					BPL ConvertToBRR_BRREncoding_ShiftValuePart1
+					BPL ..ShiftValuePart1
 					CLR6 BRR_TEMP_FLAGS
 			else
 					MOVW YA, BRR_SMPPT_L
@@ -2679,7 +2681,7 @@ ConvertToBRR:
 			BEQ +
 			-:
 				ASL A
-				BCS ConvertToBRR_BRREncoding_CheckIf8
+				BCS ..CheckIf8
 				DEC Y
 				CMP Y, #$04
 				BNE -
@@ -2689,23 +2691,23 @@ ConvertToBRR:
 			MOV A, BRR_MAXM0_L
 			-:
 				ASL A
-				BCS ConvertToBRR_BRREncoding_CheckIf8
+				BCS ..CheckIf8
 				DEC Y
 				BNE -
-			JMP ConvertToBRR_FormHeader
+			JMP .FormHeader
 		..CheckIf8:
 			CMP Y, #$05
 			BEQ +
 			CMP Y, #$06
-			BNE ConvertToBRR_BRREncoding_Check8
+			BNE ..Check8
 			; Executed if Y = 6, aka the high bit to check is in the high byte and the low bit is in low byte
-			BBS0 BRR_MAXM0_H, ConvertToBRR_FormHeader
-			BBS7 BRR_MAXM0_L, ConvertToBRR_FormHeader
+			BBS0 BRR_MAXM0_H, .FormHeader
+			BBS7 BRR_MAXM0_L, .FormHeader
 			JMP ++
 			+   MOV A, BRR_MAXM0_L ;Executed if Y = 5, aka both bits to check are in the low byte
 			..Check8:   ;Executed if Y = 1..4 or Y = 7..12 - aka the bits to check are in the same byte
 			ASL A
-			BCS ConvertToBRR_FormHeader
+			BCS .FormHeader
 			ASL A
 			BCC ++      ; = BCS FormHeader : JMP ++
 	.FormHeader:
@@ -2782,7 +2784,7 @@ ConvertToBRR:
 		+   PUSH A
 		MOV A, X
 		AND A, #$03
-		BNE ConvertToBRR_FormData
+		BNE .FormData
 		.SecondNybble:
 			POP A
 			MOV BRR_CSMPT_L, A
@@ -2793,11 +2795,11 @@ ConvertToBRR:
 			INCW BRR_OUT_PTR_L              ;__
 			MOV A, X
 			AND A, #$1F
-			BNE ConvertToBRR_FormData
+			BNE .FormData
 	.AfterEncoding:
 		CLR7 BRR_TEMP_FLAGS
-		CMP BRR_END_PTR_L, BRR_IN0_PTR_L;   If this is the last block, end
-		BEQ ConvertToBRR_End        	;__
+		CMP BRR_END_PTR_L, BRR_IN0_PTR_L	;   If this is the last block, end
+		BEQ .End        	;__
 		if !SNESFM_CFG_SAMPLE_USE_FILTER1 >= 1
 			BBS7 BRR_FLAGS, ++
 			+   CMP X, #$20                     ;
@@ -2806,16 +2808,16 @@ ConvertToBRR:
 				PUSH A                          ;   currentsmppoint = BRRBuffer[last]
 				MOV A, $1F                      ;
 				PUSH A                          ;__
-			++  JMP ConvertToBRR_SetupCopy
+			++  JMP .SetupCopy
 			+:                                  ;   If we just used filter mode 0,
 				MOV BRR_LSMPT_L, $3E            ;   smppoint = BRRBuffer[last]
 				MOV BRR_LSMPT_H, $3F            ;__
 				MOV A, #$00                     ;
 				PUSH A                          ;   currentsmppoint = 0
 				PUSH A                          ;__
-				JMP ConvertToBRR_SetupCopy
+				JMP .SetupCopy
 		else
-			JMP ConvertToBRR_SetupCopy
+			JMP .SetupCopy
 		endif   ; !SNESFM_CFG_SAMPLE_USE_FILTER1
 	.End:
 	RET
@@ -2914,7 +2916,7 @@ GeneratePitchTable:
 
 		INC X
 		CMP X, #!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT-1
-		BNE GeneratePitchTable_SemitoneUpLoop
+		BNE .SemitoneUpLoop
 
 	else	; !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD
 	; new method, 150-158 cycles
@@ -2979,7 +2981,7 @@ GeneratePitchTable:
 
 		INC X
 		CMP X, #!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT-1
-		BNE GeneratePitchTable_SemitoneUpLoop
+		BNE .SemitoneUpLoop
 
 	endif	; !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD
 
@@ -2997,7 +2999,7 @@ GeneratePitchTable:
 		MOV A, X														;	Get high back into A
 		ADC A, #$00														;	Round it
 		MOV PitchTableHi-1+Y, A											;__	Store it
-		DBNZ Y, GeneratePitchTable_BitShiftLoop
+		DBNZ Y, .BitShiftLoop
 
 	.OverflowCorrection:
 		MOV Y, #96
@@ -3005,14 +3007,14 @@ GeneratePitchTable:
 		..Loop:
 			MOV A, PitchTableHi-1+Y		;
 			CMP A, #$40                 ;   If the value isn't overflowing, exit
-			BMI GeneratePitchTable_End  ;__
+			BMI .End  ;__
 
 			MOV A, #$3F                 ;
 			MOV PitchTableHi-1+Y, A		;   Cap the pitch value
 			MOV A, #$FF                 ;
 			MOV PitchTableLo-1+Y, A		;__
 
-			DBNZ Y, GeneratePitchTable_OverflowCorrection_Loop
+			DBNZ Y, ..Loop
 
 	.End:
 		RET
@@ -3076,30 +3078,26 @@ END_OF_CODE: ; Label to determine how much space i have left
 print "End of code:"
 print pc
 
-warnpc $5FFF
-
+assert pc() < $6000
+endspcblock
 
 Includes:
-	org $0C00
+	spcblock $0C00 nspc
 		LookupTables:
 		incbin "multTables.bin"
-	if !SNESFM_CFG_PITCHTABLE_GEN
-		PitchTableLo = $0E00
-		ParseInstrumentData_PitchTableLo = $0E00
-		PitchTableHi = $0E60
-		ParseInstrumentData_PitchTableHi = $0E60
-		org $0EC0
-	else
-		org $0E00
+	endspcblock
+	if not(!SNESFM_CFG_PITCHTABLE_GEN)
+		spcblock $0E00 nspc
 			PitchTableLo:
-			ParseInstrumentData_PitchTableLo:
 			incbin "pitchLo.bin"
 			PitchTableHi:
-			ParseInstrumentData_PitchTableHi:
 			incbin "pitchHi.bin"
+	else
+		spcblock $0EC0 nspc
 	endif
 		db $03, $00, $00, $00, $00, $00, $00, $00, $00 ;Dummy empty sample
-	org $0F00
+		endspcblock
+	spcblock $0F00 nspc
 		SineTable:
 		incbin "quartersinetable.bin"
 	if !SNESFM_CFG_PITCHBEND_ANY
@@ -3119,37 +3117,39 @@ Includes:
 					MOV LogTable+Y, A
 					INC A
 					INC Y
-					BNE Log2Generate_LoopPart2
+					BNE .LoopPart2
 			MOV Y, #$80
 			.InvertLoop:
 				MOV A, LogTable-1+Y
 				EOR A, #$FF
 				INC A
 				MOV LogTable-1+Y, A
-				DBNZ Y, Log2Generate_InvertLoop
+				DBNZ Y, .InvertLoop
 			RET
 
 			+:
 				MOV LogTable+Y, A
 				INC Y
-				BRA Log2Generate_LoopPart1
+				BRA .LoopPart1
 
 	LogTableTable:
 		db 4, 12, 20, 29, 37, 46, 56, 65, 76, 86, 97, 109, 121, 134, 149, 164, 182, 203, 229
 	LogTable = $0900
 
+	endspcblock
+
 	endif
 
-	org $FFC0   ;For TCALLs
+	spcblock $FFC0 nspc   ;For TCALLs
 		dw IndexToSamplePointer
 		if !SNESFM_CFG_VIRTUAL_CHANNELS > 0
 			dw WriteToChannel
 		endif
 		dw UpdatePitch
 
-	ParseInstrumentData_InstrumentPtrLo = $0A00
-	ParseInstrumentData_InstrumentPtrHi = $0B00
 	InstrumentPtrLo = $0A00
 	InstrumentPtrHi = $0B00
+
+	endspcblock execute Init
 
 namespace off

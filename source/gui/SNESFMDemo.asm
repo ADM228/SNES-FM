@@ -97,6 +97,9 @@
 ;block:       00 02 05 08 0B 0E 11 14 17
 ;center of screen:    --
 
+optimize dp always
+optimize address mirrors
+
 !SRAM_VERSION_MAJOR = #$00
 
 !P_A = #%00100000
@@ -105,7 +108,6 @@
 MESSAGE_CNT_TH1 = $60
 MESSAGE_CNT_TH2 = $61
 
-math pri on
 incsrc "header.asm"
 incsrc "initSNES.asm"
 
