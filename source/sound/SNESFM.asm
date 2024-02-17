@@ -653,9 +653,7 @@ SetVolume:
 				dw .RETJump
 			endif
 			; fill ($1A-1-$03)*2 WHYYYYYYYYYYYYYYYYYYYYYYY
-			for i = $03..($1A-1)
-				dw .RETJump
-			endfor
+			for i = $03..($1A-1) : dw .RETJump : endfor
 			dw .BRRGen
 			dw .RETJump
 			if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
@@ -1312,9 +1310,7 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
         else
 		dw .POPX_ReadByte, .POPX_ReadByte	; $6A-$6B, Pitch effects
         endif
-		for i = 0..4
-			dw .POPX_ReadByte
-		endfor
+		for i = 0..4 : dw .POPX_ReadByte : endfor
 
 		dw .SetVolumeL_or_R	; $70, Set left volume
 		dw .SetVolumeL_or_R	; $71, Set right volume
@@ -1322,9 +1318,7 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 		dw .POPX_ReadByte	; $73, Left volume slide
 		dw .POPX_ReadByte	; $74, Right volume slide
 		dw .POPX_ReadByte	; $75, Both volume slide
-		for i = 0..6
-			dw .POPX_ReadByte
-		endfor
+		for i = 0..6 : dw .POPX_ReadByte : endfor
 		dw .Keyoff			; $7C, Keyoff
 		dw .ReferenceRepeat	; $7D, Repeat last reference
 		dw .ReferenceSet	; $7E, Set reference
