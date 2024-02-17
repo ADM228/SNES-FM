@@ -152,8 +152,11 @@ Configuration:
 
 	;================ 6. Song playback options ================
 
-		!SNESFM_CFG_INSTRUMENT_PITCHBEND = 1
-		!SNESFM_CFG_PITCHBEND_EFFECTS = 1	; To be made automatically later
+		!SNESFM_CFG_DYNAMIC_TIMER_SPEED = 0
+
+		!SNESFM_CFG_FINE_PITCH				= 1
+		!SNESFM_CFG_INSTRUMENT_PITCHBEND 	= 1
+		!SNESFM_CFG_PITCHBEND_EFFECTS 		= 1	; To be made automatically later
 
 		!SNESFM_CFG_VIRTUAL_CHANNELS = 1
 
@@ -168,6 +171,7 @@ Documentation:
 		;   $02 _ _ _ _ Sample Directory
 		;   $03-$04 _ _ Permanent storage of flags, counters and pointers for note stuff for "real" channels
 		;   $05-$06 _ _ Same but for virtual channels
+		;	$07 _ _ _ _ Global settings
 		;   $09 _ _ _ _ Log table for pitchbends
 		;   $0A _ _ _ _ Low bytes of instrument data pointers
 		;   $0B _ _ _ _ High bytes of instrument data pointers
@@ -265,6 +269,8 @@ InternalDefines:
 		CH1_PITCH_EFFECT_VAL_L = $0404
 		CH1_PITCH_EFFECT_VAL_H = $0405
 
+		GBL_TIMER_SPEED = $0700
+
 	;Internal configuration
 
 		!SNESFM_CFG_SAMPLE_GENERATE ?= 0
@@ -316,10 +322,12 @@ InternalDefines:
 		!SNESFM_CFG_INSGEN_REPEAT_AMOUNT ?= 0
 		!SNESFM_CFG_INSGEN_ARITHMETIC_AMOUNT ?= 0
 
+		!SNESFM_CFG_FINE_PITCH ?= 0
 		!SNESFM_CFG_INSTRUMENT_PITCHBEND ?= 0
 		!SNESFM_CFG_PITCHBEND_EFFECTS ?= 0	; To be made automatically later
-		!SNESFM_CFG_PITCHBEND_ANY = (!SNESFM_CFG_INSTRUMENT_PITCHBEND)|(!SNESFM_CFG_PITCHBEND_EFFECTS)
-		!SNESFM_CFG_PITCHBEND_BOTH = (!SNESFM_CFG_INSTRUMENT_PITCHBEND)&(!SNESFM_CFG_PITCHBEND_EFFECTS)
+		!SNESFM_CFG_PITCHBEND_ANY = (!SNESFM_CFG_INSTRUMENT_PITCHBEND)|(!SNESFM_CFG_PITCHBEND_EFFECTS)|(!SNESFM_CFG_FINE_PITCH)
+		!SNESFM_CFG_PITCHBEND_ALL = (!SNESFM_CFG_INSTRUMENT_PITCHBEND)&(!SNESFM_CFG_PITCHBEND_EFFECTS)&(!SNESFM_CFG_FINE_PITCH)
+		
 
 		!SNESFM_CFG_VIRTUAL_CHANNELS ?= 0
 
@@ -448,7 +456,7 @@ Init:       ;init routine by KungFuFurby
 	MOV $F3, #$02   ;__
 	MOV $F1, #$00   ;
 	;MOV $FA, #$85   ;   Set Timer 0 to 16.625 ms (~60 Hz)
-	MOV $FA, #$50   ;   Set Timer 0 to 10 ms     (100 Hz)
+	;MOV $FA, #$50   ;   Set Timer 0 to 10 ms     (100 Hz)
 	;MOV $FA, #$A0   ;   Set Timer 0 to 20 ms     (50 Hz)
 	;MOV $FA, #$FF   ;   Set Timer 0 to 31.875 ms (~31 Hz)
 	MOV $F1, #$07   ;__
@@ -1702,7 +1710,8 @@ UpdatePitch:
 
 			MOV !L000_NOTE_VALUE, A
 
-			if !SNESFM_CFG_PITCHBEND_BOTH
+			if !SNESFM_CFG_PITCHBEND_ALL
+			; if ((!SNESFM_CFG_PITCHBEND_EFFECTS)&(!SNESFM_CFG_INSTRUMENT_PITCHBEND)&(~!SNESFM_CFG_FINE_PITCH))|((!SNESFM_CFG_PITCHBEND_EFFECTS)&(~!SNESFM_CFG_INSTRUMENT_PITCHBEND)&(!SNESFM_CFG_FINE_PITCH))|((~!SNESFM_CFG_PITCHBEND_EFFECTS)&(!SNESFM_CFG_INSTRUMENT_PITCHBEND)&(!SNESFM_CFG_FINE_PITCH))	; If only 2 components added up
 
 			MOV Y, #$00
 			MOV A, CH1_PITCHBEND_L+X		;
