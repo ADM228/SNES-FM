@@ -1,5 +1,6 @@
-norom
+asar 1.90
 
+norom
 org 0
 
 arch spc700
@@ -1725,7 +1726,7 @@ UpdatePitch:
 			MOV !L000_NOTE_VALUE, A
 
 			if !SNESFM_CFG_PITCHBEND_ALL
-			
+
 			elseif ((!SNESFM_CFG_PITCHBEND_EFFECTS)+(!SNESFM_CFG_INSTRUMENT_PITCHBEND)+(~!SNESFM_CFG_FINE_PITCH)) == 2
 
 			MOV Y, #$00
