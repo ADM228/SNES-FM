@@ -11,7 +11,6 @@ optimize dp always
 namespace nested on
 namespace SPC
 
-spcblock $5000 nspc
 Configuration:
 	; SNESFM can be configured in 2 different ways:
 		;
@@ -25,19 +24,27 @@ Configuration:
 		;__
 		;
 	; There are several configuration sections:
-		; 1. General sample generation options
-		; 2. Phase modulation options
-		; 3. Pulse generation options
-		; 4. Pitch table generation options
-		; 5. Other generation options
-		; 6. Song playback options
+		; 1. Driver compilation options
+		; 2. General sample generation options
+		; 3. Phase modulation options
+		; 4. Pulse generation options
+		; 5. Pitch table generation options
+		; 6. Other generation options
+		; 7. Song playback options
 		;__
 
 	!SNESFM_CFG_EXTERNAL ?= 0
 
 	if !SNESFM_CFG_EXTERNAL == 0
 
-	;========== 1. General sample generation options ==========
+	; ============= 1. Driver compilation options =============
+
+		; The type of spcblock to compile this with. Look into
+		; the asar user manual to find possible options.
+		; Default is "nspc".
+		!SNESFM_CFG_SPCBLOCK_TYPE = nspc
+
+	;========== 2. General sample generation options ==========
 
 		; Whether to generate samples at all - the main gimmick
 		; of this sound driver. Disabling this will disable all
@@ -58,7 +65,7 @@ Configuration:
 		!SNESFM_CFG_INSDATA_CUSTOM_SAMPLES = 1
 
 
-	;=============== 2. Phase modulation options ==============
+	;=============== 3. Phase modulation options ==============
 
 		; Dictates whether to generate phase modulated
 		; instruments - just like on Yamaha chips. Not to be
@@ -70,7 +77,7 @@ Configuration:
 		; Enables phase modulation with short samples.
 		!SNESFM_CFG_PHASEMOD_SHORT = 1
 
-	;=============== 3. Pulse generation options ==============
+	;=============== 4. Pulse generation options ==============
 
 		; Dictates whether to generate pulse wave samples.
 
@@ -80,7 +87,7 @@ Configuration:
 		; Enables generation of short pulse wave samples.
 		!SNESFM_CFG_PULSEGEN_SHORT = 1
 
-	;============ 4. Pitch table generation options ===========
+	;============ 5. Pitch table generation options ===========
 
 		; Whether to generate pitch tables on the SPC700
 		; itself. If disabled, you will be responsible for
@@ -136,7 +143,7 @@ Configuration:
 		; !!!! DOES NOT AUTOMATICALLY SET THE RATIO OPTIONS!!!!
 		!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT = 12
 
-	;=============== 5. Other generation options ==============
+	;=============== 6. Other generation options ==============
 
 		; Amount of space for repeating opcode parameters in
 		; the instrument generation routine. Lesser values will
@@ -155,7 +162,7 @@ Configuration:
 		; instrument data.
 		!SNESFM_CFG_INSGEN_ARITHMETIC_AMOUNT = 4
 
-	;================ 6. Song playback options ================
+	;================ 7. Song playback options ================
 
 		!SNESFM_CFG_DYNAMIC_TIMER_SPEED = 0
 
@@ -224,7 +231,107 @@ Documentation:
 		;       in virtual channels: whether the channel is enabled
 		;   i - whether to not parse instrument data
 		;   r - whether a reference is in effect
+
+InternalConfig:
+
+	!SNESFM_CFG_SPCBLOCK_TYPE ?= nspc
+
+	macro cfgClamp(def)
+		!SNESFM_CFG_<def> #= clamp(!SNESFM_CFG_<def>, 0, 1)
+	endmacro
+
+	macro cfgClampMax(def, max)
+		!SNESFM_CFG_<def> #= clamp(!SNESFM_CFG_<def>, 0, <max>)
+	endmacro
+
+	!SNESFM_CFG_SAMPLE_GENERATE ?= 0
+	!SNESFM_CFG_SAMPLE_USE_FILTER1 ?= 0
+
+	%cfgClamp(SAMPLE_GENERATE) : %cfgClamp(SAMPLE_USE_FILTER1)
+
+	if defined("SNESFM_CFG_PHASEMOD_BOTH")
+		!SNESFM_CFG_PHASEMOD_LONG ?= !SNESFM_CFG_PHASEMOD_BOTH
+		!SNESFM_CFG_PHASEMOD_SHORT ?= !SNESFM_CFG_PHASEMOD_BOTH
+	else
+		!SNESFM_CFG_PHASEMOD_LONG ?= 0
+		!SNESFM_CFG_PHASEMOD_SHORT ?= 0
+		!SNESFM_CFG_PHASEMOD_BOTH = (!SNESFM_CFG_PHASEMOD_LONG)&(!SNESFM_CFG_PHASEMOD_SHORT)
+	endif
+	%cfgClamp(PHASEMOD_BOTH) : %cfgClamp(PHASEMOD_LONG) : %cfgClamp(PHASEMOD_SHORT)
+	!SNESFM_CFG_PHASEMOD_ANY = (!SNESFM_CFG_PHASEMOD_LONG)|(!SNESFM_CFG_PHASEMOD_SHORT)
+
+	if defined("SNESFM_CFG_PULSEGEN_BOTH")
+		!SNESFM_CFG_PULSEGEN_LONG ?= !SNESFM_CFG_PULSEGEN_BOTH
+		!SNESFM_CFG_PULSEGEN_SHORT ?= !SNESFM_CFG_PULSEGEN_BOTH
+	else
+		!SNESFM_CFG_PULSEGEN_LONG ?= 0
+		!SNESFM_CFG_PULSEGEN_SHORT ?= 0
+		!SNESFM_CFG_PULSEGEN_BOTH = (!SNESFM_CFG_PULSEGEN_LONG)&(!SNESFM_CFG_PULSEGEN_SHORT)
+	endif
+	%cfgClamp(PULSEGEN_BOTH) : %cfgClamp(PULSEGEN_LONG) : %cfgClamp(PULSEGEN_SHORT)
+	!SNESFM_CFG_PULSEGEN_ANY = (!SNESFM_CFG_PULSEGEN_LONG)|(!SNESFM_CFG_PULSEGEN_SHORT)
+
+	!SNESFM_CFG_RESAMPLE ?= 0
+	%cfgClamp(RESAMPLE)
+
+	!SNESFM_CFG_PITCHTABLE_GEN ?= 1
+	%cfgClamp(PITCHTABLE_GEN)
+	if !SNESFM_CFG_PITCHTABLE_GEN >= 1
+		!SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS ?= 0
+		!SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_NOTE_COUNTS ?= 0
+		!SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD ?= 0
+		%cfgClamp(PITCHTABLE_GEN_DYNAMIC_RATIOS)
+		%cfgClamp(PITCHTABLE_GEN_DYNAMIC_NOTE_COUNTS)
+		%cfgClamp(PITCHTABLE_GEN_ARITHMETIC_METHOD)
+		; Default ratios for TET12
+		if !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD == 0
+			!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO ?= 196
+			!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO ?= 185
+		else
+			!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO ?= $0F
+			!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO ?= $39
+		endif
+		!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT ?= 12
+
+		; TODO: make support for this
+		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_NOTE_COUNTS >= 1
+			error "Sorry, dynamic note counts not supported rn"
+		endif
+
+	endif
+
+	!SNESFM_CFG_INSGEN_REPEAT_AMOUNT ?= 0
+	!SNESFM_CFG_INSGEN_ARITHMETIC_AMOUNT ?= 0
+	%cfgClampMax(INSGEN_REPEAT_AMOUNT, 4)
+	%cfgClampMax(INSGEN_ARITHMETIC_AMOUNT, 4)
+
+	!SNESFM_CFG_FINE_PITCH ?= 0
+	!SNESFM_CFG_INSTRUMENT_PITCHBEND ?= 0
+	!SNESFM_CFG_PITCHBEND_EFFECTS ?= 0	; To be made automatically later
+	%cfgClamp(FINE_PITCH) : %cfgClamp(INSTRUMENT_PITCHBEND) : %cfgClamp(PITCHBEND_EFFECTS)
+
+	!SNESFM_CFG_PITCHBEND_ANY = (!SNESFM_CFG_INSTRUMENT_PITCHBEND)|(!SNESFM_CFG_PITCHBEND_EFFECTS)|(!SNESFM_CFG_FINE_PITCH)
+	!SNESFM_CFG_PITCHBEND_ALL = (!SNESFM_CFG_INSTRUMENT_PITCHBEND)&(!SNESFM_CFG_PITCHBEND_EFFECTS)&(!SNESFM_CFG_FINE_PITCH)
+	
+
+	!SNESFM_CFG_VIRTUAL_CHANNELS ?= 0
+
+	if !SNESFM_CFG_VIRTUAL_CHANNELS > 0
+		print "Virtual channels enabled"
+		macro realChannelWrite()
+			TCALL 14
+		endmacro
+	else
+		print "Virtual channels disabled"
+		macro realChannelWrite()
+			MOV $F3, A
+		endmacro
+	endif
+
+spcblock $5000 !SNESFM_CFG_SPCBLOCK_TYPE
+
 InternalDefines:
+
 	;Song data variables for more readability when assembling manually
 		;Instrument data
 			;   Instrument types
@@ -274,101 +381,9 @@ InternalDefines:
 		CH1_PITCH_EFFECT_VAL_L = $0404
 		CH1_PITCH_EFFECT_VAL_H = $0405
 
+		CH1_FINE_PITCH	= $0406
+
 		GBL_TIMER_SPEED = $0700
-
-	;Internal configuration
-
-	macro cfgClamp(def)
-		!SNESFM_CFG_<def> #= clamp(!SNESFM_CFG_<def>, 0, 1)
-	endmacro
-
-	macro cfgClampMax(def, max)
-		!SNESFM_CFG_<def> #= clamp(!SNESFM_CFG_<def>, 0, <max>)
-	endmacro
-
-		!SNESFM_CFG_SAMPLE_GENERATE ?= 0
-		!SNESFM_CFG_SAMPLE_USE_FILTER1 ?= 0
-
-		%cfgClamp(SAMPLE_GENERATE) : %cfgClamp(SAMPLE_USE_FILTER1)
-
-		if defined("SNESFM_CFG_PHASEMOD_BOTH")
-			!SNESFM_CFG_PHASEMOD_LONG ?= !SNESFM_CFG_PHASEMOD_BOTH
-			!SNESFM_CFG_PHASEMOD_SHORT ?= !SNESFM_CFG_PHASEMOD_BOTH
-		else
-			!SNESFM_CFG_PHASEMOD_LONG ?= 0
-			!SNESFM_CFG_PHASEMOD_SHORT ?= 0
-			!SNESFM_CFG_PHASEMOD_BOTH = (!SNESFM_CFG_PHASEMOD_LONG)&(!SNESFM_CFG_PHASEMOD_SHORT)
-		endif
-		%cfgClamp(PHASEMOD_BOTH) : %cfgClamp(PHASEMOD_LONG) : %cfgClamp(PHASEMOD_SHORT)
-		!SNESFM_CFG_PHASEMOD_ANY = (!SNESFM_CFG_PHASEMOD_LONG)|(!SNESFM_CFG_PHASEMOD_SHORT)
-
-		if defined("SNESFM_CFG_PULSEGEN_BOTH")
-			!SNESFM_CFG_PULSEGEN_LONG ?= !SNESFM_CFG_PULSEGEN_BOTH
-			!SNESFM_CFG_PULSEGEN_SHORT ?= !SNESFM_CFG_PULSEGEN_BOTH
-		else
-			!SNESFM_CFG_PULSEGEN_LONG ?= 0
-			!SNESFM_CFG_PULSEGEN_SHORT ?= 0
-			!SNESFM_CFG_PULSEGEN_BOTH = (!SNESFM_CFG_PULSEGEN_LONG)&(!SNESFM_CFG_PULSEGEN_SHORT)
-		endif
-		%cfgClamp(PULSEGEN_BOTH) : %cfgClamp(PULSEGEN_LONG) : %cfgClamp(PULSEGEN_SHORT)
-		!SNESFM_CFG_PULSEGEN_ANY = (!SNESFM_CFG_PULSEGEN_LONG)|(!SNESFM_CFG_PULSEGEN_SHORT)
-
-		!SNESFM_CFG_RESAMPLE ?= 0
-		%cfgClamp(RESAMPLE)
-
-		!SNESFM_CFG_PITCHTABLE_GEN ?= 1
-		%cfgClamp(PITCHTABLE_GEN)
-		if !SNESFM_CFG_PITCHTABLE_GEN >= 1
-			!SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS ?= 0
-			!SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_NOTE_COUNTS ?= 0
-			!SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD ?= 0
-			%cfgClamp(PITCHTABLE_GEN_DYNAMIC_RATIOS)
-			%cfgClamp(PITCHTABLE_GEN_DYNAMIC_NOTE_COUNTS)
-			%cfgClamp(PITCHTABLE_GEN_ARITHMETIC_METHOD)
-			; Default ratios for TET12
-			if !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD == 0
-				!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO ?= 196
-				!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO ?= 185
-			else
-				!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO ?= $0F
-				!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO ?= $39
-			endif
-			!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT ?= 12
-
-			; TODO: make support for this
-			if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_NOTE_COUNTS >= 1
-				error "Sorry, dynamic note counts not supported rn"
-			endif
-
-		endif
-
-		!SNESFM_CFG_INSGEN_REPEAT_AMOUNT ?= 0
-		!SNESFM_CFG_INSGEN_ARITHMETIC_AMOUNT ?= 0
-		%cfgClampMax(INSGEN_REPEAT_AMOUNT, 4)
-		%cfgClampMax(INSGEN_ARITHMETIC_AMOUNT, 4)
-
-		!SNESFM_CFG_FINE_PITCH ?= 0
-		!SNESFM_CFG_INSTRUMENT_PITCHBEND ?= 0
-		!SNESFM_CFG_PITCHBEND_EFFECTS ?= 0	; To be made automatically later
-		%cfgClamp(FINE_PITCH) : %cfgClamp(INSTRUMENT_PITCHBEND) : %cfgClamp(PITCHBEND_EFFECTS)
-
-		!SNESFM_CFG_PITCHBEND_ANY = (!SNESFM_CFG_INSTRUMENT_PITCHBEND)|(!SNESFM_CFG_PITCHBEND_EFFECTS)|(!SNESFM_CFG_FINE_PITCH)
-		!SNESFM_CFG_PITCHBEND_ALL = (!SNESFM_CFG_INSTRUMENT_PITCHBEND)&(!SNESFM_CFG_PITCHBEND_EFFECTS)&(!SNESFM_CFG_FINE_PITCH)
-		
-
-		!SNESFM_CFG_VIRTUAL_CHANNELS ?= 0
-
-		if !SNESFM_CFG_VIRTUAL_CHANNELS > 0
-			print "Virtual channels enabled"
-			macro realChannelWrite()
-				TCALL 14
-			endmacro
-		else
-			print "Virtual channels disabled"
-			macro realChannelWrite()
-				MOV $F3, A
-			endmacro
-		endif
 
 	;Temporary channel pointers during song playback
 
@@ -431,43 +446,43 @@ InternalDefines:
 ;
 
 Init:       ;init routine by KungFuFurby
-;------------Clear DSP Registers------------
-;DSP register initialization will now take place.
-.clear:
-	clrp                    ;Zero direct page flag.
-	mov A, #$6C             ;Stop all channels first.
-	mov Y, #$FF             ;KOFF will be cleared
-	movw $F2, YA            ;later on, though.
-	inc Y
-	mov A, #$7F
-..loop:
-	movw $F2, YA            ;Clear DSP register.
-	mov Y, #$00
-	cmp A, #$6C+1
-	bne ..not_flg
-	mov Y, #%01100000
+	;------------Clear DSP Registers------------
+	;DSP register initialization will now take place.
+	.clear:
+		clrp                    ;Zero direct page flag.
+		mov A, #$6C             ;Stop all channels first.
+		mov Y, #$FF             ;KOFF will be cleared
+		movw $F2, YA            ;later on, though.
+		inc Y
+		mov A, #$7F
+		..loop:
+			movw $F2, YA            ;Clear DSP register.
+			mov Y, #$00
+			cmp A, #$6C+1
+			bne ..not_flg
+			mov Y, #%01100000
 
-..not_flg:
-	cmp A, #$6D+1
-	bne ..not_esa
-;For ESA, set to $80.
-;(Max EDL is $0F, which consumes $7800 bytes.
-;ESA is set to $80 in case echo writes are accidentally on.)
-	mov Y, #$80
+		..not_flg:
+			cmp A, #$6D+1
+			bne ..not_esa
+		;For ESA, set to $80.
+		;(Max EDL is $0F, which consumes $7800 bytes.
+		;ESA is set to $80 in case echo writes are accidentally on.)
+			mov Y, #$80
 
-..not_esa:
-	dec A
-	bpl ..loop
+		..not_esa:
+			dec A
+			bpl ..loop
 
-.set_vol:
-	MOV A, #$3C
-	MOV Y, #$7F
-	SETC
-..loop:
-	MOVW $F2, YA
-	; SETC      ; not needed as it's set in the beginning, and when it clears we need to exit
-	SBC A, #$10
-	BCS ..loop
+	.set_vol:
+		MOV A, #$3C
+		MOV Y, #$7F
+		SETC
+		..loop:
+			MOVW $F2, YA
+			; SETC      ; not needed as it's set in the beginning, and when it clears we need to exit
+			SBC A, #$10
+			BCS ..loop
 
 	INC A           ; Set A to 0
 
@@ -486,18 +501,20 @@ Init:       ;init routine by KungFuFurby
 	;MOV $FA, #$FF   ;   Set Timer 0 to 31.875 ms (~31 Hz)
 	MOV $F1, #$07   ;__
 
-if !SNESFM_CFG_PITCHTABLE_GEN >= 1
-	if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS >= 1
-		MOV A, #!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO
-		MOV Y, #!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO
-		MOVW !GenPitch_Ratio_Lo, YA
+	if !SNESFM_CFG_PITCHTABLE_GEN >= 1
+		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS >= 1
+			MOV A, #!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO
+			MOV Y, #!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO
+			MOVW !GenPitch_Ratio_Lo, YA
+		endif
+		MOV A, #$7D
+		MOV Y, #$21
+		CALL GeneratePitchTable_Start
 	endif
-	MOV A, #$7D
-	MOV Y, #$21
-	CALL GeneratePitchTable_Start
-endif
 
-	CALL Log2Generate
+	if !SNESFM_CFG_PITCHBEND_ANY
+		CALL Log2Generate
+	endif
 
 SineSetup:
 
@@ -554,13 +571,14 @@ SetVolume:
 		ADC A, #$10
 		DBNZ Y, .loopVolumeSetup
 
+GetInstrumentData:
 	MOV MESSAGE_CNT_TH1, #$01
 	MOV TDB_OUT_PTR_L, #$00
 	MOV TDB_OUT_PTR_H, #$10
 	CALL TransferDataBlock
 
 ; namespace CompileInstruments
-	CompileInstruments:
+CompileInstruments:
 	.Start:
 		MOV Y, #$00
 		MOV INSDATA_PTR_L, Y
@@ -1016,12 +1034,15 @@ Begin:
 			if !SNESFM_CFG_INSTRUMENT_PITCHBEND	;
 				MOV CH1_PITCHBEND_H+X, A		;
 			endif								;
-			MOV A, #$80							;   Zero out pitchbend
-			if !SNESFM_CFG_PITCHBEND_EFFECTS	;
+			MOV A, #$80							;
+			if !SNESFM_CFG_PITCHBEND_EFFECTS	;   Zero out pitchbend
 				MOV CH1_PITCH_EFFECT_VAL_L+X, A	;
 			endif								;
 			if !SNESFM_CFG_INSTRUMENT_PITCHBEND	;
 				MOV CH1_PITCHBEND_L+X, A		;
+			endif								;
+			if !SNESFM_CFG_FINE_PITCH			;
+				MOV CH1_FINE_PITCH+X, A			;
 			endif								;__
 		endif
 		MOV A, #$02							;   Bit 1 set to stop from
@@ -1300,24 +1321,32 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 
 		JMP .ReadByte
 
-    if !SNESFM_CFG_PITCHBEND_EFFECTS
+    if !SNESFM_CFG_FINE_PITCH
     .FinePitch:
-		MOV A, X						;
-        MOV X, !BACKUP_X				;	Store pitch effect ID
-		MOV CH1_PITCH_EFFECT_ID+X, A	;__
+		; MOV A, X						;
+        ; MOV X, !BACKUP_X				;	Store pitch effect ID
+		; MOV CH1_PITCH_EFFECT_ID+X, A	;__
 
-        MOV A, (CHTEMP_SONG_POINTER_L)+Y	;
-		CMP A, CH1_PITCH_EFFECT_VAL_L+X		;
+        ; MOV A, (CHTEMP_SONG_POINTER_L)+Y	;
+		; CMP A, CH1_PITCH_EFFECT_VAL_L+X		;
+        ; BEQ +								;	Update low byte of pitch if needed
+        ;     MOV CH1_PITCH_EFFECT_VAL_L+X, A	;
+        ;     SET0 !PLAYBACK_FLAGS			;__
+		; + MOV A, Y							;
+		; CMP A, CH1_PITCH_EFFECT_VAL_H+X		;
+		; BEQ +								;	Zero out high byte of pitch if needed
+		; 	MOV CH1_PITCH_EFFECT_VAL_H+X, A	;
+		; 	SET0 !PLAYBACK_FLAGS			;__
+		; + INCW CHTEMP_SONG_POINTER_L
+        ; JMP .Y00ReadByte
+
+		MOV A, (CHTEMP_SONG_POINTER_L)+Y	;
+		CMP A, CH1_FINE_PITCH+X				;
         BEQ +								;	Update low byte of pitch if needed
-            MOV CH1_PITCH_EFFECT_VAL_L+X, A	;
+            MOV CH1_FINE_PITCH+X, A			;
             SET0 !PLAYBACK_FLAGS			;__
-		+ MOV A, Y							;
-		CMP A, CH1_PITCH_EFFECT_VAL_H+X		;
-		BEQ +								;	Zero out high byte of pitch if needed
-			MOV CH1_PITCH_EFFECT_VAL_H+X, A	;
-			SET0 !PLAYBACK_FLAGS			;__
 		+ INCW CHTEMP_SONG_POINTER_L
-        JMP .Y00ReadByte
+		JMP .POPX_ReadByte
     endif
 
 	.OpcodeTable:
@@ -1325,9 +1354,13 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 		dw .POPX_ReadByte	; $69, Arp table
         if !SNESFM_CFG_PITCHBEND_EFFECTS
 		dw .POPX_ReadByte	; $6A, Pitch table
+		else
+		dw .POPX_ReadByte	; $6A, Pitch table
+		endif
+		if !SNESFM_CFG_FINE_PITCH
 		dw .FinePitch		; $6B, Fine pitch
         else
-		dw .POPX_ReadByte, .POPX_ReadByte	; $6A-$6B, Pitch effects
+		dw .POPX_ReadByte	; $6B, Fine pitch
         endif
 		for i = 0..4 : dw .POPX_ReadByte : endfor
 
@@ -1697,7 +1730,7 @@ ParseInstrumentData:
 		RET
 
 UpdatePitch:
-	BBC0 !PLAYBACK_FLAGS, R
+	BBC0 !PLAYBACK_FLAGS, .RETJump
 	CLR0 !PLAYBACK_FLAGS
 	MOV A, CH1_NOTE+X                     	;
 	CLRC                                    ;   Apply arpeggio
@@ -1709,7 +1742,7 @@ UpdatePitch:
 		AND $F3, #$E0                           ;
 		OR A, $F3                               ;
 		%realChannelWrite()                     ;__
-	#R:	RET
+	#.RETJump:	RET
 	.TonePitch:
 		; Defines
 		!L000_NOTE_VALUE = !TEMP_VALUE2
@@ -1723,25 +1756,49 @@ UpdatePitch:
 		MOV $F2, !CHANNEL_REGISTER_INDEX;       ;__
 		if !SNESFM_CFG_PITCHBEND_ANY
 
+			warn "Pitch effect combos a bit untested rn"
+
 			MOV !L000_NOTE_VALUE, A
 
 			if !SNESFM_CFG_PITCHBEND_ALL
 
-			elseif ((!SNESFM_CFG_PITCHBEND_EFFECTS)+(!SNESFM_CFG_INSTRUMENT_PITCHBEND)+(~!SNESFM_CFG_FINE_PITCH)) == 2
+			error "All pitchbends simultaneously currently unimplemented"
+
+			elseif (\							;
+			(!SNESFM_CFG_PITCHBEND_EFFECTS)+\	;	If only 2 components added
+			(!SNESFM_CFG_INSTRUMENT_PITCHBEND)+\;
+			(!SNESFM_CFG_FINE_PITCH)) == 2		;__
+
+			if (!SNESFM_CFG_PITCHBEND_EFFECTS+!SNESFM_CFG_INSTRUMENT_PITCHBEND) == 2
+				!A_LO = CH1_PITCHBEND_L
+				!A_HI = CH1_PITCHBEND_H
+				!B_LO = CH1_PITCH_EFFECT_VAL_L
+				!B_HI = CH1_PITCH_EFFECT_VAL_H
+			elseif !SNESFM_CFG_PITCHBEND_EFFECTS	; Fine pitch also enabled
+				!A_LO = CH1_PITCH_EFFECT_VAL_L
+				!A_HI = CH1_PITCH_EFFECT_VAL_H
+				!B_LO = CH1_FINE_PITCH
+			elseif !SNESFM_CFG_INSTRUMENT_PITCHBEND	; Fine pitch also enabled
+				!A_LO = CH1_PITCHBEND_L
+				!A_HI = CH1_PITCHBEND_H
+				!B_LO = CH1_FINE_PITCH
+			endif
 
 			MOV Y, #$00
-			MOV A, CH1_PITCHBEND_L+X		;
-			CLRC							;	Add up the low bytes
-			ADC A, CH1_PITCH_EFFECT_VAL_L+X	;__
-			BCS +							;
-				DEC Y						;	If value is less than #$80, dec base
-				SETC						;__
-			+ SBC A, #$80					;__	Subtract the #$80 hassle-free
-			MOV !L000_TBL_INDEX, A			;	Neither of these
-			MOV A, Y						;__	affect carry
-			ADC A, CH1_PITCHBEND_H+X		;
-			CLRC							;	Add up the high bytes, with the overflow
-			ADC A, CH1_PITCH_EFFECT_VAL_H+X	;__
+			MOV A, !A_LO+X			;
+			CLRC					;	Add up the low bytes
+			ADC A, !B_LO+X			;__
+			BCS +					;
+				DEC Y				;	If value is less than #$80, dec base
+				SETC				;__
+			+ SBC A, #$80			;__	Subtract the #$80 hassle-free
+			MOV !L000_TBL_INDEX, A	;	Neither of these
+			MOV A, Y				;__	affect carry
+			ADC A, !A_HI+X			;
+			if defined("B_HI")		;
+				CLRC				;	Add up the high bytes, with overflow
+				ADC A, !B_HI+X		;
+			endif					;__
 			; How the fuck that worked:
 				; MOV, CLRC, ADC - The usual business
 				; C is set if an overflow occured,
@@ -1757,54 +1814,72 @@ UpdatePitch:
 				; But the ADC adds carry, and that can be used
 				; While loading the first byte, the carry is added
 
-				; Result: 44/46 cycles instead of 54 and not dealing with words
-			ASL A							;
-			CLRC							;	Add up the note immediately
-			ADC A, !L000_NOTE_VALUE			;__
+				; Result: 44/46 cycles (or 37/39 if one of the components is fine pitch)
+				; instead of 54 and not dealing with words
+			;]]
+			ASL A						;
+			CLRC						;	Add up the note immediately
+			ADC A, !L000_NOTE_VALUE		;__
 
 			MOV Y, !L000_TBL_INDEX
 			BEQ .OneDown
 			CMP Y, #$80
 			BEQ .NoBend
 
-			else	; not !SNESFM_CFG_PITCHBEND_BOTH
+			undef A_LO : undef A_HI : undef B_LO 
+			if defined("B_HI") : undef B_HI : endif
+
+			else	; only 1 component
 
 			if !SNESFM_CFG_INSTRUMENT_PITCHBEND
 
-			MOV A, CH1_PITCHBEND_L+X			;
-			MOV Y, A							;	Get instrument pitchbend
-			MOV A, CH1_PITCHBEND_H+X			;__
+				MOV A, CH1_PITCHBEND_L+X			;
+				MOV Y, A							;	Get instrument pitchbend
+				MOV A, CH1_PITCHBEND_H+X			;__
+
+				ASL A								;
+				CLRC								;	Add it
+				ADC A, !L000_NOTE_VALUE				;	to note
+				MOV !L000_NOTE_VALUE, A				;__
 
 			elseif !SNESFM_CFG_PITCHBEND_EFFECTS
 
-			MOV A, CH1_PITCH_EFFECT_VAL_L+X		;
-			MOV Y, A							;	Get effect pitchbend
-			MOV A, CH1_PITCH_EFFECT_VAL_H+X		;__
+				MOV A, CH1_PITCH_EFFECT_VAL_L+X		;
+				MOV Y, A							;	Get effect pitchbend
+				MOV A, CH1_PITCH_EFFECT_VAL_H+X		;__
+
+				ASL A								;
+				CLRC								;	Add it
+				ADC A, !L000_NOTE_VALUE				;	to note
+				MOV !L000_NOTE_VALUE, A				;__
+
+			elseif !SNESFM_CFG_FINE_PITCH
+
+				MOV A, CH1_FINE_PITCH+X				;	Get fine pitch
+				MOV Y, A							;__
+
+				MOV A, !L000_NOTE_VALUE
 
 			endif
 
-			ASL A								;
-			CLRC								;	Add it
-			ADC A, !L000_NOTE_VALUE				;	to note
-			MOV !L000_NOTE_VALUE, A				;__
 
 			CMP Y, #$80
 			BEQ .NoBend
 			CMP Y, #$00
 			BEQ .OneDown
 
-			endif
-
 			MOV !L000_TBL_INDEX, Y
+
+			endif	; Amount of pitch components
 
 
 				; At this point there is definitely multiplication to be done
 
 				CALL .ClampPitch		;
 				; MOV A, PitchTableLo+Y <- Done by clampPitch
-				MOV !L000_BASE_PITCH_L, A			;	Store the (base) pitch value in TMP0
-				MOV A, PitchTableHi+Y			;
-				MOV !L000_BASE_PITCH_H, A			;__
+				MOV !L000_BASE_PITCH_L, A	;	Store the (base) pitch value in TMP0
+				MOV A, PitchTableHi+Y		;
+				MOV !L000_BASE_PITCH_H, A	;__
 
 				MOV Y, !L000_TBL_INDEX
 
@@ -1948,7 +2023,7 @@ set_echoFIR:
 	MOV Y, #$00
 	-:
 		MOV $F2, $01
-		MOV A, set_echoFIR_FIRTable+Y
+		MOV A, .FIRTable+Y
 		MOV $F3, A
 		CLRC
 		ADC $01, #$10
@@ -3072,9 +3147,8 @@ IndexToSamplePointer:   ;TCALL 15
 		db $00, $12, $24, $36
 
 if !SNESFM_CFG_VIRTUAL_CHANNELS > 0
-	print pc
-	print "If the low byte >= FD, uncomment the line following this"
-	; fill $03
+
+	if pc()&$FF >= $FD : fill $03 : endif 	;__	Ensure the same high page
 
 	WriteToChannel: ; TCALL 14
 	.RealChannel:
@@ -3089,29 +3163,28 @@ endif
 
 END_OF_CODE: ; Label to determine how much space i have left
 
-print "End of code:"
-print pc
+print "End of code: ", pc
 
 assert pc() < $6000
 endspcblock
 
-Includes:
-	spcblock $0C00 nspc
+Includes:	
+	spcblock $0C00 !SNESFM_CFG_SPCBLOCK_TYPE
 		LookupTables:
 		incbin "multTables.bin"
 	endspcblock
 	if not(!SNESFM_CFG_PITCHTABLE_GEN)
-		spcblock $0E00 nspc
+		spcblock $0E00 !SNESFM_CFG_SPCBLOCK_TYPE
 			PitchTableLo:
 			incbin "pitchLo.bin"
 			PitchTableHi:
 			incbin "pitchHi.bin"
 	else
-		spcblock $0EC0 nspc
+		spcblock $0EC0 !SNESFM_CFG_SPCBLOCK_TYPE
 	endif
 		db $03, $00, $00, $00, $00, $00, $00, $00, $00 ;Dummy empty sample
 		endspcblock
-	spcblock $0F00 nspc
+	spcblock $0F00 !SNESFM_CFG_SPCBLOCK_TYPE
 		SineTable:
 		incbin "quartersinetable.bin"
 	if !SNESFM_CFG_PITCHBEND_ANY
@@ -3154,7 +3227,7 @@ Includes:
 
 	endif
 
-	spcblock $FFC0 nspc   ;For TCALLs
+	spcblock $FFC0 !SNESFM_CFG_SPCBLOCK_TYPE   ;For TCALLs
 		dw IndexToSamplePointer
 		if !SNESFM_CFG_VIRTUAL_CHANNELS > 0
 			dw WriteToChannel
