@@ -496,7 +496,7 @@ Init:       ;init routine by KungFuFurby
 	MOV $F3, #$02   ;__
 	MOV $F1, #$00   ;
 	;MOV $FA, #$85   ;   Set Timer 0 to 16.625 ms (~60 Hz)
-	;MOV $FA, #$50   ;   Set Timer 0 to 10 ms     (100 Hz)
+	MOV $FA, #$50   ;   Set Timer 0 to 10 ms     (100 Hz)
 	;MOV $FA, #$A0   ;   Set Timer 0 to 20 ms     (50 Hz)
 	;MOV $FA, #$FF   ;   Set Timer 0 to 31.875 ms (~31 Hz)
 	MOV $F1, #$07   ;__
@@ -1340,13 +1340,14 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 		; + INCW CHTEMP_SONG_POINTER_L
         ; JMP .Y00ReadByte
 
+		MOV X, !BACKUP_X					;		
 		MOV A, (CHTEMP_SONG_POINTER_L)+Y	;
 		CMP A, CH1_FINE_PITCH+X				;
         BEQ +								;	Update low byte of pitch if needed
             MOV CH1_FINE_PITCH+X, A			;
             SET0 !PLAYBACK_FLAGS			;__
 		+ INCW CHTEMP_SONG_POINTER_L
-		JMP .POPX_ReadByte
+		JMP .Y00ReadByte
     endif
 
 	.OpcodeTable:
@@ -1756,119 +1757,156 @@ UpdatePitch:
 		MOV $F2, !CHANNEL_REGISTER_INDEX;       ;__
 		if !SNESFM_CFG_PITCHBEND_ANY
 
-			warn "Pitch effect combos a bit untested rn"
-
 			MOV !L000_NOTE_VALUE, A
 
 			if !SNESFM_CFG_PITCHBEND_ALL
 
-			error "All pitchbends simultaneously currently unimplemented"
+				MOV Y, #$FF
+				MOV A, CH1_FINE_PITCH+X			;
+				CLRC							;	Add up the low bytes
+				ADC A, CH1_PITCH_EFFECT_VAL_L+X	;__
+				BCC +							;
+					INC Y						;	Faster than MOV1 (6/8 vs 10 cycles)
+					CLRC						;__
+				+ ADC A, CH1_PITCHBEND_L+X		;__	Add the third low byte
+				MOV !L000_TBL_INDEX, A			;	Neither of these
+				MOV A, Y						;__	affect carry
+				ADC A, CH1_PITCH_EFFECT_VAL_H+X	;
+				CLRC							;	Add up the high bytes, with overflow
+				ADC A, CH1_PITCHBEND_H+X		;__
+
+				; How the fuck that worked:
+
+					; There are 4 combinations possible, 
+					; which I'm going to illustrate with
+					; this table:
+					; A+B	| c	| A+B+C		| c	| total high byte offset
+					;  ≤$FF	| 0	|  $00..FF	| 0	| 0
+					;  ≤$FF	| 0 | $100..1FE | 1 | 1
+					; ≥$100	| 1 | $100..1FF	| 0 | 1
+					; ≥$100	| 1 | $200..2FD	| 1 | 2
+					; Then, $100 is supposed to be subtracted 
+					; (aka decrement the high byte)
+
+					; So, -1 is preloaded and then incremented
+					; both manually and then with carry
+
+				;]]
+
+				ASL A						;
+				CLRC						;	Add up the note immediately
+				ADC A, !L000_NOTE_VALUE		;__
+
+				MOV Y, !L000_TBL_INDEX
+				BEQ .OneDown
+				CMP Y, #$80
+				BEQ .NoBend
 
 			elseif (\							;
 			(!SNESFM_CFG_PITCHBEND_EFFECTS)+\	;	If only 2 components added
 			(!SNESFM_CFG_INSTRUMENT_PITCHBEND)+\;
 			(!SNESFM_CFG_FINE_PITCH)) == 2		;__
 
-			if (!SNESFM_CFG_PITCHBEND_EFFECTS+!SNESFM_CFG_INSTRUMENT_PITCHBEND) == 2
-				!A_LO = CH1_PITCHBEND_L
-				!A_HI = CH1_PITCHBEND_H
-				!B_LO = CH1_PITCH_EFFECT_VAL_L
-				!B_HI = CH1_PITCH_EFFECT_VAL_H
-			elseif !SNESFM_CFG_PITCHBEND_EFFECTS	; Fine pitch also enabled
-				!A_LO = CH1_PITCH_EFFECT_VAL_L
-				!A_HI = CH1_PITCH_EFFECT_VAL_H
-				!B_LO = CH1_FINE_PITCH
-			elseif !SNESFM_CFG_INSTRUMENT_PITCHBEND	; Fine pitch also enabled
-				!A_LO = CH1_PITCHBEND_L
-				!A_HI = CH1_PITCHBEND_H
-				!B_LO = CH1_FINE_PITCH
-			endif
+				if (!SNESFM_CFG_PITCHBEND_EFFECTS+!SNESFM_CFG_INSTRUMENT_PITCHBEND) == 2
+					!A_LO = CH1_PITCHBEND_L
+					!A_HI = CH1_PITCHBEND_H
+					!B_LO = CH1_PITCH_EFFECT_VAL_L
+					!B_HI = CH1_PITCH_EFFECT_VAL_H
+				elseif !SNESFM_CFG_PITCHBEND_EFFECTS	; Fine pitch also enabled
+					!A_LO = CH1_PITCH_EFFECT_VAL_L
+					!A_HI = CH1_PITCH_EFFECT_VAL_H
+					!B_LO = CH1_FINE_PITCH
+				elseif !SNESFM_CFG_INSTRUMENT_PITCHBEND	; Fine pitch also enabled
+					!A_LO = CH1_PITCHBEND_L
+					!A_HI = CH1_PITCHBEND_H
+					!B_LO = CH1_FINE_PITCH
+				endif
 
-			MOV Y, #$00
-			MOV A, !A_LO+X			;
-			CLRC					;	Add up the low bytes
-			ADC A, !B_LO+X			;__
-			BCS +					;
-				DEC Y				;	If value is less than #$80, dec base
-				SETC				;__
-			+ SBC A, #$80			;__	Subtract the #$80 hassle-free
-			MOV !L000_TBL_INDEX, A	;	Neither of these
-			MOV A, Y				;__	affect carry
-			ADC A, !A_HI+X			;
-			if defined("B_HI")		;
-				CLRC				;	Add up the high bytes, with overflow
-				ADC A, !B_HI+X		;
-			endif					;__
-			; How the fuck that worked:
-				; MOV, CLRC, ADC - The usual business
-				; C is set if an overflow occured,
-				; Then i DEC Y if that happens,
-				; So Y is -1 if the value < $100; and 0 if >= $100
+				MOV Y, #$00
+				MOV A, !A_LO+X			;
+				CLRC					;	Add up the low bytes
+				ADC A, !B_LO+X			;__
+				BCS +					;
+					DEC Y				;	If value is less than #$80, dec base
+					SETC				;__
+				+ SBC A, #$80			;__	Subtract the #$80 hassle-free
+				MOV !L000_TBL_INDEX, A	;	Neither of these
+				MOV A, Y				;__	affect carry
+				ADC A, !A_HI+X			;
+				if defined("B_HI")		;
+					CLRC				;	Add up the high bytes, with overflow
+					ADC A, !B_HI+X		;
+				endif					;__
+				; How the fuck that worked:
+					; MOV, CLRC, ADC - The usual business
+					; C is set if an overflow occured,
+					; Then i DEC Y if that happens,
+					; So Y is -1 if the value < $100; and 0 if ≥ $100
 
-				; Then #$80 is subtracted,
-				; and carry stores whether a borrow occured
-				; If a borrow did not occur,
-				; 1 should be added back to Y
-				; so that it becomes mathematically correct.
+					; Then #$80 is subtracted,
+					; and carry stores whether a borrow occured
+					; If a borrow did not occur,
+					; 1 should be added back to Y
+					; so that it becomes mathematically correct.
 
-				; But the ADC adds carry, and that can be used
-				; While loading the first byte, the carry is added
+					; But the ADC adds carry, and that can be used
+					; While loading the first byte, the carry is added
 
-				; Result: 44/46 cycles (or 37/39 if one of the components is fine pitch)
-				; instead of 54 and not dealing with words
-			;]]
-			ASL A						;
-			CLRC						;	Add up the note immediately
-			ADC A, !L000_NOTE_VALUE		;__
+					; Result: 44/46 cycles (or 37/39 if one of the components is fine pitch)
+					; instead of 54 and not dealing with words
+				;]]
+				ASL A						;
+				CLRC						;	Add up the note immediately
+				ADC A, !L000_NOTE_VALUE		;__
 
-			MOV Y, !L000_TBL_INDEX
-			BEQ .OneDown
-			CMP Y, #$80
-			BEQ .NoBend
+				MOV Y, !L000_TBL_INDEX
+				BEQ .OneDown
+				CMP Y, #$80
+				BEQ .NoBend
 
-			undef A_LO : undef A_HI : undef B_LO 
-			if defined("B_HI") : undef B_HI : endif
+				undef A_LO : undef A_HI : undef B_LO 
+				if defined("B_HI") : undef B_HI : endif
 
 			else	; only 1 component
 
-			if !SNESFM_CFG_INSTRUMENT_PITCHBEND
+				if !SNESFM_CFG_INSTRUMENT_PITCHBEND
 
-				MOV A, CH1_PITCHBEND_L+X			;
-				MOV Y, A							;	Get instrument pitchbend
-				MOV A, CH1_PITCHBEND_H+X			;__
+					MOV A, CH1_PITCHBEND_L+X			;
+					MOV Y, A							;	Get instrument pitchbend
+					MOV A, CH1_PITCHBEND_H+X			;__
 
-				ASL A								;
-				CLRC								;	Add it
-				ADC A, !L000_NOTE_VALUE				;	to note
-				MOV !L000_NOTE_VALUE, A				;__
+					ASL A								;
+					CLRC								;	Add it
+					ADC A, !L000_NOTE_VALUE				;	to note
+					MOV !L000_NOTE_VALUE, A				;__
 
-			elseif !SNESFM_CFG_PITCHBEND_EFFECTS
+				elseif !SNESFM_CFG_PITCHBEND_EFFECTS
 
-				MOV A, CH1_PITCH_EFFECT_VAL_L+X		;
-				MOV Y, A							;	Get effect pitchbend
-				MOV A, CH1_PITCH_EFFECT_VAL_H+X		;__
+					MOV A, CH1_PITCH_EFFECT_VAL_L+X		;
+					MOV Y, A							;	Get effect pitchbend
+					MOV A, CH1_PITCH_EFFECT_VAL_H+X		;__
 
-				ASL A								;
-				CLRC								;	Add it
-				ADC A, !L000_NOTE_VALUE				;	to note
-				MOV !L000_NOTE_VALUE, A				;__
+					ASL A								;
+					CLRC								;	Add it
+					ADC A, !L000_NOTE_VALUE				;	to note
+					MOV !L000_NOTE_VALUE, A				;__
 
-			elseif !SNESFM_CFG_FINE_PITCH
+				elseif !SNESFM_CFG_FINE_PITCH
 
-				MOV A, CH1_FINE_PITCH+X				;	Get fine pitch
-				MOV Y, A							;__
+					MOV A, CH1_FINE_PITCH+X				;	Get fine pitch
+					MOV Y, A							;__
 
-				MOV A, !L000_NOTE_VALUE
+					MOV A, !L000_NOTE_VALUE
 
-			endif
+				endif
 
 
-			CMP Y, #$80
-			BEQ .NoBend
-			CMP Y, #$00
-			BEQ .OneDown
+				CMP Y, #$80
+				BEQ .NoBend
+				CMP Y, #$00
+				BEQ .OneDown
 
-			MOV !L000_TBL_INDEX, Y
+				MOV !L000_TBL_INDEX, Y
 
 			endif	; Amount of pitch components
 
