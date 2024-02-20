@@ -168,7 +168,8 @@ Configuration:
 
 		!SNESFM_CFG_FINE_PITCH				= 1
 		!SNESFM_CFG_INSTRUMENT_PITCHBEND 	= 1
-		!SNESFM_CFG_PITCHBEND_EFFECTS 		= 1	; To be made automatically later
+
+		!SNESFM_CFG_PITCH_SLIDE 			= 1
 
 		!SNESFM_CFG_VIRTUAL_CHANNELS = 1
 
@@ -305,21 +306,27 @@ InternalConfig:
 	%cfgClampMax(INSGEN_REPEAT_AMOUNT, 4)
 	%cfgClampMax(INSGEN_ARITHMETIC_AMOUNT, 4)
 
+	!SNESFM_CFG_PITCH_SLIDE ?= 0
+	%cfgClamp(PITCH_SLIDE)
+
 	!SNESFM_CFG_FINE_PITCH ?= 0
 	!SNESFM_CFG_INSTRUMENT_PITCHBEND ?= 0
-	!SNESFM_CFG_PITCHBEND_EFFECTS ?= 0	; To be made automatically later
-	%cfgClamp(FINE_PITCH) : %cfgClamp(INSTRUMENT_PITCHBEND) : %cfgClamp(PITCHBEND_EFFECTS)
+	!SNESFM_CFG_PITCH_EFFECTS = !SNESFM_CFG_PITCH_SLIDE 	; More effects later
+	%cfgClamp(FINE_PITCH) : %cfgClamp(INSTRUMENT_PITCHBEND) : %cfgClamp(PITCH_EFFECTS)
 
-	!SNESFM_CFG_PITCHBEND_ANY = (!SNESFM_CFG_INSTRUMENT_PITCHBEND)|(!SNESFM_CFG_PITCHBEND_EFFECTS)|(!SNESFM_CFG_FINE_PITCH)
-	!SNESFM_CFG_PITCHBEND_ALL = (!SNESFM_CFG_INSTRUMENT_PITCHBEND)&(!SNESFM_CFG_PITCHBEND_EFFECTS)&(!SNESFM_CFG_FINE_PITCH)
+	!SNESFM_CFG_PITCHBEND_ANY = (!SNESFM_CFG_INSTRUMENT_PITCHBEND)|(!SNESFM_CFG_PITCH_EFFECTS)|(!SNESFM_CFG_FINE_PITCH)
+	!SNESFM_CFG_PITCHBEND_ALL = (!SNESFM_CFG_INSTRUMENT_PITCHBEND)&(!SNESFM_CFG_PITCH_EFFECTS)&(!SNESFM_CFG_FINE_PITCH)
 	
+	!SNESFM_CFG_CONTINOUS_EFFECTS = !SNESFM_CFG_PITCH_SLIDE	; More effects later
+	!SNESFM_CFG_CONTINOUS_PITCH_EFFECTS = !SNESFM_CFG_PITCH_SLIDE	; More effects later
+	%cfgClamp(CONTINOUS_EFFECTS) : %cfgClamp(CONTINOUS_PITCH_EFFECTS)
 
 	!SNESFM_CFG_VIRTUAL_CHANNELS ?= 0
 
 	if !SNESFM_CFG_VIRTUAL_CHANNELS > 0
 		print "Virtual channels enabled"
 		macro realChannelWrite()
-			TCALL 14
+			TCALL 13
 		endmacro
 	else
 		print "Virtual channels disabled"
@@ -1027,15 +1034,18 @@ Begin:
 		MOV A, #$00
 		MOV CH1_SONG_COUNTER+X, A
 		MOV CH1_INSTRUMENT_SECTION_HIGHBITS+X, A
+		if !SNESFM_CFG_CONTINOUS_PITCH_EFFECTS
+			MOV CH1_PITCH_EFFECT_ID+X, A
+		endif
 		if !SNESFM_CFG_PITCHBEND_ANY
-			if !SNESFM_CFG_PITCHBEND_EFFECTS	;
+			if !SNESFM_CFG_PITCH_EFFECTS		;
 				MOV CH1_PITCH_EFFECT_VAL_H+X, A	;
 			endif								;
 			if !SNESFM_CFG_INSTRUMENT_PITCHBEND	;
 				MOV CH1_PITCHBEND_H+X, A		;
 			endif								;
 			MOV A, #$80							;
-			if !SNESFM_CFG_PITCHBEND_EFFECTS	;   Zero out pitchbend
+			if !SNESFM_CFG_PITCH_EFFECTS		;   Zero out pitchbend
 				MOV CH1_PITCH_EFFECT_VAL_L+X, A	;
 			endif								;
 			if !SNESFM_CFG_INSTRUMENT_PITCHBEND	;
@@ -1089,7 +1099,7 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 	.Y00ReadByte:           ; Use if Y and X not modified
 		MOV A, (CHTEMP_SONG_POINTER_L)+Y
 
-	; If the opcode >= $80, then it's either an instrument change or a waiting opcode
+	; If the opcode ≥ $80, then it's either an instrument change or a waiting opcode
 		BMI .Inst_Or_Wait
 
 		MOV !TEMP_VALUE, A
@@ -1149,11 +1159,17 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 			; Retrigger
 			MOV $F2, #$5C       		;   Key off the needed channel
 			MOV $F3, !CHANNEL_BITMASK	;__
+			if !SNESFM_CFG_PITCH_EFFECTS
+				MOV A, #$80						;
+				MOV CH1_PITCH_EFFECT_VAL_L+X, A	;	Reset pitch effect value
+				MOV A, Y	; Y is 0			;	TODO: configurability???
+				MOV CH1_PITCH_EFFECT_VAL_H+X, A	;__
+			endif
 		BBS5 CHTEMP_FLAGS, .PitchUpdate
 			CALL .CallInstrumentParser
 			MOV A, CH1_NOTE+X
 		.PitchUpdate:
-			TCALL 13
+			TCALL 14
 		.KeyOn:
 			EOR CHTEMP_FLAGS, #%00010000    ;__ Reduces branching
 			BBC4 CHTEMP_FLAGS, .ReadByte    ;__ (Inverted)
@@ -1323,23 +1339,6 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 
     if !SNESFM_CFG_FINE_PITCH
     .FinePitch:
-		; MOV A, X						;
-        ; MOV X, !BACKUP_X				;	Store pitch effect ID
-		; MOV CH1_PITCH_EFFECT_ID+X, A	;__
-
-        ; MOV A, (CHTEMP_SONG_POINTER_L)+Y	;
-		; CMP A, CH1_PITCH_EFFECT_VAL_L+X		;
-        ; BEQ +								;	Update low byte of pitch if needed
-        ;     MOV CH1_PITCH_EFFECT_VAL_L+X, A	;
-        ;     SET0 !PLAYBACK_FLAGS			;__
-		; + MOV A, Y							;
-		; CMP A, CH1_PITCH_EFFECT_VAL_H+X		;
-		; BEQ +								;	Zero out high byte of pitch if needed
-		; 	MOV CH1_PITCH_EFFECT_VAL_H+X, A	;
-		; 	SET0 !PLAYBACK_FLAGS			;__
-		; + INCW CHTEMP_SONG_POINTER_L
-        ; JMP .Y00ReadByte
-
 		MOV X, !BACKUP_X					;		
 		MOV A, (CHTEMP_SONG_POINTER_L)+Y	;
 		CMP A, CH1_FINE_PITCH+X				;
@@ -1350,20 +1349,35 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 		JMP .Y00ReadByte
     endif
 
+	if !SNESFM_CFG_PITCH_SLIDE
+	.PitchSlide:
+		; MOV A, X						;- Unnecessary as MOV X, A was right before JMP
+		MOV X, !BACKUP_X				;	Store pitch effect ID
+		MOV CH1_PITCH_EFFECT_ID+X, A	;__
+
+		MOV A, (CHTEMP_SONG_POINTER_L)+Y	;
+		MOV CH1_PITCH_EFFECT_ACC_L+X, A		;	Update low byte of pitch if needed
+		INCW CHTEMP_SONG_POINTER_L			;__
+		MOV A, (CHTEMP_SONG_POINTER_L)+Y	;
+		MOV CH1_PITCH_EFFECT_ACC_H+X, A		;	Update high byte of pitch if needed
+		INCW CHTEMP_SONG_POINTER_L			;__
+        JMP .Y00ReadByte
+	endif
+
+	macro opcCfg(cfg, ptr)
+		if !SNESFM_CFG_<cfg> : dw <ptr> : else : dw .POPX_ReadByte : endif
+	endmacro
+	macro fillW(count)
+		for i = 0..<count> : dw .POPX_ReadByte : endfor
+	endmacro
+
 	.OpcodeTable:
 		dw .NoAttack		; $68, Disable attack
 		dw .POPX_ReadByte	; $69, Arp table
-        if !SNESFM_CFG_PITCHBEND_EFFECTS
-		dw .POPX_ReadByte	; $6A, Pitch table
-		else
-		dw .POPX_ReadByte	; $6A, Pitch table
-		endif
-		if !SNESFM_CFG_FINE_PITCH
-		dw .FinePitch		; $6B, Fine pitch
-        else
-		dw .POPX_ReadByte	; $6B, Fine pitch
-        endif
-		for i = 0..4 : dw .POPX_ReadByte : endfor
+        %opcCfg(PITCH_EFFECTS, .POPX_ReadByte)	; $6A, Pitch table
+		%opcCfg(FINE_PITCH, .FinePitch)			; $6B, Fine pitch
+		%opcCfg(PITCH_SLIDE, .PitchSlide)		; $6C, Pitch slide
+		%fillW(3)
 
 		dw .SetVolumeL_or_R	; $70, Set left volume
 		dw .SetVolumeL_or_R	; $71, Set right volume
@@ -1371,7 +1385,7 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 		dw .POPX_ReadByte	; $73, Left volume slide
 		dw .POPX_ReadByte	; $74, Right volume slide
 		dw .POPX_ReadByte	; $75, Both volume slide
-		for i = 0..6 : dw .POPX_ReadByte : endfor
+		%fillW(6)
 		dw .Keyoff			; $7C, Keyoff
 		dw .ReferenceRepeat	; $7D, Repeat last reference
 		dw .ReferenceSet	; $7E, Set reference
@@ -1402,12 +1416,6 @@ MainLoop:
 
 		MOV !BACKUP_X, X
 
-		; CALL UpdateEffects
-		; SETC
-		; SBC CHTEMP_EFFECT_COUNTER, !TIMER_VALUE
-		; BPL +
-		; CALL ParseEffectData
-	; +:
 
 		; Select the channel routine
 
@@ -1421,7 +1429,11 @@ MainLoop:
 				CLRC
 				ADC A, #(WriteToChannel&$FF)
 			; endif
-			MOV $FFC0+2, A
+			MOV $FFC0+4, A
+		endif
+
+		if !SNESFM_CFG_CONTINOUS_EFFECTS > 0
+			CALL UpdateEffects
 		endif
 
 		SETC
@@ -1433,7 +1445,7 @@ MainLoop:
 	+:
 		CALL ParseInstrumentData_Start
 
-	TCALL 13
+	TCALL 14
 
 	.transferTempToCh:
 		MOV A, CHTEMP_FLAGS
@@ -1803,16 +1815,16 @@ UpdatePitch:
 				BEQ .NoBend
 
 			elseif (\							;
-			(!SNESFM_CFG_PITCHBEND_EFFECTS)+\	;	If only 2 components added
+			(!SNESFM_CFG_PITCH_EFFECTS)+\		;	If only 2 components added
 			(!SNESFM_CFG_INSTRUMENT_PITCHBEND)+\;
 			(!SNESFM_CFG_FINE_PITCH)) == 2		;__
 
-				if (!SNESFM_CFG_PITCHBEND_EFFECTS+!SNESFM_CFG_INSTRUMENT_PITCHBEND) == 2
+				if (!SNESFM_CFG_PITCH_EFFECTS+!SNESFM_CFG_INSTRUMENT_PITCHBEND) == 2
 					!A_LO = CH1_PITCHBEND_L
 					!A_HI = CH1_PITCHBEND_H
 					!B_LO = CH1_PITCH_EFFECT_VAL_L
 					!B_HI = CH1_PITCH_EFFECT_VAL_H
-				elseif !SNESFM_CFG_PITCHBEND_EFFECTS	; Fine pitch also enabled
+				elseif !SNESFM_CFG_PITCH_EFFECTS		; Fine pitch also enabled
 					!A_LO = CH1_PITCH_EFFECT_VAL_L
 					!A_HI = CH1_PITCH_EFFECT_VAL_H
 					!B_LO = CH1_FINE_PITCH
@@ -1880,7 +1892,7 @@ UpdatePitch:
 					ADC A, !L000_NOTE_VALUE				;	to note
 					MOV !L000_NOTE_VALUE, A				;__
 
-				elseif !SNESFM_CFG_PITCHBEND_EFFECTS
+				elseif !SNESFM_CFG_PITCH_EFFECTS
 
 					MOV A, CH1_PITCH_EFFECT_VAL_L+X		;
 					MOV Y, A							;	Get effect pitchbend
@@ -1981,6 +1993,40 @@ UpdatePitch:
 				MOV Y, #$5F                     ;__
 		+ MOV A, PitchTableLo+Y					;__	I always do this immediately after anyway
 		RET
+
+if !SNESFM_CFG_CONTINOUS_EFFECTS > 0
+UpdateEffects:
+	if !SNESFM_CFG_CONTINOUS_PITCH_EFFECTS > 0
+		MOV A, CH1_PITCH_EFFECT_ID+X
+		BEQ .PitchEnd
+		MOV X, A
+		SET0 !PLAYBACK_FLAGS
+		CALL .PitchCaller
+		.PitchEnd:
+	endif
+	RET
+
+	if !SNESFM_CFG_CONTINOUS_PITCH_EFFECTS > 0
+		.PitchCaller:
+			JMP (.PitchEffectTable-$18+X)
+
+		.PitchEffectTable:
+			dw .PitchSlide	; ID = $6C, ½ID = $0C, ptr = $18
+
+		.PitchSlide:
+			MOV X, !BACKUP_X
+			CLRC
+			MOV A, CH1_PITCH_EFFECT_VAL_L+X	;
+			ADC A, CH1_PITCH_EFFECT_ACC_L+X	;	Add up the low bytes
+			MOV CH1_PITCH_EFFECT_VAL_L+X, A	;__
+			
+			MOV A, CH1_PITCH_EFFECT_VAL_H+X	;
+			ADC A, CH1_PITCH_EFFECT_ACC_H+X	;	And the high bytes
+			MOV CH1_PITCH_EFFECT_VAL_H+X, A	;__
+
+			RET
+	endif
+endif
 
 TransferDataBlock:
 	.Labels:
@@ -3188,7 +3234,7 @@ if !SNESFM_CFG_VIRTUAL_CHANNELS > 0
 
 	if pc()&$FF >= $FD : fill $03 : endif 	;__	Ensure the same high page
 
-	WriteToChannel: ; TCALL 14
+WriteToChannel: ; TCALL 13
 	.RealChannel:
 	MOV $F3, A
 	RET
@@ -3267,10 +3313,10 @@ Includes:
 
 	spcblock $FFC0 !SNESFM_CFG_SPCBLOCK_TYPE   ;For TCALLs
 		dw IndexToSamplePointer
+		dw UpdatePitch
 		if !SNESFM_CFG_VIRTUAL_CHANNELS > 0
 			dw WriteToChannel
 		endif
-		dw UpdatePitch
 
 	InstrumentPtrLo = $0A00
 	InstrumentPtrHi = $0B00

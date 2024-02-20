@@ -13,9 +13,11 @@
 	;                   overrides the instruments arpeggio)
 	;       $6A xx  - Same but with pitch 
 	;       $6B xx  - Fine pitch (center is $80, $00 = -1 semitone, $FF ≈ +1 semitone)
+	;		$6C X Y	- Pitch slide (indefinitely long, 
+	;					adds X to pitch index, Y to note number)
 	;
-	;       $6C-$6F - Not filled yet       
-	;		Planned: portamento, pitch slide (up vs down by flag), vibrato,
+	;       $6D-$6F - Not filled yet       
+	;		Planned: portamento, vibrato,
 	;
 	;       $70 xx  - Set left volume
 	;       $71 xx  - Set right volume
@@ -66,6 +68,7 @@
 		!ARP_TABLE = $69
 		!PITCH_TABLE = $6A
 		!FINE_PITCH = $6B
+		!PITCH_SLIDE = $6C
 
 		!VOL_SET_L = $70
 		!VOL_SET_R = $71
@@ -108,6 +111,7 @@ dw NoteDataNone, NoteDataNone, NoteDataNone, NoteDataNone
 nNoteDataBass1:
 	db !INSTRUMENT|($00<<1)  ; Set instrument to 0
 	db !FINE_PITCH, $00
+	db !PITCH_SLIDE, $F8, $FF
 	db !VOL_SET_BOTH, $7F
 	db $30, !WAIT|($10<<1)
 	db !VOL_SET_BOTH, $40
