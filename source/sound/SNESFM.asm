@@ -188,8 +188,8 @@ Documentation:
 		;   $09 _ _ _ _ Log table for pitchbends
 		;   $0A _ _ _ _ Low bytes of instrument data pointers
 		;   $0B _ _ _ _ High bytes of instrument data pointers
-		;   $0C _ _ _ _ 7/8 multiplication lookup table
-		;   $0D _ _ _ _ 15/16 multiplication lookup table
+		;   $0C _ _ _ _ 7/8 multiplication lookup table	- generate on the fly
+		;   $0D _ _ _ _ 15/16 multiplication lookup table - generate on the fly
 		;   $0E         $00 - $BF: Pitch table, 96 entries long
 		;   |__ _ _ _ _ $C0 - $C8: Dummy empty sample (for beginnings and noise)
 		;   $0F _ _ _ _ Sine table, only $0F00-$0F42 is written, everything else is calculated
@@ -245,6 +245,14 @@ InternalConfig:
 		!SNESFM_CFG_<def> #= clamp(!SNESFM_CFG_<def>, 0, <max>)
 	endmacro
 
+	macro tblCfg(cfg, ptr)	; For filling when a define is false
+		if !SNESFM_CFG_<cfg> : dw <ptr> : else : dw !SNESFM_CURRENT_TBL_FILL : endif
+	endmacro
+
+	macro fillW(count)		; Just fill some space
+		for i = 0..<count> : dw !SNESFM_CURRENT_TBL_FILL : endfor
+	endmacro
+
 	!SNESFM_CFG_SAMPLE_GENERATE ?= 0
 	!SNESFM_CFG_SAMPLE_USE_FILTER1 ?= 0
 
@@ -277,7 +285,7 @@ InternalConfig:
 
 	!SNESFM_CFG_PITCHTABLE_GEN ?= 1
 	%cfgClamp(PITCHTABLE_GEN)
-	if !SNESFM_CFG_PITCHTABLE_GEN >= 1
+	if !SNESFM_CFG_PITCHTABLE_GEN
 		!SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS ?= 0
 		!SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_NOTE_COUNTS ?= 0
 		!SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD ?= 0
@@ -295,7 +303,7 @@ InternalConfig:
 		!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT ?= 12
 
 		; TODO: make support for this
-		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_NOTE_COUNTS >= 1
+		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_NOTE_COUNTS
 			error "Sorry, dynamic note counts not supported rn"
 		endif
 
@@ -508,8 +516,8 @@ Init:       ;init routine by KungFuFurby
 	;MOV $FA, #$FF   ;   Set Timer 0 to 31.875 ms (~31 Hz)
 	MOV $F1, #$07   ;__
 
-	if !SNESFM_CFG_PITCHTABLE_GEN >= 1
-		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS >= 1
+	if !SNESFM_CFG_PITCHTABLE_GEN
+		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS
 			MOV A, #!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO
 			MOV Y, #!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO
 			MOVW !GenPitch_Ratio_Lo, YA
@@ -591,7 +599,7 @@ CompileInstruments:
 		MOV INSDATA_PTR_L, Y
 		MOV INSDATA_PTR_H, #$10
 
-		if !SNESFM_CFG_SAMPLE_GENERATE >= 1
+		if !SNESFM_CFG_SAMPLE_GENERATE
 
 		if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
 			MOV REPEAT_BITMASK+0, Y
@@ -616,7 +624,7 @@ CompileInstruments:
 		MOV A, (INSDATA_PTR_L)+Y
 		INCW INSDATA_PTR_L
 
-		if !SNESFM_CFG_SAMPLE_GENERATE >= 1
+		if !SNESFM_CFG_SAMPLE_GENERATE
 
 		MOV INSDATA_OPCODE, A
 		AND A, #$1F
@@ -633,7 +641,7 @@ CompileInstruments:
 		CLRC
 		ADC INSDATA_TMP_CNT, #OPCODE_ARGUMENT
 
-		if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
+		if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT
 			CALL .RepeatBitmask
 		endif
 
@@ -665,14 +673,14 @@ CompileInstruments:
 		ASL A
 		MOV X, A
 
-		if !SNESFM_CFG_SAMPLE_GENERATE >= 1
+		if !SNESFM_CFG_SAMPLE_GENERATE
 			JMP (.JumpTable+X)
 		else
 			JMP (.JumpTable-($1D*2)+X)
 		endif
 
 
-	if !SNESFM_CFG_SAMPLE_GENERATE >= 1
+	if !SNESFM_CFG_SAMPLE_GENERATE
 
 	.ArgCountTable:
 		fillbyte $00
@@ -683,32 +691,24 @@ CompileInstruments:
 	endif   ; !SNESFM_CFG_SAMPLE_GENERATE
 
 	.JumpTable: 
-		if !SNESFM_CFG_SAMPLE_GENERATE >= 1
-			dw .CopyResample
-			if !SNESFM_CFG_PHASEMOD_ANY >= 1
-				dw .PhaseModPart1, .PhaseModPart2
-			else
-				dw .RETJump, .RETJump
-			endif
+		!SNESFM_CURRENT_TBL_FILL = .RETJump
 
-			if !SNESFM_CFG_PULSEGEN_ANY >= 1
-				dw .PulseGen
-			else
-				dw .RETJump
-			endif
-			; fill ($1A-1-$03)*2 WHYYYYYYYYYYYYYYYYYYYYYYY
-			for i = $03..($1A-1) : dw .RETJump : endfor
+		if !SNESFM_CFG_SAMPLE_GENERATE
+
+			dw .CopyResample
+
+			%tblCfg(PHASEMOD_ANY, .PhaseModPart1)
+			%tblCfg(PHASEMOD_ANY, .PhaseModPart2)
+
+			%tblCfg(PULSEGEN_ANY, .PulseGen)
+			%fillW($1A-3-1)
 			dw .BRRGen
 			dw .RETJump
-			if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
-				dw .ConserveArgs
-			else
-				dw .RETJump
-			endif
+			%tblCfg(INSGEN_REPEAT_AMOUNT, .ConserveArgs)
 		endif   ; !SNESFM_CFG_SAMPLE_GENERATE
 		dw .NewInstrument, .InstrumentRawDataBlock, .End
 
-	if !SNESFM_CFG_SAMPLE_GENERATE >= 1
+	if !SNESFM_CFG_SAMPLE_GENERATE
 
 	if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
 	.RepeatBitmask:
@@ -752,7 +752,7 @@ CompileInstruments:
 	endif   ; !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 1
 
 	.CopyResample:
-		if !SNESFM_CFG_RESAMPLE >= 1
+		if !SNESFM_CFG_RESAMPLE
 			MOV A, INSDATA_OPCODE
 			BMI ..Resample
 		endif
@@ -767,7 +767,7 @@ CompileInstruments:
 			DBNZ Y, ..CopyLoop
 		RET
 
-		if !SNESFM_CFG_RESAMPLE >= 1
+		if !SNESFM_CFG_RESAMPLE
 		..Resample:
 			ASL A
 			AND A, #$C0
@@ -786,7 +786,7 @@ CompileInstruments:
 		BNE .CopyArguments
 	RET
 
-	if !SNESFM_CFG_PHASEMOD_ANY >= 1
+	if !SNESFM_CFG_PHASEMOD_ANY
 	.PhaseModPart1:
 		MOV INSDATA_TMP_CNT, #OPCODE_ARGUMENT+5
 		MOV A, INSDATA_OPCODE
@@ -824,7 +824,7 @@ CompileInstruments:
 	.PhaseModPart2:
 		MOV X, #OPCODE_ARGUMENT
 		CALL .CopyArguments
-		if !SNESFM_CFG_PHASEMOD_BOTH >= 1
+		if !SNESFM_CFG_PHASEMOD_BOTH
 			BBS7 INSDATA_OPCODE, +
 				CALL PhaseModulation_128
 				MOV Y, #$00
@@ -832,35 +832,35 @@ CompileInstruments:
 			+   CALL PhaseModulation_32
 				MOV Y, #$00
 				RET
-		elseif !SNESFM_CFG_PHASEMOD_LONG >= 1
+		elseif !SNESFM_CFG_PHASEMOD_LONG
 			CALL PhaseModulation_128
 			MOV Y, #$00
 			RET
-		elseif !SNESFM_CFG_PHASEMOD_SHORT >= 1
+		elseif !SNESFM_CFG_PHASEMOD_SHORT
 			CALL PhaseModulation_32
 			MOV Y, #$00
 			RET
 		endif
 	endif   ; !SNESFM_CFG_PHASEMOD_ANY
 
-	if !SNESFM_CFG_PULSEGEN_ANY >= 1
+	if !SNESFM_CFG_PULSEGEN_ANY
 	.PulseGen:
 		MOV X, #OPCODE_ARGUMENT
 		CALL .CopyArguments
 
-		if !SNESFM_CFG_PULSEGEN_BOTH >= 1
+		if !SNESFM_CFG_PULSEGEN_BOTH
 			MOV A, INSDATA_OPCODE
 			BMI +
 		endif
-		if !SNESFM_CFG_PULSEGEN_BOTH+!SNESFM_CFG_PULSEGEN_LONG >= 1
+		if !SNESFM_CFG_PULSEGEN_LONG+!SNESFM_CFG_PULSEGEN_BOTH >= 1
 				CALL GeneratePulse_128
 				DEC Y   ; Y is always 1
 				RET
 		endif
-		if !SNESFM_CFG_PULSEGEN_BOTH >= 1
+		if !SNESFM_CFG_PULSEGEN_BOTH
 			+:
 		endif
-		if !SNESFM_CFG_PULSEGEN_BOTH+!SNESFM_CFG_PULSEGEN_SHORT >= 1
+		if !SNESFM_CFG_PULSEGEN_SHORT+!SNESFM_CFG_PULSEGEN_BOTH >= 1
 				MOV A, Y    ; 0
 				LSR PUL_DUTY
 				ROL PUL_FLAGS
@@ -1364,19 +1364,14 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
         JMP .Y00ReadByte
 	endif
 
-	macro opcCfg(cfg, ptr)
-		if !SNESFM_CFG_<cfg> : dw <ptr> : else : dw .POPX_ReadByte : endif
-	endmacro
-	macro fillW(count)
-		for i = 0..<count> : dw .POPX_ReadByte : endfor
-	endmacro
-
 	.OpcodeTable:
+		!SNESFM_CURRENT_TBL_FILL = .POPX_ReadByte
+
 		dw .NoAttack		; $68, Disable attack
 		dw .POPX_ReadByte	; $69, Arp table
-        %opcCfg(PITCH_EFFECTS, .POPX_ReadByte)	; $6A, Pitch table
-		%opcCfg(FINE_PITCH, .FinePitch)			; $6B, Fine pitch
-		%opcCfg(PITCH_SLIDE, .PitchSlide)		; $6C, Pitch slide
+        %tblCfg(PITCH_EFFECTS, .POPX_ReadByte)	; $6A, Pitch table
+		%tblCfg(FINE_PITCH, .FinePitch)			; $6B, Fine pitch
+		%tblCfg(PITCH_SLIDE, .PitchSlide)		; $6C, Pitch slide
 		%fillW(3)
 
 		dw .SetVolumeL_or_R	; $70, Set left volume
@@ -2117,12 +2112,12 @@ set_echoFIR:
 
 
 	.FIRTable:
-		db #$7f, #$00, #$00, #$00, #$00, #$00, #$00, #$00
+		db $7f, $00, $00, $00, $00, $00, $00, $00
 ;
 
-if !SNESFM_CFG_SAMPLE_GENERATE >= 1
+if !SNESFM_CFG_SAMPLE_GENERATE
 
-if !SNESFM_CFG_PULSEGEN_ANY >= 1
+if !SNESFM_CFG_PULSEGEN_ANY
 PulseGenTables:    ;In order:
 	;Highbyte with sz = 00 (8000),
 	;Lowbyte with s=0 (8000/0000) / Highbyte with sz = 01 (0000), 
@@ -2141,7 +2136,7 @@ PulseGenLabels:
 	PUL_OUT_PTR_H   = $EF
 endif   ; !SNESFM_CFG_PULSEGEN_ANY
 
-if !SNESFM_CFG_PULSEGEN_LONG >= 1
+if !SNESFM_CFG_PULSEGEN_LONG
 GeneratePulse_128:
 	.Documentation:
 		;   Memory allocation:
@@ -2252,7 +2247,7 @@ GeneratePulse_128:
 
 endif   ; !SNESFM_CFG_PULSEGEN_LONG
 
-if !SNESFM_CFG_PULSEGEN_SHORT >= 1
+if !SNESFM_CFG_PULSEGEN_SHORT
 GeneratePulse_32:
 	;   Memory allocation:
 	;   Inputs:
@@ -2367,7 +2362,7 @@ GeneratePulse_32:
 endif   ; !SNESFM_CFG_PULSEGEN_SHORT
 
 
-if !SNESFM_CFG_PHASEMOD_ANY >= 1
+if !SNESFM_CFG_PHASEMOD_ANY
 PhaseModulation_Labels:
 	MOD_CAR_PAGE        = $D0
 	MOD_MOD_PAGE        = $D1
@@ -2384,7 +2379,7 @@ PhaseModulation_Labels:
 
 endif   ; !SNESFM_CFG_PHASEMOD_ANY
 
-if !SNESFM_CFG_PHASEMOD_LONG >= 1
+if !SNESFM_CFG_PHASEMOD_LONG
 PhaseModulation_128:
 	.Documentation:
 		;   Memory allocation:
@@ -2468,7 +2463,7 @@ PhaseModulation_128:
 
 endif   ; !SNESFM_CFG_PHASEMOD_LONG
 
-if !SNESFM_CFG_PHASEMOD_SHORT >= 1
+if !SNESFM_CFG_PHASEMOD_SHORT
 PhaseModulation_32:
 	.Documentation:
 		;   Memory allocation:
@@ -2581,7 +2576,7 @@ endif   ; !SNESFM_CFG_PHASEMOD_SHORT
 
 
 
-if !SNESFM_CFG_RESAMPLE >= 1
+if !SNESFM_CFG_RESAMPLE
 LongToShort:
 	.Documentation:
 		;   Memory allocation:
@@ -2715,7 +2710,7 @@ ConvertToBRR:
 		CMP X, #$40                     ;   Loop                        #
 		BNE .CopyLoop   				;__                             #
 
-		if !SNESFM_CFG_SAMPLE_USE_FILTER1 >= 1
+		if !SNESFM_CFG_SAMPLE_USE_FILTER1
 		.SetupFilter:
 			BBS7 BRR_TEMP_FLAGS, .FirstBlock    ;   If this is the first block, Or filter 0 is forced,
 			BBS7 BRR_FLAGS, .FirstBlock         ;__ Skip doing filter 1 entirely
@@ -2743,7 +2738,7 @@ ConvertToBRR:
 		MOV X, #$20
 		JMP .BRREncoding_OuterLoop
 
-	if !SNESFM_CFG_SAMPLE_USE_FILTER1 >= 1
+	if !SNESFM_CFG_SAMPLE_USE_FILTER1
 	.FilterLoop:
 		MOV Y, BRR_SMPPT_L          ;                                       #
 		MOV A, $0D00+Y              ;                                       #
@@ -2800,7 +2795,7 @@ ConvertToBRR:
 	endif   ; !SNESFM_CFG_SAMPLE_USE_FILTER1
 
 	.BRREncoding:
-		if !SNESFM_CFG_SAMPLE_USE_FILTER1 >= 1
+		if !SNESFM_CFG_SAMPLE_USE_FILTER1
 			SET6 BRR_TEMP_FLAGS
 			MOV X, #$00
 		endif   ; !SNESFM_CFG_SAMPLE_USE_FILTER1
@@ -2830,7 +2825,7 @@ ConvertToBRR:
 			MOV A, X
 			AND A, #$1F
 			BNE ..MaximumFilter1
-			if !SNESFM_CFG_SAMPLE_USE_FILTER1 >= 1
+			if !SNESFM_CFG_SAMPLE_USE_FILTER1
 				CMP X, #$40
 				BEQ +
 					MOVW YA, BRR_SMPPT_L
@@ -2893,7 +2888,7 @@ ConvertToBRR:
 			BNE +                           ;   Set the end flag if it's the last block
 			OR A, #%00010000                ;__
 		+:
-			if !SNESFM_CFG_SAMPLE_USE_FILTER1 >= 1
+			if !SNESFM_CFG_SAMPLE_USE_FILTER1
 				MOV BRR_MAXM0_H, BRR_TEMP_FLAGS ;	Set the filter to 1
 				AND BRR_MAXM0_H, #%01000000     ;   if appropriate
 				OR A, BRR_MAXM0_H               ;__
@@ -2973,7 +2968,7 @@ ConvertToBRR:
 		CLR7 BRR_TEMP_FLAGS
 		CMP BRR_END_PTR_L, BRR_IN0_PTR_L	;   If this is the last block, end
 		BEQ .End        	;__
-		if !SNESFM_CFG_SAMPLE_USE_FILTER1 >= 1
+		if !SNESFM_CFG_SAMPLE_USE_FILTER1
 			BBS7 BRR_FLAGS, ++
 			+   CMP X, #$20                     ;
 				BNE +                           ;
@@ -2997,7 +2992,7 @@ ConvertToBRR:
 
 endif   ; !SNESFM_CFG_SAMPLE_GENERATE
 
-if !SNESFM_CFG_PITCHTABLE_GEN >= 1
+if !SNESFM_CFG_PITCHTABLE_GEN
 GeneratePitchTable:
 	.Documentation:
 		; Inputs:

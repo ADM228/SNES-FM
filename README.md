@@ -25,7 +25,7 @@ SNES-FM is a frequency modulation synthesis engine/sound driver for the SNES (or
 
 ## Roadmap (sorta)
 
-### On SPC700
+### On SPC700 (full list at [TODO.txt](TODO.txt))
 
 - Modular synthesis-related:
   - Tilted saw/triangle generation
@@ -48,7 +48,7 @@ SNES-FM is a frequency modulation synthesis engine/sound driver for the SNES (or
 
 ## Building
 
-This project is made and compiled with the [asar](https://github.com/rpghacker/asar) SNES compiler. On Linux you build it with `make`, and there is no separate process for building on Windows, so just use e.g. [winmake](https://gnuwin32.sourceforge.net/packages/make.htm) to build it with the same makefile. If you want use other compilers in your project, you're sorta in luck as asar (somehow) can build a binary file of just SNES-FM (in N-SPC format). To do that, call `make SNESFM`, and you will end up with an `SNESFM.bin` file in the `bin` directory.
+This project is made and compiled with the [asar](https://github.com/rpghacker/asar) SNES compiler, specifically version 1.90. On Linux you build it with `make`, and there is no separate process for building on Windows, so just use e.g. [winmake](https://gnuwin32.sourceforge.net/packages/make.htm) to build it with the same makefile. If you want use other compilers in your project, you're sorta in luck as asar (somehow) can build a binary file of just SNES-FM (in N-SPC format). To do that, call `make SNESFM`, and you will end up with an `SNESFM.bin` file in the `bin` directory.
 
 ## Usage in your projects
 

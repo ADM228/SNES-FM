@@ -1,4 +1,4 @@
-ASAR_URL = https://github.com/RPGHacker/asar/archive/refs/tags/v1.90RC1.tar.gz
+ASAR_URL = https://github.com/RPGHacker/asar/archive/refs/tags/v1.90.tar.gz
 ASAR_DIR = tools/asar
 current_dir = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 

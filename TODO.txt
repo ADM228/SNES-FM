@@ -1,0 +1,54 @@
+========================= SNESFM TODO =========================
+(no Genecyzer-related stuff)
+
+[i] - semi-incoherent idea/concept, make more concrete
+[ ] - idea coherent, not done
+[p] - implementation in progress
+
+- [ ] Toggleable noise support
+- [ ] [ ] Generate 7/8 and 15/16 tables on the fly
+- [ ] Custom sample support:
+    - [ ] Use sample addresses for that
+        - [ ] ×4 pointer instead of ×2?
+    - [i] Be able to specify loop and start addresses
+        - Maybe via a flag to toggle whether to specify separately?
+    - [i] Command to insert custom sample
+- [i] Instrument pitchbend support
+    - 1 byte or 2?
+- [ ] Triangle and saw waves
+    - [ ] Add option for simplified algorithm that only makes saw and triangle waves
+        - [ ] Sawtooth: forward / reverse option
+        - [ ] [ ] Triangle: shifted by ½ or not, inverted option (same bit as forward/reverse)
+        - Generate 'em in a loop
+    - [ ] Also make a complex algorithm that can make a tilted triangle wave as well
+        - Something something $FF / count
+            - Optimize to do it only once?
+        - [ ] [ ] Able to be shifted by ½ and inverted
+            - [ ] [ ] Make both configurable on compile time too?
+- [ ] Phasemod feedback command
+    - [ ] [ ] [ ] Specify 2 memory cells to be taken up, amount of iterations, and mod strength
+    - [ ] Possibly specify the very source via a flag?
+- [ ] Mult command
+    - [i] Do it with fixed or floating point?
+    - [ ] Be able to extend it across multiple cells
+- [ ] Volume command
+    - [ ] [ ] Both 8-bit and 16-bit signed
+        - For 16-bit do the entire multiplication and take up as much dp as possible
+        - [ ] [ ] Compile-time toggles for either
+- [ ] Ringmod command
+    - Basically volume but it gets the sample's value instead of 1 set value
+    - Maybe self-modify volume routine
+        - Automatically turns on the 16-bit one ofc
+- [i] AND gate
+    - Supply or generate bitmask? (like bitcrush)
+    - Be able to AND samples?
+        - Self mod code?
+- [i] XOR gate?????
+    - Definitely supply bitmask
+    - Be able to XOR samples?
+        - Self mod code?
+- [i] 4 SECTIONS IN INSTRUMENTS
+    - [ ] Effect to swap sections 
+    - What happens when in progress?
+- [i] Sound effects
+- [i] Streaming samples
