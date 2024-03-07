@@ -4,8 +4,10 @@
 [i] - semi-incoherent idea/concept, make more concrete
 [ ] - idea coherent, not done
 [p] - implementation in progress
+[d] - implemented but undocumented
+[D] - implemented; documentation in progress
 
-- [ ] Toggleable noise support
+- [d] Toggleable noise support
 - [ ] [ ] Generate 7/8 and 15/16 tables on the fly
 - [ ] Custom sample support:
     - [ ] Use sample addresses for that

@@ -166,6 +166,8 @@ Configuration:
 
 		!SNESFM_CFG_DYNAMIC_TIMER_SPEED = 0
 
+		!SNESFM_CFG_HARDWARE_NOISE_SUPPORT	= 1
+
 		!SNESFM_CFG_FINE_PITCH				= 1
 		!SNESFM_CFG_INSTRUMENT_PITCHBEND 	= 1
 
@@ -313,6 +315,9 @@ InternalConfig:
 	!SNESFM_CFG_INSGEN_ARITHMETIC_AMOUNT ?= 0
 	%cfgClampMax(INSGEN_REPEAT_AMOUNT, 4)
 	%cfgClampMax(INSGEN_ARITHMETIC_AMOUNT, 4)
+
+	!SNESFM_CFG_HARDWARE_NOISE_SUPPORT ?= 0
+	%cfgClamp(HARDWARE_NOISE_SUPPORT)
 
 	!SNESFM_CFG_PITCH_SLIDE ?= 0
 	%cfgClamp(PITCH_SLIDE)
@@ -1081,12 +1086,16 @@ Begin:
 		MOV X, A
 		BNE -
 
-	MOV $F2, #$5C
-	MOV $F3, X      ; X is 0
-	MOV $F2, #$6C
-	MOV $F3, #$20
+	MOV $F2, #$5C		;	Key Off Nothing
+	MOV $F3, X			;__
+	if not(!SNESFM_CFG_HARDWARE_NOISE_SUPPORT)
+		MOV $F2, #$3D	;	Disable noise on all channels
+		MOV $F3, X		;__
+	endif
+	MOV $F2, #$6C	;	Unmute, disable echo
+	MOV $F3, #$20	;__
 
-	MOV A, $FD
+	MOV A, $FD		;__	Reset timer
 	JMP MainLoop_WaitLoop
 
 
@@ -1611,33 +1620,38 @@ ParseInstrumentData:
 
 	.UpdateInstrumentType:
 		POP X
-		MOV0 C, CHTEMP_INSTRUMENT_TYPE      ;__ Get the old value
-		MOV A, (!TEMP_POINTER1_L)+Y         ;   Get the current value
-		MOV CHTEMP_INSTRUMENT_TYPE, A      	;__
-		EOR0 C, CHTEMP_INSTRUMENT_TYPE      ;   Don't update if nothing changed
-		BCC ++                              ;__
-			SET0 !PLAYBACK_FLAGS                ;
-			MOV $F2, #$3D                       ;
-			BBC0 CHTEMP_INSTRUMENT_TYPE, +		;
-				MOV A, !CHANNEL_BITMASK         ;
-				TCLR $F3, A                     ;   Update the noise enable flag
-				JMP ++                          ;
-			+:                                  ;
-				OR $F3, !CHANNEL_BITMASK        ;__
+		if !SNESFM_CFG_HARDWARE_NOISE_SUPPORT
+			MOV0 C, CHTEMP_INSTRUMENT_TYPE      ;__ Get the old value
+			MOV A, (!TEMP_POINTER1_L)+Y         ;   Get the current value
+			MOV CHTEMP_INSTRUMENT_TYPE, A      	;__
+			EOR0 C, CHTEMP_INSTRUMENT_TYPE      ;   Don't update if nothing changed
+			BCC ++                              ;__
+				SET0 !PLAYBACK_FLAGS                ;
+				MOV $F2, #$3D                       ;
+				BBC0 CHTEMP_INSTRUMENT_TYPE, +		;
+					MOV A, !CHANNEL_BITMASK         ;
+					TCLR $F3, A                     ;   Update the noise enable flag
+					JMP ++                          ;
+				+:                                  ;
+					OR $F3, !CHANNEL_BITMASK        ;__
+		else
+			MOV A, (!TEMP_POINTER1_L)+Y         ;   Get the current value
+			MOV CHTEMP_INSTRUMENT_TYPE, A      	;__
+		endif
 	++  AND !CHANNEL_REGISTER_INDEX, #$70	;
 		OR !CHANNEL_REGISTER_INDEX, #$05	;
 		MOV $F2, !CHANNEL_REGISTER_INDEX	;
-		MOV1 C, $F3                         ;   If the envelope mode isn't changed,
-		EOR1 C, CHTEMP_INSTRUMENT_TYPE      ;   don't clear the envelope
-		BCC .RET_                            ;__
+		MOV1 C, $F3							;   If the envelope mode isn't changed,
+		EOR1 C, CHTEMP_INSTRUMENT_TYPE		;   don't clear the envelope
+		BCC .R								;__
 		AND !CHANNEL_REGISTER_INDEX, #$70	;
 		BBC1 CHTEMP_INSTRUMENT_TYPE, +		;
 			OR !CHANNEL_REGISTER_INDEX, #$05;   Write address to DSP (ADSR1)
 			MOV $F2, !CHANNEL_REGISTER_INDEX;__
-			MOV $F3, #$80                   ;   If ADSR is used,
-			INC $F2                         ;   Clear out the ADSR envelope
-			MOV $F3, #$00                   ;__
-		#.RET_ RET
+			MOV $F3, #$80					;   If ADSR is used,
+			INC $F2							;   Clear out the ADSR envelope
+			MOV $F3, #$00					;__
+		#.R	RET
 		+:                                  ;
 			OR !CHANNEL_REGISTER_INDEX, #$08;
 			MOV $F2, !CHANNEL_REGISTER_INDEX;
@@ -1735,22 +1749,24 @@ ParseInstrumentData:
 			SET0 !PLAYBACK_FLAGS                ;   and set to update the pitch
 			MOV CH1_ARPEGGIO+X, A               ;__
 		+ POP X
-		RET
+		#RET000: RET
 
 UpdatePitch:
-	BBC0 !PLAYBACK_FLAGS, .RETJump
+	BBC0 !PLAYBACK_FLAGS, RET000
 	CLR0 !PLAYBACK_FLAGS
 	MOV A, CH1_NOTE+X                     	;
 	CLRC                                    ;   Apply arpeggio
 	ADC A, CH1_ARPEGGIO+X                 	;__
-	BBS0 CHTEMP_INSTRUMENT_TYPE, .TonePitch
-	.NoisePitch:
-		AND A, #$1F                             ;
-		MOV $F2, #$6C                           ;  Update noise clock
-		AND $F3, #$E0                           ;
-		OR A, $F3                               ;
-		%realChannelWrite()                     ;__
-	#.RETJump:	RET
+	if !SNESFM_CFG_HARDWARE_NOISE_SUPPORT
+		BBS0 CHTEMP_INSTRUMENT_TYPE, .TonePitch
+		.NoisePitch:
+			AND A, #$1F                             ;
+			MOV $F2, #$6C                           ;  Update noise clock
+			AND $F3, #$E0                           ;
+			OR A, $F3                               ;
+			%realChannelWrite()                     ;__
+			RET
+	endif
 	.TonePitch:
 		; Defines
 		!L000_NOTE_VALUE = !TEMP_VALUE2
