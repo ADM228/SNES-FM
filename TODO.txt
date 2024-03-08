@@ -8,7 +8,7 @@
 [D] - implemented; documentation in progress
 
 - [d] Toggleable noise support
-- [ ] [ ] Generate 7/8 and 15/16 tables on the fly
+- [d] [d] Generate 7/8 and 15/16 tables on the fly
 - [ ] Custom sample support:
     - [ ] Use sample addresses for that
         - [ ] ×4 pointer instead of ×2?

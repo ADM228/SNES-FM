@@ -405,6 +405,9 @@ InternalDefines:
 
 		GBL_TIMER_SPEED = $0700
 
+		TBL_7over8 		= $0C00
+		TBL_15over16	= $0D00
+
 	;Temporary channel pointers during song playback
 
 		CHTEMP_SONG_POINTER_L = $20
@@ -582,14 +585,34 @@ SetVolume:
 	MOV X, #$7F
 	MOV Y, #$08
 	MOV A, #$00
-	.loopVolumeSetup:
+	.loop:
 		MOV $F2, A
 		MOV $F3, X
 		INC $F2
 		MOV $F3, X
 		CLRC
 		ADC A, #$10
-		DBNZ Y, .loopVolumeSetup
+		DBNZ Y, .loop
+
+if !SNESFM_CFG_SAMPLE_GENERATE
+
+GenerateMultTables:
+	MOV X, #$00			;0, 1	;
+	MOV A, X			;2		;	Zero everything out
+	MOV !TEMP_VALUE, X	;3, 4	;__
+
+	CALL GMT_loop
+
+	MOV A, #256*15/16			;
+	MOV GMT_loop+2, A			;
+	MOV A, #(TBL_15over16>>8)	;	Set everything for round 2
+	MOV GMT_loop+9, A			;__
+	MOV A, X
+	MOV !TEMP_VALUE, X
+
+	CALL GMT_loop
+
+endif
 
 GetInstrumentData:
 	MOV MESSAGE_CNT_TH1, #$01
@@ -2112,6 +2135,20 @@ WaitCPUMsg:
 	AND A, #$F0
 	RET
 
+if !SNESFM_CFG_SAMPLE_GENERATE
+
+GMT_loop:
+	CLRC						; 0
+	ADC !TEMP_VALUE, #256*7/8	; 1, 2, 3
+	BCC +						; 4, 5
+		INC A					; 6
+	+ MOV TBL_7over8+X, A		; 7, 8, 9
+	INC X						; 10
+	BNE GMT_loop				; 11, 12
+	RET							; 13
+
+endif
+
 set_echoFIR:
 	MOV $00, #$08
 	MOV $01, #$0F
@@ -2757,7 +2794,7 @@ ConvertToBRR:
 	if !SNESFM_CFG_SAMPLE_USE_FILTER1
 	.FilterLoop:
 		MOV Y, BRR_SMPPT_L          ;                                       #
-		MOV A, $0D00+Y              ;                                       #
+		MOV A, TBL_15over16+Y		;										#
 		BBS4 BRR_TEMP_FLAGS, +      ;                                       #
 			CLRC                    ;   Python code:                        #
 			ADC A, BRR_CSMPT_L      ;   currentsmppoint += smppoint_L*15/16 #
@@ -2925,7 +2962,7 @@ ConvertToBRR:
 		+:
 		MOV BRR_CSMPT_H, A  ;
 		MOV Y, BRR_CSMPT_L  ;
-		MOV A, $0C00+Y      ;
+		MOV A, TBL_7over8+Y	;
 		MOV BRR_CSMPT_L, A  ;
 		MOV Y, BRR_CSMPT_H  ;
 		MOV A, #$E0         ;   7/8 multiplication
@@ -3264,10 +3301,6 @@ assert pc() < $6000
 endspcblock
 
 Includes:	
-	spcblock $0C00 !SNESFM_CFG_SPCBLOCK_TYPE
-		LookupTables:
-		incbin "multTables.bin"
-	endspcblock
 	if not(!SNESFM_CFG_PITCHTABLE_GEN)
 		spcblock $0E00 !SNESFM_CFG_SPCBLOCK_TYPE
 			PitchTableLo:
