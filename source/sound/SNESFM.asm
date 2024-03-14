@@ -183,15 +183,16 @@ Documentation:
 		;               $40 - $4F: Communicating with S-CPU stuff
 		;   |__ _ _ _ _ $C0 - $EF: Operating space of subroutines (how exactly described before every subroutine)
 		;   $01 _ _ _ _ Stack
-		;   $02 _ _ _ _ Sample Directory
-		;   $03-$04 _ _ Permanent storage of flags, counters and pointers for note stuff for "real" channels
-		;   $05-$06 _ _ Same but for virtual channels
-		;	$07 _ _ _ _ Global settings
-		;   $09 _ _ _ _ Log table for pitchbends
-		;   $0A _ _ _ _ Low bytes of instrument data pointers
-		;   $0B _ _ _ _ High bytes of instrument data pointers
-		;   $0C _ _ _ _ 7/8 multiplication lookup table	- generate on the fly
-		;   $0D _ _ _ _ 15/16 multiplication lookup table - generate on the fly
+		;   $02-$05 _ _ Sample Directory
+		;				During instrument generation:
+		;   $06 _ _ _ _ 7/8 multiplication lookup table	- generated on the fly
+		;   $07 _ _ _ _ 15/16 multiplication lookup table - generated on the fly
+		;   $06-$07 _ _ During playback - permanent storage of flags, counters and pointers for note stuff for "real" channels
+		;   $08-$09 _ _ Same but for virtual channels
+		;	$0A _ _ _ _ Global settings
+		;   $0B _ _ _ _ Log table for pitchbends
+		;   $0C _ _ _ _ Low bytes of instrument data pointers
+		;   $0D _ _ _ _ High bytes of instrument data pointers
 		;   $0E         $00 - $BF: Pitch table, 96 entries long
 		;   |__ _ _ _ _ $C0 - $C8: Dummy empty sample (for beginnings and noise)
 		;   $0F _ _ _ _ Sine table, only $0F00-$0F42 is written, everything else is calculated
@@ -358,55 +359,53 @@ InternalDefines:
 				!SAMPLE_USE_ADDRESS = %00001000
 				!ENVELOPE_TYPE_ADSR = %00000010
 	;Pointers to channel 1's variables (permanent storage during song playback)
-		CH1_SONG_POINTER_L = $0300
-		CH1_SONG_POINTER_H = $0301
-		CH1_REF0_POINTER_L = $0302
-		CH1_REF0_POINTER_H = $0303
-		CH1_INSTRUMENT_INDEX = $0304
-		CH1_INSTRUMENT_TYPE = $0305
-		CH1_SAMPLE_POINTER_L = $0306
-		CH1_SAMPLE_POINTER_H = $0307
 
-		CH1_SONG_COUNTER = $0340
-		CH1_REF0_COUNTER = $0341
-		CH1_PITCHBEND_L = $0342
-		CH1_PITCHBEND_H = $0343
-		CH1_ARPEGGIO = $0344
-		CH1_NOTE = $0345
+		CH1_SONG_POINTER_L = $0600
+		CH1_SONG_POINTER_H = $0601
+		CH1_REF0_POINTER_L = $0602
+		CH1_REF0_POINTER_H = $0603
+		CH1_INSTRUMENT_INDEX = $0604
+		CH1_INSTRUMENT_TYPE = $0605
+		CH1_SAMPLE_POINTER_L = $0606
+		CH1_SAMPLE_POINTER_H = $0607
 
-		CH1_FLAGS = $0347
+		CH1_SONG_COUNTER = $0640
+		CH1_REF0_COUNTER = $0641
+		CH1_PITCHBEND_L = $0642
+		CH1_PITCHBEND_H = $0643
+		CH1_ARPEGGIO = $0644
+		CH1_NOTE = $0645
 
-		CH1_MACRO_COUNTERS = $0380
-		CH1_INSTRUMENT_TYPE_COUNTER = $0380
-		CH1_ENVELOPE_COUNTER = $0381
-		CH1_SAMPLE_POINTER_COUNTER = $0382
-		CH1_ARPEGGIO_COUNTER = $0383
-		CH1_PITCHBEND_COUNTER = $0384
-		CH1_COUNTERS_HALT = $0387		;000paset
+		CH1_FLAGS = $0647
 
-		CH1_MACRO_POINTERS = $03C0
-		CH1_INSTRUMENT_TYPE_POINTER = $03C0
-		CH1_ENVELOPE_POINTER = $03C1
-		CH1_SAMPLE_POINTER_POINTER = $03C2
-		CH1_ARPEGGIO_POINTER = $03C3
-		CH1_PITCHBEND_POINTER = $03C4
-		CH1_COUNTERS_DIRECTION = $03C7	;000paset
+		CH1_MACRO_COUNTERS = $0680
+		CH1_INSTRUMENT_TYPE_COUNTER = $0680
+		CH1_ENVELOPE_COUNTER = $0681
+		CH1_SAMPLE_POINTER_COUNTER = $0682
+		CH1_ARPEGGIO_COUNTER = $0683
+		CH1_PITCHBEND_COUNTER = $0684
+		CH1_COUNTERS_HALT = $0687		;000paset
 
-		CH1_INSTRUMENT_SECTION_HIGHBITS = $0385
+		CH1_MACRO_POINTERS = $06C0
+		CH1_INSTRUMENT_TYPE_POINTER = $06C0
+		CH1_ENVELOPE_POINTER = $06C1
+		CH1_SAMPLE_POINTER_POINTER = $06C2
+		CH1_ARPEGGIO_POINTER = $06C3
+		CH1_PITCHBEND_POINTER = $06C4
+		CH1_COUNTERS_DIRECTION = $06C7	;000paset
 
-		CH1_PITCH_EFFECT_ID = $0400
-		CH1_PITCH_EFFECT_CNT = $0401
-		CH1_PITCH_EFFECT_ACC_L = $0402
-		CH1_PITCH_EFFECT_ACC_H = $0403
-		CH1_PITCH_EFFECT_VAL_L = $0404
-		CH1_PITCH_EFFECT_VAL_H = $0405
+		CH1_INSTRUMENT_SECTION_HIGHBITS = $0685
 
-		CH1_FINE_PITCH	= $0406
+		CH1_PITCH_EFFECT_ID = $0700
+		CH1_PITCH_EFFECT_CNT = $0701
+		CH1_PITCH_EFFECT_ACC_L = $0702
+		CH1_PITCH_EFFECT_ACC_H = $0703
+		CH1_PITCH_EFFECT_VAL_L = $0704
+		CH1_PITCH_EFFECT_VAL_H = $0705
 
-		GBL_TIMER_SPEED = $0700
+		CH1_FINE_PITCH	= $0706
 
-		TBL_7over8 		= $0C00
-		TBL_15over16	= $0D00
+		GBL_TIMER_SPEED = $0A00
 
 	;Temporary channel pointers during song playback
 
@@ -463,8 +462,27 @@ InternalDefines:
 		!GenPitch_Ratio_Lo	= $E8
 
 	; Labels, previously scattered around in includes
+		SMP_DIR_P0	= $0200
+		SMP_DIR_P1	= $0300
+		SMP_DIR_P2	= $0400
+		SMP_DIR_P3	= $0500
+
+		PERM_CH_STORAGE_P0 = $0600
+		PERM_CH_STORAGE_P1 = $0700
+
+		TBL_7over8 		= $0600
+		TBL_15over16	= $0700
+
+		GBL_STORAGE	= $0A00
+
+		InstrumentPtrLo = $0C00
+		InstrumentPtrHi = $0D00
+
 		PitchTableLo = $0E00
 		PitchTableHi = $0E60
+
+		SineTable = $0F00
+
 
 ;
 
@@ -515,14 +533,14 @@ Init:       ;init routine by KungFuFurby
 	MOV $F1, #$30   ;__ Clear input ports
 	MOV X, #$FF     ;   Reset the stack
 	MOV SP, X       ;__
-	MOV $F2, #$5D   ;   Set sample directory at $0200
-	MOV $F3, #$02   ;__
-	MOV $F1, #$00   ;
-	;MOV $FA, #$85   ;   Set Timer 0 to 16.625 ms (~60 Hz)
-	MOV $FA, #$50   ;   Set Timer 0 to 10 ms     (100 Hz)
-	;MOV $FA, #$A0   ;   Set Timer 0 to 20 ms     (50 Hz)
-	;MOV $FA, #$FF   ;   Set Timer 0 to 31.875 ms (~31 Hz)
-	MOV $F1, #$07   ;__
+	MOV $F2, #$5D				;   Set sample directory
+	MOV $F3, #(SMP_DIR_P0>>8)	;__
+	MOV $F1, #$00	;
+	;MOV $FA, #$85	;   Set Timer 0 to 16.625 ms (~60 Hz)
+	MOV $FA, #$50	;   Set Timer 0 to 10 ms     (100 Hz)
+	;MOV $FA, #$A0	;   Set Timer 0 to 20 ms     (50 Hz)
+	;MOV $FA, #$FF	;   Set Timer 0 to 31.875 ms (~31 Hz)
+	MOV $F1, #$07	;__
 
 	if !SNESFM_CFG_PITCHTABLE_GEN
 		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS
@@ -546,38 +564,33 @@ SineSetup:
 	MOV X, #$02     ;__ X contains the source index,
 	MOV Y, #$3E     ;__ Y contains the destination index
 	.loopCopy:
-		MOV A, $0F00+X
+		MOV A, SineTable+X
 		INC X
-		MOV $0F40+Y, A
-		MOV A, $0F00+X
+		MOV SineTable+$40+Y, A
+		MOV A, SineTable+X
 		INC X
-		MOV $0F41+Y, A
+		MOV SineTable+$41+Y, A
 		DEC Y
 		DBNZ Y, .loopCopy
 
 	MOV Y, #$3F
 
 	.loopInvert:
-		MOV A, $0F00+Y
+		MOV A, SineTable+Y
 		EOR A, #$FF
-		MOV $0F80+Y, A
-		MOV A, $0F40+Y
+		MOV SineTable+$80+Y, A
+		MOV A, SineTable+$40+Y
 		EOR A, #$FF
-		MOV $0FC0+Y, A
+		MOV SineTable+$C0+Y, A
 		DBNZ Y, .loopInvert
 
-EffectSetup:
-	MOV Y, #$00
-	MOV A, #$FF
-	-:
-		MOV $0300+Y, A
-		DBNZ Y, -
-
 RAMClear:
+	MOV Y, #$00
 	MOV A, Y
 	-:
-		MOV $0300+Y, A
-		MOV $0200+Y, A
+		MOV PERM_CH_STORAGE_P0+Y, A
+		MOV PERM_CH_STORAGE_P1+Y, A
+		MOV SMP_DIR_P0+Y, A
 		DBNZ Y, -
 
 
@@ -593,6 +606,12 @@ SetVolume:
 		CLRC
 		ADC A, #$10
 		DBNZ Y, .loop
+
+GetInstrumentData:
+	MOV MESSAGE_CNT_TH1, #$01
+	MOV TDB_OUT_PTR_L, #$00
+	MOV TDB_OUT_PTR_H, #$10
+	CALL TransferDataBlock
 
 if !SNESFM_CFG_SAMPLE_GENERATE
 
@@ -613,12 +632,6 @@ GenerateMultTables:
 	CALL GMT_loop
 
 endif
-
-GetInstrumentData:
-	MOV MESSAGE_CNT_TH1, #$01
-	MOV TDB_OUT_PTR_L, #$00
-	MOV TDB_OUT_PTR_H, #$10
-	CALL TransferDataBlock
 
 ; namespace CompileInstruments
 CompileInstruments:
@@ -1086,11 +1099,11 @@ Begin:
 		MOV A, #$02							;   Bit 1 set to stop from
 		MOV CH1_FLAGS+X, A                  ;__ parsing nonexistent instrument data
 		MOV A, #$C0							;
-		MOV $0204+X, A                      ;
-		MOV $0200+X, A                      ;   Reset sample start pointers to blank sample
+		MOV SMP_DIR_P0+4+X, A				;
+		MOV SMP_DIR_P0+0+X, A				;   Reset sample start pointers to blank sample
 		MOV A, #$0E                         ;
-		MOV $0205+X, A                      ;
-		MOV $0201+X, A                      ;__
+		MOV SMP_DIR_P0+5+X, A				;
+		MOV SMP_DIR_P0+1+X, A				;
 		; MOV !CH1_EFFECT_COUNTER+X, A
 
 
@@ -1736,10 +1749,10 @@ ParseInstrumentData:
 			MOV X, A                            ;__
 		+
 			MOV A, !TEMP_POINTER2_H				;   Check if the high byte is the same
-			CMP A, $0203+X                      ;__
+			CMP A, SMP_DIR_P0+3+X				;__
 			BNE ..withRestart					;
 			MOV A, !TEMP_POINTER2_L				;	If yes, update only the low byte of the sample pointer
-			MOV $0202+X, A                      ;__
+			MOV SMP_DIR_P0+2+X, A				;__
 			POP X
 			RET
 
@@ -1749,9 +1762,9 @@ ParseInstrumentData:
 			EOR A, #$04							;	Swap byte offset
 			MOV X, A							;
 			MOV A, Y							;__
-			MOV $0203+X, A                      ;   If high byte is different,
+			MOV SMP_DIR_P0+3+X, A				;   If high byte is different,
 			MOV A, !TEMP_POINTER2_L				;   Update sample loop pointer
-			MOV $0202+X, A                      ;__
+			MOV SMP_DIR_P0+2+X, A				;__
 			; Reset to blank sample was here, if needed bring back here
 			AND !CHANNEL_REGISTER_INDEX, #$70	;
 			OR !CHANNEL_REGISTER_INDEX, #$04	;   Write address to DSP
@@ -3302,10 +3315,8 @@ endspcblock
 
 Includes:	
 	if not(!SNESFM_CFG_PITCHTABLE_GEN)
-		spcblock $0E00 !SNESFM_CFG_SPCBLOCK_TYPE
-			PitchTableLo:
+		spcblock PitchTableLo !SNESFM_CFG_SPCBLOCK_TYPE
 			incbin "pitchLo.bin"
-			PitchTableHi:
 			incbin "pitchHi.bin"
 	else
 		spcblock $0EC0 !SNESFM_CFG_SPCBLOCK_TYPE
@@ -3313,7 +3324,6 @@ Includes:
 		db $03, $00, $00, $00, $00, $00, $00, $00, $00 ;Dummy empty sample
 		endspcblock
 	spcblock $0F00 !SNESFM_CFG_SPCBLOCK_TYPE
-		SineTable:
 		incbin "quartersinetable.bin"
 	if !SNESFM_CFG_PITCHBEND_ANY
 		Log2Generate:
@@ -3349,7 +3359,7 @@ Includes:
 
 	LogTableTable:
 		db 4, 12, 20, 29, 37, 46, 56, 65, 76, 86, 97, 109, 121, 134, 149, 164, 182, 203, 229
-	LogTable = $0900
+	LogTable = $0B00
 
 	endspcblock
 
@@ -3361,9 +3371,6 @@ Includes:
 		if !SNESFM_CFG_VIRTUAL_CHANNELS > 0
 			dw WriteToChannel
 		endif
-
-	InstrumentPtrLo = $0A00
-	InstrumentPtrHi = $0B00
 
 	endspcblock execute Init
 
