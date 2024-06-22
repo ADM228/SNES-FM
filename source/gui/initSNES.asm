@@ -1,171 +1,213 @@
-;== SNES INITALISATION CONVERSION BY alexmush ==;
+;------------------------------------------------------------------------
+;-  Originally written by: Neviksti
+;-  Converted to use with Asar and improved by: alexmush
+;-     If you use my code, please share your creations with me
+;-     as I am always curious :)
+;------------------------------------------------------------------------
+
+asar 1.90
+
+incsrc "SNES_constants.asm"
+
+optimize dp always
+optimize address mirrors
+
+!INIT_USE_FASTROM ?= 0
+
+if !INIT_USE_FASTROM
+org $808000
+bank $80
+else
 org $008000
-  PHK			;set Data Bank = Program Bank
-  PLB
+bank $00
+endif
+_InitSNES:
+	.Start:
+		PHK			;set Data Bank = Program Bank
+		PLB
 
-  LDA #$00	;set Direct Page = $0000
-  TCD			;Transfer Accumulator to Direct Register
-  
+		SEP #$10	; mem/A = 16 bit, idx/XY = 8 bit
 
-  LDX $1FFD		;we clear all the mem at one point ...
-  STX $4372  	;so save the return address in a place that won't get overwritten
-  LDX $1FFF
-  STX $4374
+		PLA			;we clear all the mem at one point ...
+		STA $4372  	;so save the return address in a place that won't get overwritten
+		PLX			;(that place is DMA registers)
+		STX $4374
+		
+		LDA #$2100	;set Direct Page = $2100 for easier writes to VRAM registers
+		TCD			;Transfer Accumulator to Direct Register
+		dpbase $2100	; tell Asar to optimize the following everything
 
-  SEP #$20		; mem/A = 8 bit
-  REP #$10
+		SEP #$30	; mem/A = 8 bit, idx/XY = 8 bit
 
-  LDA #$8F
-  STA $2100		;turn screen off for now, set brightness to normal
+		LDA #$8F
+		STA INIDISP	;turn screen off for now, set brightness to normal
 
-  LDX #$2101
-_Loop00:		;regs $2101-$210C
-  STZ $00,X		;set Sprite,Character,Tile sizes to lowest, and set addresses to $0000
-  INX
-  CPX #$210D
-  BNE _Loop00
+		LDX #$01
+	.Loop00:		;regs $2101-$210C
+		STZ INIDISP,X		;set Sprite,Character,Tile sizes to lowest, and set addresses to $0000
+		INX
+		CPX #$0D
+		BNE .Loop00
 
-_Loop01:		;regs $210D-$2114
-  STZ $00,X		;Set all BG scroll values to $0000
-  STZ $00,X
-  INX
-  CPX #$2115
-  BNE _Loop01
+	.Loop01:		;regs $210D-$2114
+		STZ INIDISP,X		;Set all BG scroll values to $0000
+		STZ INIDISP,X
+		INX
+		CPX #$15
+		BNE .Loop01
 
-  LDA #$80		;reg $2115
-  STA $2115		; Initialize VRAM transfer mode to word-access, increment by 1
+		LDA #$80		;reg $2115
+		STA VMAIN		; Initialize VRAM transfer mode to word-access, increment by 1
 
-  STZ $2116		;regs $2117-$2117
-  STZ $2117		;VRAM address = $0000
+		STZ VMADDL		;regs $2116-$2117
+		STZ VMADDH		;VRAM address = $0000
 
-      ;reg $2118-$2119
-      ;VRAM write register... don't need to initialize
+				;reg $2118-$2119
+				;VRAM write register... don't need to initialize
 
-  STZ $211A		;clear Mode7 setting
+		STZ M7A		;clear Mode7 setting
 
-  LDX #$211B
-_Loop02:		;regs $211B-$2120
-  STZ $00,X		;clear out the Mode7 matrix values
-  STZ $00,X
-  INX
-  CPX #$2121
-  BNE _Loop02
+		LDX #$1B
+	.Loop02:		;regs $211B-$2120
+		STZ INIDISP,X		;clear out the Mode7 matrix values
+		STZ INIDISP,X
+		INX
+		CPX #$21
+		BNE .Loop02
 
-      ;reg $2121 - Color address, doesn't need initilaizing
-      ;reg $2122 - Color data, is initialized later
+				;reg $2121 - Color address, doesn't need initilaizing
+				;reg $2122 - Color data, is initialized later
 
-  LDX #$2123
-_Loop03:		;regs $2123-$2133
-  STZ $00,X		;turn off windows, main screens, sub screens, color addition,
-  INX			;fixed color = $00, no super-impose (external synchronization),
-  CPX #$2134	;no interlaced mode, normal resolution
-  BNE _Loop03
+		LDX #$23
+	.Loop03:		;regs $2123-$2133
+		STZ INIDISP,X	;turn off windows, main screens, sub screens, color addition,
+		INX			;fixed color = $00, no super-impose (external synchronization),
+		CPX #$34	;no interlaced mode, normal resolution
+		BNE .Loop03
 
-      ;regs $2134-$2136  - multiplication result, no initialization needed
-      ;reg $2137 - software H/V latch, no initialization needed
-      ;reg $2138 - Sprite data read, no initialization needed
-      ;regs $2139-$213A  - VRAM data read, no initialization needed
-      ;reg $213B - Color RAM data read, no initialization needed
-      ;regs $213C-$213D  - H/V latched data read, no initialization needed
+				;regs $2134-$2136  - multiplication result, no initialization needed
+				;reg $2137 - software H/V latch, no initialization needed
+				;reg $2138 - Sprite data read, no initialization needed
+				;regs $2139-$213A  - VRAM data read, no initialization needed
+				;reg $213B - Color RAM data read, no initialization needed
+				;regs $213C-$213D  - H/V latched data read, no initialization needed
 
-  STZ $213E		;reg $213E - might not be necesary, but selects PPU master/slave mode
-      ;reg $213F - PPU status flag, no initialization needed
+		STZ STAT77		;reg $213E - might not be necesary, but selects PPU master/slave mode
+				;reg $213F - PPU status flag, no initialization needed
 
-      ;reg $2140-$2143 - APU communication regs, no initialization required
+				;reg $2140-$2143 - APU communication regs, no initialization required
 
-      ;reg $2180  -  read/write WRAM register, no initialization required
-      ;reg $2181-$2183  -  WRAM address, no initialization required
+				;reg $2180  -  read/write WRAM register, no initialization required
+				;reg $2181-$2183  -  WRAM address, no initialization required
 
-      ;reg $4016-$4017  - serial JoyPad read registers, no need to initialize
+				;reg $4016-$4017  - serial JoyPad read registers, no need to initialize
 
 
-  STZ $4200		;reg $4200  - disable timers, NMI,and auto-joyread
+		STZ $4200		;reg $4200  - disable timers, NMI, and auto-joyread
 
-  LDA #$FF
-  STA $4201		;reg $4201  - programmable I/O write port, initalize to allow reading at in-port
+		LDA #$FF
+		STA $4201		;reg $4201  - programmable I/O write port, initalize to allow reading at in-port
 
-      ;regs $4202-$4203  - multiplication registers, no initialization required
-      ;regs $4204-$4206  - division registers, no initialization required
+				;regs $4202-$4203  - multiplication registers, no initialization required
+				;regs $4204-$4206  - division registers, no initialization required
 
-      ;regs $4207-$4208  - Horizontal-IRQ timer setting, since we disabled this, it is OK to not init
-      ;regs $4209-$420A  - Vertical-IRQ timer setting, since we disabled this, it is OK to not init
+				;regs $4207-$4208  - Horizontal-IRQ timer setting, since we disabled this, it is OK to not init
+				;regs $4209-$420A  - Vertical-IRQ timer setting, since we disabled this, it is OK to not init
 
-  STZ $420B		;reg $420B  - turn off all general DMA channels
-  STZ $420C		;reg $420C  - turn off all H-MA channels
+		STZ $420B		;reg $420B  - turn off all general DMA channels
+		STZ $420C		;reg $420C  - turn off all H-MA channels
 
-  STZ $420D		;reg $420D  - ROM access time to slow (2.68Mhz)
+	if !INIT_USE_FASTROM
+		STA $420D		;reg $420D  - ROM access time to fast (3.78Mhz)
+	else
+		STZ $420D		;reg $420D  - ROM access time to slow (2.68Mhz)
+	endif
 
-  LDA $4210		;reg $4210  - NMI status, reading resets
+		LDA $4210		;reg $4210  - NMI status, reading resets
 
-      ;reg $4211  - IRQ status, no need to initialize
-      ;reg $4212  - H/V blank and JoyRead status, no need to initialize
-      ;reg $4213  - programmable I/O inport, no need to initialize
+				;reg $4211  - IRQ status, no need to initialize
+				;reg $4212  - H/V blank and JoyRead status, no need to initialize
+				;reg $4213  - programmable I/O inport, no need to initialize
 
-      ;reg $4214-$4215  - divide results, no need to initialize
-      ;reg $4216-$4217  - multiplication or remainder results, no need to initialize
+				;reg $4214-$4215  - divide results, no need to initialize
+				;reg $4216-$4217  - multiplication or remainder results, no need to initialize
 
-      ;regs $4218-$421f  - JoyPad read registers, no need to initialize
+				;regs $4218-$421f  - JoyPad read registers, no need to initialize
 
-      ;regs $4300-$437F
-      ;no need to intialize because DMA was disabled above
-      ;also, we're not sure what all of the registers do, so it is better to leave them at
-      ;their reset state value
+				;regs $4300-$437F
+				;no need to intialize because DMA was disabled above
+				;also, we're not sure what all of the registers do, so it is better to leave them at
+				;their reset state value
 
-  JSR ClearVRAM      ;Reset VRAM
-  JSR ClearPalette   ;Reset colors
+		JSR ClearVRAM      ;Reset VRAM
+		JSR ClearPalette   ;Reset colors
 
-  ;**** clear Sprite tables ********
+		;**** clear Sprite tables ********
 
-  STZ $2102	;sprites initialized to be off the screen, palette 0, character 0
-  STZ $2103
-  LDX #$0080
-  LDA #$F0
-_Loop08:
-  STA $2104	;set X = 240
-  STA $2104	;set Y = 240
-  STZ $2104	;set character = $00
-  STZ $2104	;set priority=0, no flips
-  DEX
-  BNE _Loop08
+		STZ $2102	;sprites initialized to be off the screen, palette 0, character 0
+		STZ $2103
+		LDX #$80
+		LDA #$F0
+	.Loop08:
+		STA $2104	;set X = 240
+		STA $2104	;set Y = 240
+		STZ $2104	;set character = $00
+		STZ $2104	;set priority=0, no flips
+		DEX
+		BNE .Loop08
 
-  LDX #$0020
-_Loop09:
-  STZ $2104		;set size bit=0, x MSB = 0
-  DEX
-  BNE _Loop09
+		LDX #$20
+	.Loop09:
+		STZ $2104		;set size bit=0, x MSB = 0
+		DEX
+		BNE .Loop09
 
-  ;**** clear WRAM ********
+	.ClearWRAM:
+		;**** clear WRAM ********
+		
+		!WRAM_FILL_BYTE = (..WRAMFillInstr+1)
+		; The instruction is LDX #$0000, assembles as
+		; $A2 $00 $00, the second byte of that
+		; is a consistent 0 we can use
 
-  STZ $2181		;set WRAM address to $000000
-  STZ $2182
-  STZ $2183
+		REP #$10		; idx/XY = 16 bit
 
-  LDX #$8008
-  STX $4300         ;Set DMA mode to fixed source, BYTE to $2180
-  LDX #$80CF
-  STX $4302         ;Set source offset
-  LDA #$00
-  STA $4304         ;Set source bank
-  LDX #$0000
-  STX $4305         ;Set transfer size to 64k bytes
-  LDA #$01
-  STA $420B         ;Initiate transfer
+		STZ $2181		;set WRAM address to $000000
+		STZ $2182
+		STZ $2183
 
-  LDA #$01          ;now set the next 64k bytes
-  STA $420B         ;Initiate transfer
+		; it is not worth it to set the DP to $4300
 
-  PHK			;make sure Data Bank = Program Bank
-  PLB
+		LDX #$8008
+		STX $4300		;Set DMA mode to fixed source, BYTE to $2180
+		LDX #!WRAM_FILL_BYTE
+		STX $4302		;Set source offset
+		LDA #$00		;DMA doesn't care about FastROM
+		STA $4304		;Set source bank
+	#..WRAMFillInstr:	LDX #$0000
+		PHX				; Push to return to DP $0000 later on	
+		STX $4305		;Set transfer size to 64k bytes
+		LDA #$01
+		STA $420B		;Initiate transfer
+		STA $420B		;Initiate second transfer for 64k more bytes
 
-  CLI			;enable interrupts again
+		PHK			;make sure Data Bank = Program Bank
+		PLB
 
-  LDX $4372  	;get our return address...
-  STX $1FFD
-  LDA $4374
-  STA $1FFF
-  RTL
+		PLD			;DP = $0000 from the PHX
+		dpbase $0000	; tell Asar to optimize the following everything
 
-db $00
+		CLI			;enable interrupts again
+
+		LDA $4374  	;get our return address...
+		if !INIT_USE_FASTROM
+			ORA #$80	; Force FastROM
+		endif
+		PHA
+		LDX $4372
+		PHX
+		RTL
+
 ;----------------------------------------------------------------------------
 ; ClearVRAM -- Sets every byte of VRAM to zero
 ; In: None
@@ -173,34 +215,34 @@ db $00
 ; Modifies: flags
 ;----------------------------------------------------------------------------
 ClearVRAM:
-   pha
-   phx
-   php
+	pha
+	phx
+	php
 
-   REP #$30		; mem/A = 8 bit, X/Y = 16 bit
-   SEP #$20
+	REP #$30		; mem/A = 8 bit, X/Y = 16 bit
+	SEP #$20
 
-   LDA #$80
-   STA $2115         ;Set VRAM port to word access
-   LDX #$1809
-   STX $4300         ;Set DMA mode to fixed source, WORD to $2118/9
-   LDX #$0000
-   STX $2116         ;Set VRAM port address to $0000
-   STX $00        ;Set $00:0000 to $0000 (assumes scratchpad ram)
-   STX $4302         ;Set source address to $xx:0000
-   LDA #$00
-   STA $4304         ;Set source bank to $00
-   LDX #$FFFF
-   STX $4305         ;Set transfer size to 64k-1 bytes
-   LDA #$01
-   STA $420B         ;Initiate transfer
+	LDA #$80
+	STA VMAIN         ;Set VRAM port to word access
+	LDX #$1809
+	STX $4300         ;Set DMA mode to fixed source, WORD to $2118/9
+	LDX #$0000
+	STX VMADDL        ;Set VRAM port address to $0000
+	STX $00        ;Set $00:0000 to $0000 (assumes scratchpad ram)
+	STX $4302         ;Set source address to $xx:0000
+	LDA #$00
+	STA $4304         ;Set source bank to $00
+	LDX #$FFFF
+	STX $4305         ;Set transfer size to 64k-1 bytes
+	LDA #$01
+	STA $420B         ;Initiate transfer
 
-   STZ $2119         ;clear the last byte of the VRAM
+	STZ $2119         ;clear the last byte of the VRAM
 
-   plp
-   plx
-   pla
-   RTS
+	plp
+	plx
+	pla
+	RTS
 
 ;----------------------------------------------------------------------------
 ; ClearPalette -- Reset all palette colors to zero
@@ -209,32 +251,50 @@ ClearVRAM:
 ; Modifies: flags
 ;----------------------------------------------------------------------------
 ClearPalette:
-   PHX
-   PHP
-   REP #$30		; mem/A = 8 bit, X/Y = 16 bit
-   SEP #$20
+	PHX
+	PHP
+	PHD
+	REP #$30		; mem/A = 16 bit, X/Y = 16 bit
+	SEP #$20		; mem/A = 8 bit, X/Y = 16 bit
 
-   STZ $2121
-   LDX #$0100
-ClearPaletteLoop:
-   STZ $2122
-   STZ $2122
-   DEX
-   BNE ClearPaletteLoop
+	PEA $2100		; set DP to $2100
+	PLD				; for faster access
+	dpbase $2100	; tell Asar that
 
-   PLP
-   PLX
-   RTS
+	STZ CGADD
+	LDX #$0100
+	.Loop:
+		STZ CGDATA
+		STZ CGDATA
+		DEX
+		BNE .Loop
 
-;Actually where the init begins
-SNES_Init:
-  SEI                     ;disable interrupts
-  CLC                     ;switch to native mode
-  XCE
+	PLD
+	dpbase $0000
+	PLP
+	PLX
+	RTS
 
-  REP #$38		; mem/A = 16 bit, X/Y = 16 bit
-      ;decimal mode off
+;----------------------------------------------------------------------------
+; InitSNES -- the "standard" initialization of SNES memory and registers
+;----------------------------------------------------------------------------
 
-  LDX #$1FFF	;Setup the stack
-  TXS			;Transfer Index X to Stack Pointer Register
-  JSL $008000
+macro InitSNES()
+	SEI                     ;disable interrupts
+	CLC                     ;switch to native mode
+	XCE
+
+	REP #$38		; mem/A = 16 bit, X/Y = 16 bit, decimal mode off
+
+	LDX #$1FFF	;Setup the stack
+	TXS			;Transfer Index X to Stack Pointer Register
+
+	if !INIT_USE_FASTROM
+		STX $420D	; 420E doesn't exist, we don't affect anything
+	endif
+
+	;do the rest of the initialization in a routine
+	JSL _InitSNES
+
+	SEP #$20		; mem/A = 8 bit
+endmacro

@@ -97,6 +97,30 @@
 ;block:       00 02 05 08 0B 0E 11 14 17
 ;center of screen:    --
 
+macro SetDP_PEA(dp)
+    PEA <dp>
+    PLD
+    dpbase <dp>
+endmacro
+
+macro SetDP_TCD(dp)
+    LDA <dp>
+    TCD
+    dpbase <dp>
+endmacro
+
+macro SetDP_PPU_PEA()
+	%SetDP_PEA($2100)
+endmacro
+
+macro SetDP_DMA_PEA()
+	%SetDP_PEA($4300)
+endmacro
+
+macro ResetDP_PEA()
+	%SetDP_PEA($0000)
+endmacro
+
 optimize dp always
 optimize address mirrors
 
@@ -107,9 +131,6 @@ optimize address mirrors
 
 MESSAGE_CNT_TH1 = $60
 MESSAGE_CNT_TH2 = $61
-
-incsrc "header.asm"
-incsrc "initSNES.asm"
 
 org $068000
 incbin "palette.pal"
@@ -140,25 +161,26 @@ org $07FFFF ;set size of the file, irrelevant lmao
 
 db $00
 
+!INIT_USE_FASTROM = 1
+
+incsrc "header.asm"
+incsrc "initSNES.asm"
 
 ;========================
 ; Start
 ;========================
-
-org $008129
-    LDA #$01            ;   Enable FastROM
-    STA $420D           ;__
-    lda #$80            ;    Turn on screen, full brightness
-    sta $2100           ;__
+Start:
+    %InitSNES()
+    lda #$80            ;    Turn off screen, no brightness
+    sta INIDISP           ;__
 SPCTransfer:        ;   Kept in SlowROM for compatibility/laziness
-    PEA $0000       ;   set dp to 00 since RAM
-    PLD				;__
+    % ResetDP_PEA()
 
     .LoopConfirm:
-        LDA $2140
+        LDA APUIO0
         CMP #$AA
         BNE SPCTransfer_LoopConfirm
-        LDA $2141
+        LDA APUIO1
         CMP #$BB
         BNE SPCTransfer_LoopConfirm
                         ;__
@@ -168,10 +190,10 @@ SPCTransfer:        ;   Kept in SlowROM for compatibility/laziness
     .TransferAddress:
         LDY #$0002      ;
         LDA [$00],Y     ;
-        STA $2142       ;
+        STA APUIO2      ;
         INY             ;   Give address to SPC
         LDA [$00],Y     ;
-        STA $2143       ;__
+        STA APUIO3      ;__
         LDY #$0000      ;
         LDA [$00],Y     ;
         STA $04         ;
@@ -181,11 +203,11 @@ SPCTransfer:        ;   Kept in SlowROM for compatibility/laziness
         LDX $04         ;   If length = 0 it's a jump, therefore end transmission
         BEQ SPCTransfer_Jump;__
         LDA #$CC
-        STA $2140
-        STA $2141
+        STA APUIO0
+        STA APUIO1
         INY
     .Loop01:
-        LDA $2140
+        LDA APUIO0
         CMP #$CC
         BNE SPCTransfer_Loop01
         LDY #$0000
@@ -198,12 +220,12 @@ SPCTransfer:        ;   Kept in SlowROM for compatibility/laziness
         STA $01
     .Loop02:
         LDA [$00],Y
-        STA $2141
+        STA APUIO1
         TYA
-        STA $2140
+        STA APUIO0
         STA $03
     .Loop03:
-        LDA $2140
+        LDA APUIO0
         CMP $03
         BNE SPCTransfer_Loop03
         INY
@@ -220,57 +242,54 @@ SPCTransfer:        ;   Kept in SlowROM for compatibility/laziness
         INC A
         INC A
         INC A
-        STA $2140
+        STA APUIO0
         JMP SPCTransfer_TransferAddress
 
     .Jump:
         LDA #$00
-        STA $2141
-        STA $2140
+        STA APUIO1
+        STA APUIO0
     LDA #$0F
     STA $60
-    JML dmaToCGRAM  ;__ Use FastROM for faster execution
-ProgCnt:
-org $800000|ProgCnt         ;Here purely for not causing errors purpose
+org $800000|pc()         ;Here purely for not causing errors purpose
+bank $80
 dmaToCGRAM:
     
-    PEA $4300
-    PLD				;set dp to 43
+    %SetDP_DMA_PEA()	;__	Set Direct Page to 4300 for DMA registers
     REP !P_XY     	;set xy to 16bit
     SEP !P_A       	;set a to 8bit
     LDA #$00		;Address to write to in CGRAM
-    STA $2121		;Write it to tell Snes that
+    STA CGADD		;Write it to tell Snes that
     LDA #$22		;CGRAM Write register
-    STA $01			;DMA 0 B Address
+    STA BBAD0		;DMA 0 B Address
     LDA #$86		;Bank of palette
-    STA $04			;DMA 0 A Bank
+    STA A1B0		;DMA 0 A Bank
     LDX #$8000		;Address of palette
-    STX $02			;DMA 0 A Offset
+    STX A1T0L		;DMA 0 A Offset
     LDX #$0200		;Amount of data
-    STX $05			;DMA 0 Number of bytes
+    STX DAS0L		;DMA 0 Number of bytes
     LDA #%00000000	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (000 = 1 byte, write once)
-    STA $00
+    STA DMAP0
     LDA #%00000001	;bit 2 corresponds to channel 0
-    STA $420B		;Init
+    STA MDMAEN		;Init
 EmptyPlotData:
     LDX #$1000		;Address to write to in VRAM
-    STX $2116		;Write it to tell Snes that
+    STX VMADDL		;Write it to tell Snes that
     LDA #$18		;VRAM Write register
-    STA $11			;DMA 1 B Address
+    STA BBAD1		;DMA 1 B Address
     LDA #$86		;Bank of tileset
-    STA $14			;DMA 1 A Bank
+    STA A1B1			;DMA 1 A Bank
     LDX #$A0C0		;Address of tiles
-    STX $12			;DMA 1 A Offset
+    STX A1T1L			;DMA 1 A Offset
     LDX #$0200		;Amount of data
-    STX $15			;DMA 1 Number of bytes
+    STX DAS1L			;DMA 1 Number of bytes
     LDA #%00001001	;Settings d--uummm (Direction (0 = A to B) Update (01 = don't) Mode (001 = 2 bytes, write once)
-    STA $10
+    STA DMAP1
     LDA #%00000010  ;bit 1 corresponds to channel 1
-    STA $420B		;Init
+    STA MDMAEN		;Init
 InitSRAM:
     .CheckSRAM:
-        PEA $0000       ;   Set DP to $00
-        PLD				;__ 
+        % ResetDP_PEA();   Set DP to $00
         REP !P_A        ;   Set A to 16 bit
         SEP !P_XY       ;__ Set XY to 8 bit
         PEA $00F0       ;   Set DB to $F0 (SRAM first bank)
@@ -337,8 +356,7 @@ TurnOnScreen:
     JSR InitiateTrackerMode
     SEP !P_A       ;set A to 8bit
     LDA #$00
-    PEA $0000
-    PLD				;set dp to 00
+    % ResetDP_PEA()   ; set dp to 00
     REP !P_XY      ;set XY to 16bit
     LDA #$01
     STA MESSAGE_CNT_TH1
@@ -379,7 +397,7 @@ SendSongSPC:
         ; Send 2 bytes of data:
             REP !P_A
             LDA [$00], Y
-            STA $2142
+            STA APUIO2
             SEP !P_A
             INY #2
         ; Finish message:
@@ -413,24 +431,24 @@ forever:
     JMP forever
 
 SendMsgBase:
-    STA $2141   ; CMD ID in A
+    STA APUIO1  ; CMD ID in A
 
     LDA MESSAGE_CNT_TH1
-    STA $2140
+    STA APUIO0
     INC.b MESSAGE_CNT_TH1
     RTS
 
 WaitMsgBase:
-        LDA $2140
+        LDA APUIO0
         CMP MESSAGE_CNT_TH1
         BNE WaitMsgBase
     INC.b MESSAGE_CNT_TH1
-    LDA $2141
+    LDA APUIO1
     AND #$F0
     RTS
 
 NMI_Routine:
-    JML $800000|NMI_Routine_InFastROM         ;Take advantage of FastROM
+    JML $800000|.InFastROM         ;Take advantage of FastROM
     .InFastROM:
     PHA
     PHX
@@ -440,7 +458,7 @@ NMI_Routine:
     REP !P_XY      ;set XY to 16bit
     SEP !P_A       ;set A to 8bit
     lda #$0F             ; = 00001111
-    sta $2100           ; Turn on screen, full brightness
+    sta INIDISP           ; Turn on screen, full brightness
 
     incsrc "controllerRoutine.asm"
 
@@ -458,16 +476,16 @@ NMI_Routine:
     ROL A
     STA $1E
     LDA $1F
-    STA $210E
+    STA BG1VOFS
     LDA $1E
-    STA $210E
+    STA BG1VOFS
     LDA $1F
-    STA $2110
+    STA BG2VOFS
     LDA $1E
-    STA $2110
+    STA BG2VOFS
 
     lda #$0F            ; = 00001111
-    sta $2100           ; Turn on screen, full brightness
+    sta INIDISP           ; Turn on screen, full brightness
 
     PLP
     PLY
@@ -477,11 +495,10 @@ NMI_Routine:
 
 InitiateTrackerMode:
     lda #$80            ;   F-Blank 
-    sta $2100           ;__
+    sta INIDISP           ;__
     REP !P_XY           ;   Set XY to 16 bit
     SEP !P_A            ;__ Set A to 8 bit
-    PEA $2100           ;   Set Direct Page to 2100
-    PLD				    ;__ For PPU registers
+    %SetDP_PPU_PEA()	;__ Set Direct Page to 2100 for PPU registers
     lda #%00000001      ;   Enable Auto Joypad Read
     sta $4200           ;
     STA $00E0           ;__
@@ -508,8 +525,8 @@ InitiateTrackerMode:
     STZ $0F             ;
     STZ $10             ;
     STZ $10             ;__
-    PEA $0000           ;   Set Direct Page to 0000 for RAM
-    PLD				    ;__
+    % ResetDP_PEA()   ;__ Set Direct Page to 0000 for RAM
+
     .FEByte:
     STZ $FE             ;__
     LDA #$38            ;
@@ -737,12 +754,12 @@ InitiateTrackerMode:
     JSL PlotGraph
     SEP !P_A       ;A 8-bit
     lda #$0F            ;   Turn on screen, full brightness
-    sta $2100           ;__
+    sta INIDISP           ;__
     lda #%10000001      ;
     sta $4200           ;   Enable NMI and Auto Joypad Read
     STA $E0             ;__
     LDA #$80            ;
-    STA $2115           ;__ Make the PPU bus normal
+    STA VMAIN           ;__ Make the PPU bus normal
 
     RTS
 
@@ -766,8 +783,7 @@ DrawColumn:
         PHB             ;
         PHD             ;   Back up some registers
         PHP             ;__
-        PEA $0000       ;   Set Direct Page to 00 
-        PLD             ;__ because RAM
+        % ResetDP_PEA()	;   Set Direct Page to 00 because RAM
         SEP #%00110000  ;__ Set A, XY to 8 bit
     .GetColumns:
         LDA $FE         ;
@@ -819,8 +835,7 @@ DrawColumn:
                 BCC -
             STZ $12, X
 
-        PEA $2100       ;   Set Direct Page to $2100 
-        PLD             ;__ because PPU registers
+		%SetDP_PPU_PEA()	;__ Set Direct Page to 2100 for PPU registers
         REP !P_A        ;   Set A to 16 bit
         LDX #%10000001  ;   Increment by 32
         STX $15         ;__
@@ -914,42 +929,41 @@ ClearTrackerPattern:
     REP !P_A        ;   Set A to 16 bit
     SEP !P_XY       ;__ Set XY to 8 bit
     .00Byte:
-    PEA $4300       ;   set DP to 4300 because DMA
-    PLD				;__
+	%SetDP_DMA_PEA()	;__	Set Direct Page to 4300 for DMA registers
     PHK             ;   Set DB to 80 (Hardware registers)
     PLB	            ;__
     STZ $2181       ;   Clear lower 8 bits
     LDA #$0098		;   Address of tick speed .. global effects pointers
     STA $2182		;__
     LDX #$80		;   WRAM Write register, Bank of 00
-    STX $11			;__ DMA 1 B Address
-    STX $14			;__ DMA 1 A Bank
+    STX BBAD1		;__ DMA 1 B Address
+    STX A1B1			;__ DMA 1 A Bank
     LDA #(ClearTrackerPattern_00Byte+1);   Address of 00
-    STA $12			;__ DMA 1 A Offset
+    STA A1T1L			;__ DMA 1 A Offset
     LDA #$0800		;   Amount of data
-    STA $15			;__ DMA 1 Number of bytes
+    STA DAS1L			;__ DMA 1 Number of bytes
     LDX #%00001000	;   Settings d--uummm: (Direction (0 = A to B),
-    STX $10         ;   Update (01 = Do nothing), Mode (000 = 1 byte, write once)
+    STX DMAP1       ;   Update (01 = Do nothing), Mode (000 = 1 byte, write once)
     LDX #%00000010  ;   Bit 1 corresponds to channel 1
-    STX $420B		;__ Clear global speed and effects
+    STX MDMAEN		;__ Clear global speed and effects
 
     STZ $2181       ;   Clear lower 8 bits
     LDA #$00B0		;   Address of instruments .. per-channel effects pointers
     STA $2182		;__
     LDA #$5000		;   Amount of data
-    STA $15			;__ DMA 1 Number of bytes
+    STA DAS1L			;__ DMA 1 Number of bytes
     LDX #%00000010  ;   Bit 1 corresponds to channel 1
-    STX $420B		;__ Clear instruments and per-channel effects
+    STX MDMAEN		;__ Clear instruments and per-channel effects
 
     LDA #(InitiateTrackerMode_FEByte+1);   Address of FE
-    STA $12			;__ DMA 1 A Offset
+    STA A1T1L			;__ DMA 1 A Offset
     STZ $2181       ;   Clear lower 8 bits
     LDA #$00A0		;   Address of notes
     STA $2182		;__
     LDA #$1000		;   Amount of data
-    STA $15			;__ DMA 1 Number of bytes
+    STA DAS1L			;__ DMA 1 Number of bytes
     LDX #%00000010  ;   Bit 1 corresponds to channel 1
-    STX $420B		;__ Clear notes
+    STX MDMAEN		;__ Clear notes
     PLP
     PLD
     PLB
@@ -963,8 +977,7 @@ ScrollHeaderTrackerMode:
         PHP             ;__
         REP !P_A        ;   Set A to 16 bit
         SEP !P_XY       ;__ Set XY to 8 bit
-        PEA $0000       ;   set DP to 00
-        PLD				;__
+        % ResetDP_PEA()	;__	set DP to 00
         LDA $FF		    ;
         AND #$003F      ;
         STA $12         ;
@@ -974,19 +987,18 @@ ScrollHeaderTrackerMode:
         LSR             ;
         ORA #$7000      ;
         PHA             ;
-        STA $2116		;__
-        LDA $2139       ;__ Dummy read because VRAM is wacky
+        STA VMADDL		;__
+        LDA VMDATALREAD       ;__ Dummy read because VRAM is wacky
     .DMAForward:
-        PEA $4300       ;   Set DP to 43 because DMA
-        PLD				;__
+		%SetDP_DMA_PEA()	;__	Set Direct Page to 4300 for DMA registers
         LDX #$39		;VRAM Read register
-        STX $11			;DMA 1 B Address
+        STX BBAD1			;DMA 1 B Address
         LDX #$7E		;Bank of tilemap buffer
-        STX $14			;DMA 1 A Bank
+        STX A1B1			;DMA 1 A Bank
         LDA #$0100		;Address of tilemap buffer
-        STA $12			;DMA 1 A Offset
+        STA A1T1L			;DMA 1 A Offset
         LDX #%10000001	;Settings d--uummm (Direction (1 = B to A) Update (00 = increment) Mode (001 = 2 bytes, write once)
-        STX $10
+        STX DMAP1
         LDY $00FF
         CPY #$38
         BMI ScrollHeaderTrackerMode_DMAForward_Normal
@@ -997,51 +1009,51 @@ ScrollHeaderTrackerMode:
             XBA             ;   Amount of data before hitting end of tilemap
             LSR             ;
             LSR             ;
-            STA $15         ;__
+            STA DAS1L         ;__
             LDX #%00000010  ;   Init
-            STX $420B       ;__
+            STX MDMAEN      ;__
             PHA             ;
             LDA #$7000      ;   Address in VRAM (beginning of BG1's tilemap)
-            STA $2116       ;__
-            LDA $2139       ;__ Dummy read because VRAM is wacky
+            STA VMADDL       ;__
+            LDA VMDATALREAD       ;__ Dummy read because VRAM is wacky
             LDA $0012       ;
             SEC             ;
             SBC #$0037      ;
             XBA             ;
             LSR             ;   Amount of data after hit end of tilemap
             LSR             ;
-            STA $15         ;
+            STA DAS1L         ;
             STA $0014       ;__
             LDX #%00000010	;   Init DMA on channel 1
-            STX $420B		;__
+            STX MDMAEN		;__
             PLA             ;   Amount of data before hitting end of tilemap
-            STA $15         ;__
+            STA DAS1L         ;__
             PLA             ;
             ORA #$0800      ;   Address in VRAM
-            STA $2116		;__
-            LDA $2139       ;__ Dummy read because VRAM is wacky
+            STA VMADDL		;__
+            LDA VMDATALREAD       ;__ Dummy read because VRAM is wacky
             LDX #%00000010	;   Init DMA on channel 1
-            STX $420B		;__
+            STX MDMAEN		;__
             LDA #$7800      ;   Address in VRAM (beginning of BG2's tilemap)
-            STA $2116	    ;__
-            LDA $2139       ;__ Dummy read because VRAM is wacky
+            STA VMADDL	    ;__
+            LDA VMDATALREAD       ;__ Dummy read because VRAM is wacky
             LDA $0014       ;   Amount of data after hit end of tilemap
-            STA $15         ;__
+            STA DAS1L         ;__
             LDX #%00000010	;   Init DMA on channel 1
-            STX $420B		;__
+            STX MDMAEN		;__
             JMP ScrollHeaderTrackerMode_DMABack
         ..Normal:
             LDA #$0240		;Amount of data
-            STA $15			;DMA 2 Number of bytes
+            STA DAS1L			;DMA 2 Number of bytes
             LDX #%00000010	;bit 1 corresponds to channel 1
-            STX $420B		;Init
-            STA $15			;DMA 2 Number of bytes
+            STX MDMAEN		;Init
+            STA DAS1L			;DMA 2 Number of bytes
             PLA             ;
             ORA #$0800      ;   Address in VRAM
-            STA $2116		;__
-            LDA $2139       ;__ Dummy read because VRAM is wacky
+            STA VMADDL		;__
+            LDA VMDATALREAD       ;__ Dummy read because VRAM is wacky
             LDX #%00000010	;bit 1 corresponds to channel 1
-            STX $420B		;Init
+            STX MDMAEN		;Init
     .DMABack:
         LDX $0000       ;
         STX $00FF       ; 
@@ -1054,17 +1066,16 @@ ScrollHeaderTrackerMode:
         LSR             ;
         ORA #$7000      ;
         PHA             ;
-        STA $2116		;__
-        PEA $4300       ;   Set DP to 43 because DMA
-        PLD				;__
+        STA VMADDL		;__
+		%SetDP_DMA_PEA()	;__	Set Direct Page to 4300 for DMA registers
         LDX #$18		;VRAM Write register
-        STX $11			;DMA 2 B Address
+        STX BBAD1			;DMA 2 B Address
         LDX #$7E		;Bank of tilemap
-        STX $14			;DMA 2 A Bank
+        STX A1B1			;DMA 2 A Bank
         LDA #$0100		;Address of tilemap
-        STA $12			;DMA 2 A Offset
+        STA A1T1L			;DMA 2 A Offset
         LDX #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
-        STX $10
+        STX DMAP1
         LDY $00FF
         CPY #$38
         BMI +
@@ -1075,48 +1086,48 @@ ScrollHeaderTrackerMode:
         XBA             ;   Amount of data before hitting end of tilemap
         LSR             ;
         LSR             ;
-        STA $15         ;__
+        STA DAS1L         ;__
         LDX #%00000010  ;   Init
-        STX $420B       ;__
+        STX MDMAEN      ;__
         PHA             ;
         LDA #$7000      ;   Address in VRAM (beginning of BG1's tilemap)
-        STA $2116       ;__
+        STA VMADDL       ;__
         LDA $0000       ;
         SEC             ;
         SBC #$0037      ;
         XBA             ;
         LSR             ;   Amount of data after hit end of tilemap
         LSR             ;
-        STA $15         ;
+        STA DAS1L         ;
         STA $0014       ;__
         LDX #%00000010	;   Init DMA on channel 1
-        STX $420B		;__
+        STX MDMAEN		;__
         PLA             ;   Amount of data before hitting end of tilemap
-        STA $15         ;__
+        STA DAS1L         ;__
         PLA             ;
         ORA #$0800      ;   Address in VRAM
-        STA $2116		;__
+        STA VMADDL		;__
         LDX #%00000010	;   Init DMA on channel 1
-        STX $420B		;__
+        STX MDMAEN		;__
         LDA #$7800      ;   Address in VRAM (beginning of BG2's tilemap)
-        STA $2116	    ;__
+        STA VMADDL	    ;__
         LDA $0014       ;   Amount of data after hit end of tilemap
-        STA $15         ;__
+        STA DAS1L         ;__
         LDX #%00000010	;   Init DMA on channel 1
-        STX $420B		;__
+        STX MDMAEN		;__
         JMP ScrollHeaderTrackerMode_End
 
         +   LDA #$0240		;Amount of data
-        STA $15			;DMA 2 Number of bytes
+        STA DAS1L			;DMA 2 Number of bytes
         LDX #%00000010	;bit 1 corresponds to channel 1
-        STX $420B		;Init
+        STX MDMAEN		;Init
         PLA             ;
         ORA #$0800      ;   Address in VRAM
-        STA $2116		;__
+        STA VMADDL		;__
         LDA #$0240		;Amount of data
-        STA $15			;DMA 2 Number of bytes
+        STA DAS1L			;DMA 2 Number of bytes
         LDX #%00000010	;bit 1 corresponds to channel 1
-        STX $420B		;Init
+        STX MDMAEN		;Init
     .End:
         PLP
         PLD
@@ -1129,8 +1140,7 @@ DrawHeaderTrackerMode:
         PHP             ;__
         REP !P_A        ;   Set A to 16 bit
         SEP !P_XY       ;__ Set XY to 8 bit
-        PEA $0000       ;   set DP to 00
-        PLD				;__
+        % ResetDP_PEA()	;__	set DP to 00
         PEA $F080       ;   Set DB to 80 (With CPU registers)
         PLB             ;__
         LDX $64         ;
@@ -1600,17 +1610,16 @@ DrawHeaderTrackerMode:
         LSR             ;
         ORA #$7000      ;
         PHA             ;
-        STA $2116		;__
-        PEA $4300       ;   Set DP to 43 because DMA
-        PLD				;__
+        STA VMADDL		;__
+		%SetDP_DMA_PEA()	;__	Set Direct Page to 4300 for DMA registers
         LDX #$18		;VRAM Write register
-        STX $11			;DMA 2 B Address
+        STX BBAD1			;DMA 2 B Address
         LDX #$F0		;Bank of tilemap
-        STX $14			;DMA 2 A Bank
+        STX A1B1			;DMA 2 A Bank
         LDA #$1000		;Address of tilemap
-        STA $12			;DMA 2 A Offset
+        STA A1T1L			;DMA 2 A Offset
         LDX #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
-        STX $10
+        STX DMAP1
         LDY $00FF
         CPY #$39
         BMI +
@@ -1621,51 +1630,50 @@ DrawHeaderTrackerMode:
         XBA             ;   Amount of data before hitting end of tilemap
         LSR             ;
         LSR             ;
-        STA $15         ;__
+        STA DAS1L         ;__
         LDX #%00000010  ;   Init
-        STX $420B       ;__
+        STX MDMAEN      ;__
         PHA             ;
         LDA #$7000      ;   Address in VRAM (beginning of BG1's tilemap)
-        STA $2116       ;__
+        STA VMADDL       ;__
         LDA $0012       ;
         SEC             ;
         SBC #$0038      ;
         XBA             ;
         LSR             ;   Amount of data after hit end of tilemap
         LSR             ;
-        STA $15         ;
+        STA DAS1L         ;
         STA $0014       ;__
         LDX #%00000010	;   Init DMA on channel 1
-        STX $420B		;__
+        STX MDMAEN		;__
         PLA             ;   Amount of data before hitting end of tilemap
-        STA $15         ;__
+        STA DAS1L         ;__
         PLA             ;
         ORA #$0800      ;   Address in VRAM
-        STA $2116		;__
+        STA VMADDL		;__
         LDX #%00000010	;   Init DMA on channel 1
-        STX $420B		;__
+        STX MDMAEN		;__
         LDA #$7800      ;   Address in VRAM (beginning of BG2's tilemap)
-        STA $2116	    ;__
+        STA VMADDL	    ;__
         LDA $0014       ;   Amount of data after hit end of tilemap
-        STA $15         ;__
+        STA DAS1L         ;__
         LDX #%00000010	;   Init DMA on channel 1
-        STX $420B		;__
+        STX MDMAEN		;__
         JMP DrawHeaderTrackerMode_DrawRow
 
         +   LDA #$0200		;Amount of data
-        STA $15			;DMA 2 Number of bytes
+        STA DAS1L			;DMA 2 Number of bytes
         LDX #%00000010	;bit 1 corresponds to channel 1
-        STX $420B		;Init
+        STX MDMAEN		;Init
         PLA             ;
         ORA #$0800      ;   Address in VRAM
-        STA $2116		;__
+        STA VMADDL		;__
         LDA #$0200		;Amount of data
-        STA $15			;DMA 2 Number of bytes
+        STA DAS1L			;DMA 2 Number of bytes
         LDX #%00000010	;bit 1 corresponds to channel 1
-        STX $420B		;Init
+        STX MDMAEN		;Init
     .DrawRow:
-        PEA $2100       ;   Set Direct Page to $2100 
-        PLD             ;__ because PPU registers
+		%SetDP_PPU_PEA()	;__	Set Direct Page to 2100 for PPU registers
         LDA $00FF       ;
         AND #$00FF      ;
         ASL A           ;
@@ -1678,7 +1686,7 @@ DrawHeaderTrackerMode:
         STA $0010       ;
         ORA #$7000      ;__
         LDX #$00        ;
-        STX $2115       ;
+        STX VMAIN       ;
         STA $16         ;__
         LDX #$08        ;
         LDY #$00        ;
@@ -1733,7 +1741,7 @@ DrawHeaderTrackerMode:
 
     .End:
         LDX #$80        ;
-        STX $2115       ;
+        STX VMAIN       ;
         PLP
         PLD
         PLB
@@ -1758,8 +1766,7 @@ HexToTiles:
     PHD             ;   Back up some registers
     PHP             ;__
     SEP #%00110000  ;   Set XY and A to 8 bit
-    PEA $0000       ;
-    PLD				;set dp to 00
+    % ResetDP_PEA()	;__	Set DP to $0000
     LDA $00
     AND #$0F
     TAX
@@ -1796,8 +1803,7 @@ DecompressLocaleBlock:
     PHP             ;__
     REP !P_A        ;   Set A to 16 bit
     SEP !P_XY       ;__ Set XY to 8 bit
-    PEA $0000       ;   Set DP to 00
-    PLD				;__
+    % ResetDP_PEA()	;__	Set DP to 00
     LDX #$83        ;
     PHX             ;   Set DB to 83, locales in FastROM
     PLB             ;__   
@@ -1871,8 +1877,7 @@ UpdateColumn:
         PHB             ;
         PHD             ;   Back up some registers
         PHP             ;__
-        PEA $2100       ;   Set Direct Page to $2100 
-        PLD             ;__ because PPU registers
+		%SetDP_PPU_PEA()	;__	Set Direct Page to 2100 for PPU registers
         REP !P_A        ;   Set XY to 8 bit
         SEP !P_XY       ;__ Set A to 16 bit
         LDA $00FF       ;
@@ -1937,8 +1942,7 @@ DrawTrackerRow:
         PHB             ;
         PHD             ;   Back up some registers
         PHP             ;__
-        PEA $0000       ;   Set Direct Page to 0
-        PLD             ;__
+        % ResetDP_PEA()	;__	Set Direct Page to 0
         PEA $7E7E       ;
         PLB             ;   Set Data Bank to 7E
         PLB             ;__ 
@@ -1955,8 +1959,7 @@ DecompressUnicodeBlock:
         PHB             ;
         PHD             ;   Back up some registers
         PHP             ;__
-        PEA $0000       ;   Set Direct Page to 0
-        PLD             ;__
+        % ResetDP_PEA()	;__	Set Direct Page to 0
         PEA $8282       ;
         PLB             ;   Set Data Bank to 82
         PLB             ;__
@@ -2011,8 +2014,7 @@ DecompressUnicodeBlock:
         CMP #$1000      ;__
         BNE -
     ;DMA TRANSFER 0: 2BPP
-        PEA $4300       ;
-        PLD				;set dp to 43
+		%SetDP_DMA_PEA()	;__	Set Direct Page to 4300 for DMA registers
         SEP !P_A       	;set a to 8bit
         LDA $0001
         ASL A
@@ -2023,20 +2025,19 @@ DecompressUnicodeBlock:
         STA $0013
         STZ $0012
         LDX $0012		;Address to write to in VRAM
-        STX $2116		;Write it to tell Snes that
+        STX VMADDL		;Write it to tell Snes that
         LDA #$18		;VRAM Write register
-        STA $11			;DMA 1 B Address
+        STA BBAD1			;DMA 1 B Address
         LDX #$7E01		;Address of tileset
-        STX $13			;DMA 1 A Bank
-        STZ $12
+        STX A1T1H			;DMA 1 A Bank
+        STZ A1T1L
         LDX #$1000		;Amount of data
-        STX $15			;DMA 1 Number of bytes
+        STX DAS1L			;DMA 1 Number of bytes
         LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
         STA $10
         LDA #%00000010	;bit 1 corresponds to channel 1
-        STA $420B		;Init
-        PEA $0000       ;   Set Direct Page to 0
-        PLD             ;__
+        STA MDMAEN		;Init
+        % ResetDP_PEA()
     .4bpp:
         STZ $001F
         REP #%00110000  ;__ Set XY, A to 16 bit
@@ -2097,8 +2098,7 @@ DecompressUnicodeBlock:
         BNE -
         PHY
     ;4BPP DMA TRANSFERS
-        PEA $4300       ;
-        PLD				;set dp to 43
+		%SetDP_DMA_PEA()	;__	Set Direct Page to 4300 for DMA registers
         SEP !P_A       	;set a to 8bit
         LDA $0001
         ASL A
@@ -2110,32 +2110,30 @@ DecompressUnicodeBlock:
         STA $0013
         STZ $0012
         LDX $0012		;Address to write to in VRAM
-        STX $2116		;Write it to tell Snes that
+        STX VMADDL		;Write it to tell Snes that
         LDA #$18		;VRAM Write register
-        STA $11			;DMA 1 B Address
+        STA BBAD1			;DMA 1 B Address
         LDX #$7E01		;Address of tileset
-        STX $13			;DMA 1 A Bank
-        STZ $12
+        STX A1T1H			;DMA 1 A Bank
+        STZ A1T1L
         LDX #$1000		;Amount of data
-        STX $15			;DMA 1 Number of bytes
+        STX DAS1L			;DMA 1 Number of bytes
         LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = increment) Mode (001 = 2 bytes, write once)
-        STA $10
+        STA DMAP1
         LDA #%00000010	;bit 1 corresponds to channel 1
-        STA $420B		;Init
+        STA MDMAEN		;Init
 
         INC $001F
         LDA $001F
         BIT #$01
         BEQ +
-            PEA $0000       ;   Set Direct Page to 0
-            PLD             ;__
+            % ResetDP_PEA()	;__	Set Direct Page to 0
             REP #%00110000  ;__ Set XY, A to 16 bit
             PLY
             LDX #$0000
             JMP -
         +:
-        PEA $0000       ;   Set Direct Page to 0
-        PLD             ;__
+        % ResetDP_PEA()	;__	Set Direct Page to 0
         REP #%00110000  ;__ Set XY, A to 16 bit
         LDX #$0000      ;
         --:             ;
@@ -2159,50 +2157,49 @@ ClearInstrumentBuffer:
         PHP             ;__
         REP !P_A        ;   Set A to 16 bit
         SEP !P_XY       ;__ Set XY to 8 bit
-        PEA $4300       ;
-        PLD				;set dp to 43
+		%SetDP_DMA_PEA()	;__	Set Direct Page to 4300 for DMA registers
         LDX #$80		;WRAM Write register & Data Bank
         PHX             ;   Data bank
         PLB             ;__
-        STX $11			;DMA 1 B Address
-        STZ $12
+        STX BBAD1			;DMA 1 B Address
+        STZ A1T1L
         LDA #$8280		;Address of tileset
-        STA $13			;DMA 1 A Bank
+        STA A1T1H			;DMA 1 A Bank
         LDA #$0200		;Amount of data
-        STA $15			;DMA 1 Number of bytes
+        STA DAS1L			;DMA 1 Number of bytes
         LDX #%00001000	;Settings d--uummm (Direction (0 = A to B) Update (01 = do nothing) Mode (000 = 1 byte, write once)
-        STX $10         ;__
+        STX DMAP1       ;__
         STZ $2181       ;
         STZ $2182       ;   DMA to primary RAM buffer
         LDX #$01        ;
         STX $2182       ;__
         LDX #%00000010	;bit 1 corresponds to channel 1
-        STX $420B		;Init
+        STX MDMAEN		;Init
 
         LDX.b #(ClearInstrumentBuffer_EmptyTile&$0000FF)
-        STX $12
+        STX A1T1L
         LDA.w #(ClearInstrumentBuffer_EmptyTile&$FFFF00)>>8		;Address of tile
-        STA $13			;DMA 1 A Bank
+        STA A1T1H			;DMA 1 A Bank
         LDA #$0C00		;Amount of data
-        STA $15			;DMA 1 Number of bytes
+        STA DAS1L			;DMA 1 Number of bytes
         LDX #%00000010	;bit 1 corresponds to channel 1
-        STX $420B		;Init
+        STX MDMAEN		;Init
         LDX #%10000000	;Settings d--uummm (Direction (1 = B to A) Update (00 = increment) Mode (000 = 1 byte, write once)
-        STX $10         ;
+        STX DMAP1       ;
 
 
-        STZ $12
+        STZ A1T1L
         LDA #$F002		;Address of SRAM
-        STA $13			;DMA 1 A Bank&Page
+        STA A1T1H			;DMA 1 A Bank&Page
         STZ $2181       ;
         STZ $2182       ;   DMA from primary RAM buffer
         LDX #$01        ;
         STX $2182       ;__
 
         LDA #$0E00		;Amount of data
-        STA $15			;DMA 1 Number of bytes
+        STA DAS1L			;DMA 1 Number of bytes
         LDX #%00000010	;bit 1 corresponds to channel 1
-        STX $420B		;Init
+        STX MDMAEN		;Init
 
         PLP
         PLD
@@ -2214,25 +2211,24 @@ org $818000 ;The plotting engine for now
 ;1bpp to 2bpp converter
 
 tableROMtoWRAM:		
-	PEA $4300
-    PLD				;set dp to 43
+	%SetDP_DMA_PEA()	;__	Set Direct Page to 4300 for DMA registers
 
 	LDA #$01        ;WRAM Bank
 	STA $2183
     LDX #$0800		;Address to write to in WRAM
     STX $2181		;Write it to tell Snes that
     LDA #$80		;WRAM Write register
-    STA $01			;DMA 1 B Address
+    STA BBAD0		;DMA 1 B Address
     LDA #$06		;Bank of tileset
-    STA $04			;DMA 1 A Bank
+    STA A1B0		;DMA 1 A Bank
     LDX #$FC00		;Address of tiles
-    STX $02			;DMA 1 A Offset
+    STX A1T0L		;DMA 1 A Offset
     LDX #$0400		;Amount of data
-    STX $05			;DMA 1 Number of bytes
+    STX DAS0L		;DMA 1 Number of bytes
     LDA #%00000000	;Settings d--uummm (Direction (0 = A to B) Update (00 = Increment) Mode (000 = 1 byte, write once)
-    STA $00
+    STA DMAP0
 	LDA #%00000001  ;bit 2 corresponds to channel 0
-    STA $420B		;Init
+    STA MDMAEN		;Init
 tableROMtoWRAM2:		
     ;JMP clearPaletteData
 	LDA #$01        ;WRAM Bank
@@ -2240,44 +2236,42 @@ tableROMtoWRAM2:
     LDX #$0C00		;Address to write to in WRAM
     STX $2181		;Write it to tell Snes that
     LDA #$80		;WRAM Write register
-    STA $01			;DMA 1 B Address
+    STA BBAD0		;DMA 1 B Address
     LDA #$06		;Bank of tileset
-    STA $04			;DMA 1 A Bank
+    STA A1B0		;DMA 1 A Bank
     LDX #$FC00		;Address of tiles
-    STX $02			;DMA 1 A Offset
+    STX A1T0L		;DMA 1 A Offset
     LDX #$0400		;Amount of data
-    STX $05			;DMA 1 Number of bytes
+    STX DAS0L		;DMA 1 Number of bytes
     LDA #%00000000	;Settings d--uummm (Direction (0 = A to B) Update (00 = Increment) Mode (000 = 1 byte, write once)
-    STA $00
+    STA DMAP0
 	LDA #%00000001  ;bit 2 corresponds to channel 0
-    STA $420B		;Init
+    STA MDMAEN		;Init
     RTL
 clearPaletteData:		
-    PEA $4300
-    PLD				;set dp to 43
+	%SetDP_DMA_PEA()	;__	Set Direct Page to 4300 for DMA registers
 	LDA #$01        ;WRAM Bank
 	STA $2183
     LDX #$FE00		;Address to write to in WRAM
     STX $2181		;Write it to tell Snes that
     LDA #$80		;WRAM Write register
-    STA $01			;DMA 1 B Address
+    STA BBAD0		;DMA 1 B Address
     LDA #$01		;Bank of tileset
-    STA $04			;DMA 1 A Bank
+    STA A1B0		;DMA 1 A Bank
     LDX #$FFFF		;Address of tiles
-    STX $02			;DMA 1 A Offset
+    STX A1T0L		;DMA 1 A Offset
     LDX #$0200		;Amount of data
-    STX $05			;DMA 1 Number of bytes
+    STX DAS0L		;DMA 1 Number of bytes
     LDA #%00001000	;Settings d--uummm (Direction (0 = A to B) Update (01 = don't) Mode (010 = 2 bytes, write twice)
-    STA $00
+    STA DMAP0
     LDA #%00000001  ;bit 2 corresponds to channel 0
-    STA $420B		;Init
+    STA MDMAEN		;Init
     RTL
 PlotGraph:
     .Decompress
         REP !P_XY      ;set xy to 16bit
         SEP !P_A       ;set a to 8bit
-        PEA $0000
-        PLD				;set db to 7f
+        % ResetDP_PEA()	;set db to 7f
         LDA #$7F
         PHA
         PLB
@@ -2479,28 +2473,26 @@ PlotGraph:
     .DMA:
         REP !P_XY      ;set xy to 16bit
         SEP !P_A       ;set a to 8bit
-        PEA $4300
-        PLD	;set dp to 43
+		%SetDP_DMA_PEA()	;__	Set Direct Page to 4300 for DMA registers
         PHK
         PLB
         lda #$80            ; = 10000000
-        sta $2100           ; F-Blank
+        sta INIDISP           ; F-Blank
         LDX #$1000		;Address to write to in VRAM
-        STX $2116		;Write it to tell Snes that
+        STX VMADDL		;Write it to tell Snes that
         LDA #$18		;VRAM Write register
-        STA $01			;DMA 1 B Address
+        STA BBAD0		;DMA 1 B Address
         LDA #$7F		;Bank of tileset
-        STA $04			;DMA 1 A Bank
+        STA A1B0		;DMA 1 A Bank
         LDX #$FE00		;Address of tiles
-        STX $02			;DMA 1 A Offset
+        STX A1T0L		;DMA 1 A Offset
         LDX #$0200		;Amount of data
-        STX $05			;DMA 1 Number of bytes
+        STX DAS0L		;DMA 1 Number of bytes
         LDA #%00000001	;Settings d--uummm (Direction (0 = A to B) Update (00 = Increment) Mode (001 = 2 bytes, write once)
-        STA $00
+        STA DMAP0
         LDA #%00000001  ;bit 2 corresponds to channel 0
-        STA $420B		;Init
-        PEA $0000
-        PLD				;set dp to 00
+        STA MDMAEN		;Init
+        % ResetDP_PEA()	;set dp to 00
     RTL
 
 PhaseModulation:
@@ -2511,10 +2503,9 @@ PhaseModulation:
         SEP !P_A       ;set a to 8bit
         LDA $0020
         STA $7FFFFD
-        PEA $2100
-        PLD				;set db to 7f
+		%SetDP_PPU_PEA()	;__	Set Direct Page to 2100 for PPU registers
         LDA #$7F
-        PHA
+        PHA;set db to 7f
         PLB
         LDY #$00FE
         LDA $FFFD
@@ -2646,8 +2637,7 @@ PhaseModulation:
         LDA $FFFD
         STA $000010
         STZ $FFFD
-        PEA $0000
-        PLD				;set db to 00
+        % ResetDP_PEA()	;set db to 00
         LDA #$00
         PHA
         PLB

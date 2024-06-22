@@ -10,17 +10,17 @@
 !CHECKSUM = $7329
 !CHECKSUMCOMPLEMENT = $BCD6
 ;=== Interrupt vectors ===;
-!NAT_COP = $813E    ; Software interrupt. Triggered by the COP instruction. Similar to BRK. 
-!NAT_BRK = $813E    ; Software interrupt. Triggered by the BRK instruction. Similar to COP. 
-!NAT_ABORT = $813E  ; Not used in the SNES. 
-!NAT_NMI = NMI_Routine&$FFFF; Non-maskable interrupt. Called when vertical refresh (vblank) begins. 
-!NAT_IRQ = $813E    ; Interrupt request. Can be set to be called at a certain spot in the horizontal refresh cycle. 
+!NAT_COP = Start	; Software interrupt. Triggered by the COP instruction. Similar to BRK. 
+!NAT_BRK = Start	; Software interrupt. Triggered by the BRK instruction. Similar to COP. 
+!NAT_ABORT = Start	; Not used in the SNES. 
+!NAT_NMI = NMI_Routine; Non-maskable interrupt. Called when vertical refresh (vblank) begins. 
+!NAT_IRQ = Start	; Interrupt request. Can be set to be called at a certain spot in the horizontal refresh cycle. 
 
-!EMU_COP = $813E    ; Software interrupt. Triggered by the COP instruction. 
-!EMU_ABORT = $813E  ; Not used in the SNES. 
-!EMU_NMI = $8160    ; Non-maskable interrupt. Called when vertical refresh (vblank) begins. 
-!EMU_RES = SNES_Init&$FFFF; Reset vector, execution begins via this vector. 
-!EMU_IRQBRK = $813E ; Interrupt request. Can be set to be called at a certain spot in the horizontal refresh cycle. Also a software interrupt triggered by the BRK instruction. 
+!EMU_COP = Start	; Software interrupt. Triggered by the COP instruction. 
+!EMU_ABORT = Start	; Not used in the SNES. 
+!EMU_NMI = $8160	; Non-maskable interrupt. Called when vertical refresh (vblank) begins. 
+!EMU_RES = Start	; Reset vector, execution begins via this vector. 
+!EMU_IRQBRK = Start ; Interrupt request. Can be set to be called at a certain spot in the horizontal refresh cycle. Also a software interrupt triggered by the BRK instruction. 
 
 ;=== Actually setting the sh*t ===;
 org $00FFC0 ;adress of the header 
