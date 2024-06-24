@@ -173,9 +173,7 @@ Start:
     %InitSNES()
     lda #$80            ;    Turn off screen, no brightness
     sta INIDISP           ;__
-SPCTransfer:        ;   Kept in SlowROM for compatibility/laziness
-    % ResetDP_PEA()
-
+SPCTransfer:
     .LoopConfirm:
         LDA APUIO0
         CMP #$AA
