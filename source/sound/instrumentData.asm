@@ -61,8 +61,8 @@
     ;                   D - Duty cycle
     ;                   F - Flags: ddddddsz
     ;                       dddddd - Duty cycle (fractional part)
-    ;                       s - starting value (0 - 0/-1, 1 - 1)
-    ;                       z - the low value is -1 instead of 0 (for not ringmod)
+    ;                       s - starting value (0 - low, 1 - high)
+    ;                       z - the low value (0 - 0, 1 - -$8000)
 
     
 

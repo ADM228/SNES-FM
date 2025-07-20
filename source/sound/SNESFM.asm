@@ -623,9 +623,9 @@ GenerateMultTables:
 	CALL GMT_loop
 
 	MOV A, #256*15/16			;
-	MOV GMT_loop+2, A			;
+	MOV GMT_loop+1+1, A			;
 	MOV A, #(TBL_15over16>>8)	;	Set everything for round 2
-	MOV GMT_loop+9, A			;__
+	MOV GMT_loop+6+2, A			;__
 	MOV A, X
 	MOV !TEMP_VALUE, X
 
@@ -2153,12 +2153,11 @@ if !SNESFM_CFG_SAMPLE_GENERATE
 GMT_loop:
 	CLRC						; 0
 	ADC !TEMP_VALUE, #256*7/8	; 1, 2, 3
-	BCC +						; 4, 5
-		INC A					; 6
-	+ MOV TBL_7over8+X, A		; 7, 8, 9
-	INC X						; 10
-	BNE GMT_loop				; 11, 12
-	RET							; 13
+	ADC A, #$00					; 4, 5
+	MOV TBL_7over8+X, A			; 6, 7, 8
+	INC X						; 9
+	BNE GMT_loop				; 10, 11
+	RET							; 12
 
 endif
 
