@@ -330,7 +330,7 @@ InternalConfig:
 
 	!SNESFM_CFG_PITCHBEND_ANY = (!SNESFM_CFG_INSTRUMENT_PITCHBEND)|(!SNESFM_CFG_PITCH_EFFECTS)|(!SNESFM_CFG_FINE_PITCH)
 	!SNESFM_CFG_PITCHBEND_ALL = (!SNESFM_CFG_INSTRUMENT_PITCHBEND)&(!SNESFM_CFG_PITCH_EFFECTS)&(!SNESFM_CFG_FINE_PITCH)
-	
+
 	!SNESFM_CFG_CONTINOUS_EFFECTS = !SNESFM_CFG_PITCH_SLIDE	; More effects later
 	!SNESFM_CFG_CONTINOUS_PITCH_EFFECTS = !SNESFM_CFG_PITCH_SLIDE	; More effects later
 	%cfgClamp(CONTINOUS_EFFECTS) : %cfgClamp(CONTINOUS_PITCH_EFFECTS)
@@ -727,11 +727,11 @@ CompileInstruments:
 		fillbyte $00
 		db $02, $00, $00, $03
 		fill ($1A-1-$03)
-		db $83, $00, $00, $00, $00, $00 
+		db $83, $00, $00, $00, $00, $00
 
 	endif   ; !SNESFM_CFG_SAMPLE_GENERATE
 
-	.JumpTable: 
+	.JumpTable:
 		!SNESFM_CURRENT_TBL_FILL = .RETJump
 
 		if !SNESFM_CFG_SAMPLE_GENERATE
@@ -765,7 +765,7 @@ CompileInstruments:
 			MOV INSDATA_TMP_VALUE, A
 		else    ; if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT == 1, then just copy the value
 			MOV INSDATA_TMP_VALUE, REPEAT_BITMASK+0
-		endif ; !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 2 
+		endif ; !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 2
 
 		if !SNESFM_CFG_INSGEN_REPEAT_AMOUNT >= 3
 			MOV Y, #!SNESFM_CFG_INSGEN_REPEAT_AMOUNT
@@ -958,7 +958,7 @@ CompileInstruments:
 		MOV .ByteTransferLoop+5, Y      ;__ Store it into hi byte of 2nd MOV
 		MOV X, INSDATA_INS_CNT          ;
 		MOV InstrumentPtrLo+X, A        ;
-		MOV A, Y                        ;   Store it in instrument table 
+		MOV A, Y                        ;   Store it in instrument table
 		MOV InstrumentPtrHi+X, A        ;
 		INC INSDATA_INS_CNT             ;__
 
@@ -1384,7 +1384,7 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 
     if !SNESFM_CFG_FINE_PITCH
     .FinePitch:
-		MOV X, !BACKUP_X					;		
+		MOV X, !BACKUP_X					;
 		MOV A, (CHTEMP_SONG_POINTER_L)+Y	;
 		CMP A, CH1_FINE_PITCH+X				;
         BEQ +								;	Update low byte of pitch if needed
@@ -1885,7 +1885,7 @@ UpdatePitch:
 
 				BEQ .NoBend
 
-				undef A_LO : undef B_LO : undef B_HI 
+				undef A_LO : undef B_LO : undef B_HI
 				if defined("A_HI") : undef A_HI : endif
 
 			else	; only 1 component
@@ -2028,7 +2028,7 @@ UpdateEffects:
 			MOV A, CH1_PITCH_EFFECT_VAL_L+X	;
 			ADC A, CH1_PITCH_EFFECT_ACC_L+X	;	Add up the low bytes
 			MOV CH1_PITCH_EFFECT_VAL_L+X, A	;__
-			
+
 			MOV A, CH1_PITCH_EFFECT_VAL_H+X	;
 			ADC A, CH1_PITCH_EFFECT_ACC_H+X	;	And the high bytes
 			MOV CH1_PITCH_EFFECT_VAL_H+X, A	;__
@@ -2147,7 +2147,7 @@ if !SNESFM_CFG_SAMPLE_GENERATE
 if !SNESFM_CFG_PULSEGEN_ANY
 PulseGenTables:    ;In order:
 	;Highbyte with sz = 00 (8000),
-	;Lowbyte with s=0 (8000/0000) / Highbyte with sz = 01 (0000), 
+	;Lowbyte with s=0 (8000/0000) / Highbyte with sz = 01 (0000),
 	;Highbyte with sz = 1- (7FFF),
 	;Lowbyte with s=1 (7FFF) / Highbyte with sz = 1- (7FFF)
 	;Highbytes are EOR #$80'd.
@@ -2593,7 +2593,7 @@ PhaseModulation_32:
 		CLRC
 		ADC MOD_MOD_INDEX_L, #$02
 		AND MOD_MOD_INDEX_L, #$3E
-		CLRC 
+		CLRC
 		ADC MOD_MOD_INDEX_L, MOD_MOD_PTR_OFF
 		CMP MOD_OUT_INDEX_L, MOD_END_INDEX_L
 		BNE .loop
@@ -2702,7 +2702,7 @@ ConvertToBRR:
 		MOV BRR_IN0_PTR_H, BRR_PCM_PAGE ;   Set up the PCM sample page
 		MOV A, BRR_FLAGS                ;__
 		XCN A                           ;
-		AND A, #$C0                     ;   Set up the PCM sample subpage 
+		AND A, #$C0                     ;   Set up the PCM sample subpage
 		MOV BRR_IN0_PTR_L, A            ;__
 		MOV A, BRR_FLAGS                ;
 		AND A, #$40                     ;   Set up the ending low byte of the address
@@ -3274,7 +3274,7 @@ print "End of code: ", pc
 assert pc() < $6000
 endspcblock
 
-Includes:	
+Includes:
 	if not(!SNESFM_CFG_PITCHTABLE_GEN)
 		spcblock PitchTableLo !SNESFM_CFG_SPCBLOCK_TYPE
 			incbin "pitchLo.bin"

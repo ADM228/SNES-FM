@@ -34,7 +34,7 @@ _InitSNES:
 		STX $4374
 
 		SEP #$30	; mem/A = 8 bit, idx/XY = 8 bit
-		
+
 		JSR SetRegisters
 		JSR ClearVRAM
 		JSR ClearPalette
@@ -42,7 +42,7 @@ _InitSNES:
 
 	.ClearWRAM:
 		;**** clear WRAM ********
-		
+
 		!WRAM_FILL_BYTE = (..WRAMFillInstr+1)
 		; The instruction is LDX #$0000, assembles as
 		; $A2 $00 $00, the second byte of that
@@ -62,7 +62,7 @@ _InitSNES:
 		LDA.b #bank(!WRAM_FILL_BYTE)
 		STA $4304		;Set source bank
 	#..WRAMFillInstr:	LDX #$0000
-		PHX				; Push to return to DP $0000 later on	
+		PHX				; Push to return to DP $0000 later on
 		STX $4305		;Set transfer size to 64k bytes
 		LDA.b #$01
 		STA $420B		;Initiate transfer
@@ -195,7 +195,7 @@ ClearOAM:
 	PLX
 	PLA
 	RTS
-	
+
 
 ;----------------------------------------------------------------------------
 ; SetRegisters -- set PPU and CPU registers to a known state (as per snesdev)

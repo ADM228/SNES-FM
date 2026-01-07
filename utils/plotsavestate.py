@@ -14,22 +14,22 @@ for i in range (len(array2)):
 
 
 
-x = np.arange(0, 512) 
+x = np.arange(0, 512)
 y = np.arange(12, 17)
 
 # PLot
 
-plt.plot(x,array,linestyle="--") 
+plt.plot(x,array,linestyle="--")
 plt.plot(x,array3,linestyle="-")
 
 # Add Title
 
-plt.title("A sine modulating (a sine modulating a sine with strength 16/32); strength 16/32") 
+plt.title("A sine modulating (a sine modulating a sine with strength 16/32); strength 16/32")
 
 # Add Axes Labels
 
-plt.xlabel("x axis") 
-plt.ylabel("y axis") 
+plt.xlabel("x axis")
+plt.ylabel("y axis")
 
 # Display
 

@@ -7,7 +7,7 @@ average = False
 num = 0
 
 def int8_t(entry):
-    if entry & 0x08: return np.int8(entry | 0xF0) 
+    if entry & 0x08: return np.int8(entry | 0xF0)
     return np.int8(entry)
 
 def cap_number(num, limit, len):
@@ -77,22 +77,22 @@ BRRBuffer = BRRBufferNew
 x = np.arange(0, 128)
 
 array1 = array1 / 2
-plt.plot(x,BRRBufferNew) 
-plt.plot(x,BRRBuffer) 
+plt.plot(x,BRRBufferNew)
+plt.plot(x,BRRBuffer)
 plt.plot(x,array3,linestyle=":")
 plt.plot(x,array4,linestyle=":")
 
 
-#plt.plot(x,BRRBuffer-array2) 
+#plt.plot(x,BRRBuffer-array2)
 
 # Add Title
 
-plt.title("A sine modulating (a sine modulating a sine with strength 16/32); strength 16/32") 
+plt.title("A sine modulating (a sine modulating a sine with strength 16/32); strength 16/32")
 
 # Add Axes Labels
 
-plt.xlabel("x axis") 
-plt.ylabel("y axis") 
+plt.xlabel("x axis")
+plt.ylabel("y axis")
 
 # Display
 
@@ -173,7 +173,7 @@ print (len(BRRBuffer), len(BRRSNES))
 
 x = np.arange(0, len(BRRGraph0))
 
-plt.plot(x,BRRGraph0,linestyle=":") 
+plt.plot(x,BRRGraph0,linestyle=":")
 plt.plot(x,BRRGraph1,linestyle=":")
 plt.plot(x,BRRGraph2,linestyle="-")
 plt.plot(x,BRRGraph3,linestyle="-")
@@ -181,12 +181,12 @@ plt.plot(x,BRRGraph3,linestyle="-")
 
 # Add Title
 
-plt.title("A sine modulating (a sine modulating a sine with strength 16/32); strength 16/32") 
+plt.title("A sine modulating (a sine modulating a sine with strength 16/32); strength 16/32")
 
 # Add Axes Labels
 
-plt.xlabel("x axis") 
-plt.ylabel("y axis") 
+plt.xlabel("x axis")
+plt.ylabel("y axis")
 
 # Display
 

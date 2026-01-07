@@ -42,7 +42,7 @@
     ;   3. The rest of the macros are straightforward
     ;   4. Instrument data instruction macros:
     ;   lss|$00 S D - If l=0 copy 128 PCM samples from page S to page D
-    ;                   if l=1 resample 128 PCM samples from page S 
+    ;                   if l=1 resample 128 PCM samples from page S
     ;                   to 32 samples at page D subpage ss
     ;   lm0|$01 C [M] O S P [s] - Phase modulation:
     ;                   l - length (0 = 128 samples, 1 = 32 samples)
@@ -51,7 +51,7 @@
     ;                   O - Output page
     ;                   S - Modulation strength
     ;                   P - Phase shift
-    ;                   [s]-Subpages: ccmmoo-- [Only present if l=1] 
+    ;                   [s]-Subpages: ccmmoo-- [Only present if l=1]
     ;                       cc - Carrier subpage
     ;                       mm - Modulator subpage
     ;                       oo - Output subpage
@@ -64,16 +64,16 @@
     ;                       s - starting value (0 - low, 1 - high)
     ;                       z - the low value (0 - 0, 1 - -$8000)
 
-    
+
 
     ;   x00|$1A S D F [X] - BRR sample conversion:
     ;                   x - extended sample length mode (more than 1 sample)
     ;                   S - Source PCM page
     ;                   D - Destination BRR page
-    ;                   F - Flags: fsi0ppbb 
+    ;                   F - Flags: fsi0ppbb
     ;                       f - whether to use filter mode 1
     ;                       s - short sample mode (32 samples instead of 128)
-    ;                       i - high bit of output index 
+    ;                       i - high bit of output index
     ;                       pp - PCM sample subpage number (0-3, if s is set)
     ;                       bb - BRR output subpage number (0-3, if s is set)
     ;                   [X]-Number of samples-2 [Only present if x is set]
@@ -110,8 +110,8 @@
             !ENVELOPE_TYPE_GAIN = %00000000
             !ENVELOPE_TYPE_ADSR = %00000010
             !INSTRUMENT_TYPE_NOISE = %0000000
-            !INSTRUMENT_TYPE_SAMPLE = %00000001 
-    ;Instrument data opcodes 
+            !INSTRUMENT_TYPE_SAMPLE = %00000001
+    ;Instrument data opcodes
         !COPY_RSMP      = $00
         !PHASEMOD       = $01
         !PULSEGEN       = $03
@@ -124,7 +124,7 @@
     ;Instrument data internal parameters
         !LONG_          = %00000000
         !SHORT          = %10000000
-        
+
         !SUBP0          = %00000000
         !SUBP1          = %00100000
         !SUBP2          = %01000000
@@ -308,7 +308,7 @@ base off
 
 
 
-    ; 
+    ;
     ;     db !COMMAND_CHANGE_INSTRUMENT_TYPE|!PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE
 
     ;     db !UPD_SAMPLE|!UPD_ENVELOPE|!UPD_ARPEGGIO

@@ -11,12 +11,12 @@
 	;       $68     - Disable attack
 	;       $69 xx  - Set separate arpeggio table ($00 means none,
 	;                   overrides the instruments arpeggio)
-	;       $6A xx  - Same but with pitch 
+	;       $6A xx  - Same but with pitch
 	;       $6B xx  - Fine pitch (center is $80, $00 = -1 semitone, $FF ≈ +1 semitone)
-	;		$6C X Y	- Pitch slide (indefinitely long, 
+	;		$6C X Y	- Pitch slide (indefinitely long,
 	;					adds X to pitch index, Y to note number)
 	;
-	;       $6D-$6F - Not filled yet       
+	;       $6D-$6F - Not filled yet
 	;		Planned: portamento, vibrato,
 	;
 	;       $70 xx  - Set left volume
@@ -34,14 +34,14 @@
 	;
 	;       $7C     - Key off
 	;       $7D X   - Repeat reference from X bytes ago (difference between
-	;                   before the opcode and after the parameters of the 
+	;                   before the opcode and after the parameters of the
 	;                   Set reference opcode)
 	;       $7E L ptr - Set reference (L = amount of waiting opcodes)
 	;       $7F     - Loop
-	
+
 	;       $80-$FE - Wait opcode >> 1 frames
 	;       $81-$FF - Set instrument to (high bits) | (opcode >> 1)
-	;       
+	;
 	;       with
 
 	;2. Legacy song data
@@ -81,10 +81,10 @@
 		!REF_RPT = $7D
 		!REF_SET = $7E
 		!JUMP = $7F
-		
+
 		!WAIT = $80
 		!INSTRUMENT = $81
-		
+
 
 	;Effect data
 		!SET_VOLUME_LR_SAME = $00

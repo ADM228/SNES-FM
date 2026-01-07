@@ -3,7 +3,7 @@
 ;Bank 1 - some code + SPC700 everything
 ;Bank 2 - Unicode tileset
 ;Bank 3 - Locales
-;Bank 4 - 
+;Bank 4 -
 ;Bank 5 -
 ;Bank 6 - Palette, 65816 sine table
 ;VAR NOTES
@@ -65,7 +65,7 @@
 
 ;Tracker interface (512x478):
 ;channel:     --   |    0    |    1    |    2    |    3    |    4    | 5|
-;layout: RRR|SS EEE|nn ii eee|nn ii eee|nn ii eee|nn ii eee|nn ii eee|nn 
+;layout: RRR|SS EEE|nn ii eee|nn ii eee|nn ii eee|nn ii eee|nn ii eee|nn
 ;block:      00  01 02 03  04 05 06  07 08 09  0A 0B 0C  0D 0E 0F  10 11
 ;block%3:     0  1   2  0  1   2  0  1   2  0   1  2  0   1  2  0  1   2
 ;center of screen:                      --
@@ -252,7 +252,7 @@ SPCTransfer:
 org $800000|pc()         ;Here purely for not causing errors purpose
 bank $80
 dmaToCGRAM:
-    
+
     %SetDP_DMA_PEA()	;__	Set Direct Page to 4300 for DMA registers
     REP !P_XY     	;set xy to 16bit
     SEP !P_A       	;set a to 8bit
@@ -303,7 +303,7 @@ InitSRAM:
             CMP #$5345      ;   Second half of first verification code "ES"
             BNE InitSRAM_ClearSRAM;__
         ..VersionNumber:
-            LDX $0004         
+            LDX $0004
             CPX !SRAM_VERSION_MAJOR+1
             BCS InitSRAM_ClearSRAM
             JMP ReadLocale
@@ -489,10 +489,10 @@ NMI_Routine:
     PLY
     PLX
     PLA
-    RTI 
+    RTI
 
 InitiateTrackerMode:
-    lda #$80            ;   F-Blank 
+    lda #$80            ;   F-Blank
     sta INIDISP           ;__
     REP !P_XY           ;   Set XY to 16 bit
     SEP !P_A            ;__ Set A to 8 bit
@@ -507,9 +507,9 @@ InitiateTrackerMode:
     LDA #%00000011      ;
     STA $2C             ;   Enable both BGs on both screens
     STA $2D             ;__
-    LDA #%01110010      ;   32x64 tilemap size, 
+    LDA #%01110010      ;   32x64 tilemap size,
     STA $07             ;__ at word address $7000 for BG1
-    ORA #%00001000      ;   32x64 tilemap size, 
+    ORA #%00001000      ;   32x64 tilemap size,
     STA $08             ;__ at word address $7800 for BG2
     LDA #$03|$04        ;   Enable Interlace and Overscan
     STA $33             ;__
@@ -774,7 +774,7 @@ InitiateTrackerMode:
     ;         PLD				;__
     ;         LDX #$83        ;
     ;         PHX             ;   Set DB to 83, locales in FastROM
-    ;         PLB             ;__   
+    ;         PLB             ;__
 
 DrawColumn:
     .Setup:
@@ -839,7 +839,7 @@ DrawColumn:
         STX $15         ;__
         LDX #$00
     .Loop:
-        LDA $0010, X    ;   Get column value, 
+        LDA $0010, X    ;   Get column value,
         AND #$00FF      ;   end if 0
         BNE +           ;__
             JMP DrawColumn_End
@@ -1054,7 +1054,7 @@ ScrollHeaderTrackerMode:
             STX MDMAEN		;Init
     .DMABack:
         LDX $0000       ;
-        STX $00FF       ; 
+        STX $00FF       ;
         LDA $0000		;
         AND #$003F      ;
         STA $0000       ;
@@ -1152,7 +1152,7 @@ DrawHeaderTrackerMode:
         STA $12         ;__
         LDA $64         ;
         ASL             ;
-        ASL             ;   
+        ASL             ;
         ASL             ;
         AND #$00F8      ;
         STA $14         ;__
@@ -1161,7 +1161,7 @@ DrawHeaderTrackerMode:
         LDY #$04        ;
         STY $15
         LDY #$00
-        
+
     .BigLoop:
         ;TODO: Palette from palette buffer
         LDX $14
@@ -1194,7 +1194,7 @@ DrawHeaderTrackerMode:
         -:
             LDA ($12)
             AND #$00FF
-            ASL 
+            ASL
             ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
             STA $1200, Y
             INC $12
@@ -1202,7 +1202,7 @@ DrawHeaderTrackerMode:
             INY
             LDA ($12)
             AND #$00FF
-            ASL 
+            ASL
             ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
             STA $1000, Y
             LDA $12
@@ -1245,7 +1245,7 @@ DrawHeaderTrackerMode:
         -:
             LDA ($12)
             AND #$00FF
-            ASL 
+            ASL
             ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
             STA $1240, Y
             INC $12
@@ -1253,7 +1253,7 @@ DrawHeaderTrackerMode:
             INY
             LDA ($12)
             AND #$00FF
-            ASL 
+            ASL
             ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
             STA $1040, Y
             LDA $12
@@ -1301,7 +1301,7 @@ DrawHeaderTrackerMode:
         -:
             LDA ($12)
             AND #$00FF
-            ASL 
+            ASL
             ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
             STA $1280, Y
             INC $12
@@ -1309,7 +1309,7 @@ DrawHeaderTrackerMode:
             INY
             LDA ($12)
             AND #$00FF
-            ASL 
+            ASL
             ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
             STA $1080, Y
             LDA $12
@@ -1352,7 +1352,7 @@ DrawHeaderTrackerMode:
         -:
             LDA ($12)
             AND #$00FF
-            ASL 
+            ASL
             ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
             STA $12C0, Y
             INC $12
@@ -1360,7 +1360,7 @@ DrawHeaderTrackerMode:
             INY
             LDA ($12)
             AND #$00FF
-            ASL 
+            ASL
             ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
             STA $10C0, Y
             LDA $12
@@ -1408,7 +1408,7 @@ DrawHeaderTrackerMode:
         -:
             LDA ($12)
             AND #$00FF
-            ASL 
+            ASL
             ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
             STA $1300, Y
             INC $12
@@ -1416,7 +1416,7 @@ DrawHeaderTrackerMode:
             INY
             LDA ($12)
             AND #$00FF
-            ASL 
+            ASL
             ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
             STA $1100, Y
             LDA $12
@@ -1459,7 +1459,7 @@ DrawHeaderTrackerMode:
         -:
             LDA ($12)
             AND #$00FF
-            ASL 
+            ASL
             ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
             STA $1340, Y
             INC $12
@@ -1467,7 +1467,7 @@ DrawHeaderTrackerMode:
             INY
             LDA ($12)
             AND #$00FF
-            ASL 
+            ASL
             ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
             STA $1140, Y
             LDA $12
@@ -1515,7 +1515,7 @@ DrawHeaderTrackerMode:
         -:
             LDA ($12)
             AND #$00FF
-            ASL 
+            ASL
             ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
             STA $1380, Y
             INC $12
@@ -1523,7 +1523,7 @@ DrawHeaderTrackerMode:
             INY
             LDA ($12)
             AND #$00FF
-            ASL 
+            ASL
             ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
             STA $1180, Y
             LDA $12
@@ -1566,7 +1566,7 @@ DrawHeaderTrackerMode:
         -:
             LDA ($12)
             AND #$00FF
-            ASL 
+            ASL
             ORA.l DrawHeaderTrackerMode_PaletteLookupTable_2bpp, X
             STA $13C0, Y
             INC $12
@@ -1574,7 +1574,7 @@ DrawHeaderTrackerMode:
             INY
             LDA ($12)
             AND #$00FF
-            ASL 
+            ASL
             ORA.l DrawHeaderTrackerMode_PaletteLookupTable_4bpp, X
             STA $11C0, Y
             LDA $12
@@ -1676,7 +1676,7 @@ DrawHeaderTrackerMode:
         AND #$00FF      ;
         ASL A           ;
         ASL A           ;
-        ASL A           ;   Get new row address 
+        ASL A           ;   Get new row address
         ASL A           ;
         ASL A           ;
         ADC #$0100      ;
@@ -1734,7 +1734,7 @@ DrawHeaderTrackerMode:
         ;     CPX #$80        ;
         ;     BNE -           ;__
     ;JSR DrawColumn
-    
+
 
 
     .End:
@@ -1751,7 +1751,7 @@ DrawHeaderTrackerMode:
             dw $0800, $1800, $0C00, $1C00
         ..4bpp:
             dw $0000, $0400, $0800, $0C00
-            dw $1000, $1400, $1800, $1C00 
+            dw $1000, $1400, $1800, $1C00
 
 HexToTiles:
     ;Memory allocation:
@@ -1804,7 +1804,7 @@ DecompressLocaleBlock:
     % ResetDP_PEA()	;__	Set DP to 00
     LDX #$83        ;
     PHX             ;   Set DB to 83, locales in FastROM
-    PLB             ;__   
+    PLB             ;__
     LDA $F00000     ;
     AND #$007F      ;__
     ASL
@@ -1822,7 +1822,7 @@ DecompressLocaleBlock:
     STX $4202
     LDX $00
     STX $4203
-    CLC             ;   9 = %00001001; only 4 low bits are used -> 4 cycles wait; CLC takes 2 cycles, 
+    CLC             ;   9 = %00001001; only 4 low bits are used -> 4 cycles wait; CLC takes 2 cycles,
     LDA $4216       ;__ LDA $4216 takes 3 to read the opcode - waited 5 cycles and did something useful
     ADC $1D
     CLC
@@ -1881,15 +1881,15 @@ UpdateColumn:
         LDA $00FF       ;
         ASL A           ;
         ASL A           ;
-        ASL A           ;   Get old row address 
+        ASL A           ;   Get old row address
         ASL A           ;
         ASL A           ;
         STA $0010       ;__
         LDX #$00
     .EraseLoop:
-        LDA $00F0, X    ;   Get column value, 
+        LDA $00F0, X    ;   Get column value,
         AND #$00FF      ;   end if 0
-        BEQ UpdateColumn_ReplacePrep;__ 
+        BEQ UpdateColumn_ReplacePrep;__
         LSR A           ;
         BCC +           ;   Choose BG1 or BG2 tilemap
         ORA #$0800      ;__
@@ -1906,15 +1906,15 @@ UpdateColumn:
         STA $00FF       ;
         ASL A           ;
         ASL A           ;
-        ASL A           ;   Get new row address 
+        ASL A           ;   Get new row address
         ASL A           ;
         ASL A           ;
         STA $0010       ;__
         LDX #$00
     .ReplaceLoop:
-        LDA $00F0, X    ;   Get column value, 
+        LDA $00F0, X    ;   Get column value,
         AND #$00FF      ;   end if 0
-        BEQ UpdateColumn_End;__ 
+        BEQ UpdateColumn_End;__
         LSR A           ;
         BCC +           ;   Choose BG1 or BG2 tilemap
         ORA #$0800      ;__
@@ -1943,7 +1943,7 @@ DrawTrackerRow:
         % ResetDP_PEA()	;__	Set Direct Page to 0
         PEA $7E7E       ;
         PLB             ;   Set Data Bank to 7E
-        PLB             ;__ 
+        PLB             ;__
 
 DecompressUnicodeBlock:
     ;Memory allocation:
@@ -2016,7 +2016,7 @@ DecompressUnicodeBlock:
         SEP !P_A       	;set a to 8bit
         LDA $0001
         ASL A
-        ASL A    
+        ASL A
         ASL A
         AND #$18
         ORA #$40
@@ -2101,7 +2101,7 @@ DecompressUnicodeBlock:
         LDA $0001
         ASL A
         ORA $001F
-        ASL A    
+        ASL A
         ASL A
         ASL A
         AND #$38
@@ -2208,7 +2208,7 @@ ClearInstrumentBuffer:
 org $818000 ;The plotting engine for now
 ;1bpp to 2bpp converter
 
-tableROMtoWRAM:		
+tableROMtoWRAM:
 	%SetDP_DMA_PEA()	;__	Set Direct Page to 4300 for DMA registers
 
 	LDA #$01        ;WRAM Bank
@@ -2227,7 +2227,7 @@ tableROMtoWRAM:
     STA DMAP0
 	LDA #%00000001  ;bit 2 corresponds to channel 0
     STA MDMAEN		;Init
-tableROMtoWRAM2:		
+tableROMtoWRAM2:
     ;JMP clearPaletteData
 	LDA #$01        ;WRAM Bank
 	STA $2183
@@ -2246,7 +2246,7 @@ tableROMtoWRAM2:
 	LDA #%00000001  ;bit 2 corresponds to channel 0
     STA MDMAEN		;Init
     RTL
-clearPaletteData:		
+clearPaletteData:
 	%SetDP_DMA_PEA()	;__	Set Direct Page to 4300 for DMA registers
 	LDA #$01        ;WRAM Bank
 	STA $2183
@@ -2333,7 +2333,7 @@ PlotGraph:
             REP #%00110000 ;set xy and a to 16bit
             TXA         ;\
             LSR A       ; |
-            LSR A       ; | Get the index of the 
+            LSR A       ; | Get the index of the
             LSR A       ; | entry in the input table
             ADC #$0007  ; |
             TAY         ;/

@@ -9,7 +9,7 @@ Wait:
     LDA $4218
     AND #$000F
     ASL A
-    TAX 
+    TAX
     JMP (HandlerTable, X)
 HandlerTable:
     dw StandardJoy_RoutineHandler;SNES Joypad
@@ -35,7 +35,7 @@ HandlerTable:
 namespace StandardJoy
     RoutineHandler:
         LDA $4218
-        STA $0E     ;Joypad data 
+        STA $0E     ;Joypad data
         LDX #$00
     Loop:
         ROL $0E
@@ -86,7 +86,7 @@ namespace off
 
 namespace NTTDataPad
 namespace off
- 
+
 namespace off
 
 
