@@ -1822,7 +1822,7 @@ UpdatePitch:
 
 				MOV Y, #$00
 				MOV A, CH1_FINE_PITCH+X			;
-				BPL +							;
+				BPL +							;	Sign extend the fine pitch
 					DEC Y						;	Add up the low bytes
 				+ CLRC							;
 				ADC A, CH1_PITCH_EFFECT_VAL_L+X	;__
@@ -1836,13 +1836,12 @@ UpdatePitch:
 				CLRC							;	Add up the high bytes, with overflow
 				ADC A, CH1_PITCHBEND_H+X		;__
 
-				; TODO: docs for the following 2 instructions (magic trick)
+				CLRC						;	Add up the note
+				ADC A, !L000_NOTE_VALUE		;__
 
 				MOV Y, !L000_TBL_INDEX
-				CMP Y, #$80					;	Deal with the signed index
-				ADC A, !L000_NOTE_VALUE		;__	Add up the note
-
 				BEQ .NoBend
+
 			elseif (\							;
 			(!SNESFM_CFG_PITCH_EFFECTS)+\		;	If only 2 components added
 			(!SNESFM_CFG_INSTRUMENT_PITCHBEND)+\;
@@ -1864,25 +1863,25 @@ UpdatePitch:
 				endif
 
 				MOV Y, #$00				;__	Start the high byte
-				MOV A, !A_LO+X			;	Add up the low bytes
-				if not(defined("A_HI"))	;
-				BPL +					;
-					DEC Y				;
-				+						;
+				MOV A, !A_LO+X			;
+				if not(defined("A_HI"))	;	Get first word
+				BPL +					;	If it's just a byte
+					DEC Y				;	then sign extend
+				+						;__
 				endif					;
-				CLRC					;
+				CLRC					;	Add the second low byte
 				ADC A, !B_LO+X			;__
 				MOV !L000_TBL_INDEX, A	;__	Doesn't affect carry
 				MOV A, Y				;
 				ADC A, !B_HI+X			;
-				if defined("A_HI")		;
-					CLRC				;	Add up the high bytes, with overflow
+				if defined("A_HI")		;	Add up the high bytes, with overflow
+					CLRC				;
 					ADC A, !A_HI+X		;
 				endif					;__
-				MOV Y, !L000_TBL_INDEX	;
-				CMP Y, #$80				;	Add up the note immediately
+				CLRC					;	Add up the note immediately
 				ADC A, !L000_NOTE_VALUE	;__
 
+				MOV Y, !L000_TBL_INDEX
 				BEQ .NoBend
 
 				undef A_LO : undef B_LO : undef B_HI
@@ -1896,7 +1895,7 @@ UpdatePitch:
 					MOV Y, A							;	Get instrument pitchbend
 					MOV A, CH1_PITCHBEND_H+X			;__
 
-					CMP Y, #$80							;
+					CLRC								;
 					ADC A, !L000_NOTE_VALUE				;	Add it to the note
 					MOV !L000_NOTE_VALUE, A				;__
 
@@ -1906,7 +1905,7 @@ UpdatePitch:
 					MOV Y, A							;	Get effect pitchbend
 					MOV A, CH1_PITCH_EFFECT_VAL_H+X		;__
 
-					CMP Y, #$80							;
+					CLRC								;
 					ADC A, !L000_NOTE_VALUE				;	Add it to the note
 					MOV !L000_NOTE_VALUE, A				;__
 
@@ -1936,10 +1935,7 @@ UpdatePitch:
 				MOV A, PitchTableHi+Y		;
 				MOV !L000_BASE_PITCH_H, A	;__
 
-				MOV A, !L000_TBL_INDEX		;
-				CLRC						;	Pad to middle of the table
-				ADC	A, #$80					;
-				MOV	Y, A					;__
+				MOV Y, !L000_TBL_INDEX		;__
 
 				MOV A, LogTable+Y			;
 				PUSH A						;
@@ -1967,12 +1963,6 @@ UpdatePitch:
 				ROR A						;
 				MOV Y, !TEMP_POINTER2_H		;__
 
-				CMP !L000_TBL_INDEX, #$80
-				BCC +
-					EOR A, #$FF					;
-					EOR !TEMP_POINTER2_H, #$FF	;	Invert the negatives
-					MOV Y, !TEMP_POINTER2_H		;__
-				+:
 				; Carry set accordingly for 2's complement addition
 				ADDW YA, !L000_BASE_PITCH_L
 
@@ -3288,38 +3278,36 @@ Includes:
 		incbin "quartersinetable.bin"
 	if !SNESFM_CFG_PITCHBEND_ANY
 		Log2Generate:
-			MOV X, #$00
-			MOV A, #(256-115)
-			MOV Y, #$00
-			.LoopPart1:
-				PUSH A
-				MOV A, LogTableTable+X
-				INC X
-				MOV !TEMP_VALUE, A
-				POP A
-			.LoopPart2:
-				CMP Y, !TEMP_VALUE
-				BEQ +
-					MOV LogTable+Y, A
-					INC A
-					INC Y
-					BNE .LoopPart2
-			MOV Y, #$80
-			.InvertLoop:
-				MOV A, LogTable-1+Y
-				EOR A, #$FF
-				INC A
-				MOV LogTable-1+Y, A
-				DBNZ Y, .InvertLoop
+			MOV A, #$00
+			MOV X, A
+			MOV Y, A
+			.GetStaggerPoint:
+				PUSH A					;
+				MOV A, LogTableTable+X	;
+				INC X					;	Retrieve the next stagger point
+				MOV !TEMP_VALUE, A		;
+				POP A					;__
+			.Loop:
+				CMP Y, !TEMP_VALUE		;	If we're at the stagger value
+				BEQ +					;__	do something
+					MOV LogTable+Y, A	;
+					INC A				;	If we aren't, store value to table
+					INC Y				;	And increment value by 1
+					BNE .Loop			;__
 			RET
 
 			+:
-				MOV LogTable+Y, A
-				INC Y
-				BRA .LoopPart1
+				MOV LogTable+Y, A		;	If we are at a stagger point
+				INC Y					;__	store value to table
+				CMP Y, #200				;	If stagger point <200,
+				BCC .GetStaggerPoint	;__	don't increment
+				ADC	A, #1				;	Otherwise, increment twice
+				BRA	.GetStaggerPoint	;__ (carry was set)
 
 	LogTableTable:
-		db 4, 12, 20, 29, 37, 46, 56, 65, 76, 86, 97, 109, 121, 134, 149, 164, 182, 203, 229
+		db 6, 21, 36, 54, 75, 101, 144
+		db 204, 247
+		db 0
 	LogTable = $0B00
 
 	endspcblock
