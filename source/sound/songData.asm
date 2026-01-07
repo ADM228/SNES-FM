@@ -110,7 +110,7 @@ dw NoteDataNone, NoteDataNone, NoteDataNone, NoteDataNone
 
 nNoteDataBass1:
 	db !INSTRUMENT|($00<<1)  ; Set instrument to 0
-	db !FINE_PITCH, $00
+	db !FINE_PITCH, $80
 	db !PITCH_SLIDE, $F8, $FF
 	db !VOL_SET_BOTH, $7F
 	db $30, !WAIT|($10<<1)
@@ -128,14 +128,14 @@ nNoteDataBass1:
 	db $42, !WAIT|($10<<1)
 	db $39, !WAIT|($10<<1)
 
-	db !FINE_PITCH, $40
+	db !FINE_PITCH, $C0
 	db !REF_SET, 11
 	dw nNoteDataBass1+3
-	db !FINE_PITCH, $80
+	db !FINE_PITCH, $00
 	db !REF_RPT, 2
-	db !FINE_PITCH, $C0
+	db !FINE_PITCH, $40
 	db !REF_RPT, 6
-	db !FINE_PITCH, $FF
+	db !FINE_PITCH, $7F
 	db !REF_RPT, 10
 
 	db !JUMP

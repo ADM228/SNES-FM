@@ -1085,7 +1085,7 @@ Begin:
 			if !SNESFM_CFG_INSTRUMENT_PITCHBEND	;
 				MOV CH1_PITCHBEND_H+X, A		;
 			endif								;
-			MOV A, #$80							;
+			MOV A, #$00							;
 			if !SNESFM_CFG_PITCH_EFFECTS		;   Zero out pitchbend
 				MOV CH1_PITCH_EFFECT_VAL_L+X, A	;
 			endif								;
@@ -1205,7 +1205,7 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 			MOV $F2, #$5C       		;   Key off the needed channel
 			MOV $F3, !CHANNEL_BITMASK	;__
 			if !SNESFM_CFG_PITCH_EFFECTS
-				MOV A, #$80						;
+				MOV A, #$00						;
 				MOV CH1_PITCH_EFFECT_VAL_L+X, A	;	Reset pitch effect value
 				MOV A, Y	; Y is 0			;	TODO: configurability???
 				MOV CH1_PITCH_EFFECT_VAL_H+X, A	;__
@@ -1820,9 +1820,11 @@ UpdatePitch:
 
 			if !SNESFM_CFG_PITCHBEND_ALL
 
-				MOV Y, #$FF
+				MOV Y, #$00
 				MOV A, CH1_FINE_PITCH+X			;
-				CLRC							;	Add up the low bytes
+				BPL +							;
+					DEC Y						;	Add up the low bytes
+				+ CLRC							;
 				ADC A, CH1_PITCH_EFFECT_VAL_L+X	;__
 				BCC +							;
 					INC Y						;	Faster than MOV1 (6/8 vs 10 cycles)
@@ -1834,97 +1836,57 @@ UpdatePitch:
 				CLRC							;	Add up the high bytes, with overflow
 				ADC A, CH1_PITCHBEND_H+X		;__
 
-				; How the fuck that worked:
-
-					; There are 4 combinations possible, 
-					; which I'm going to illustrate with
-					; this table:
-					; A+B	| c	| A+B+C		| c	| total high byte offset
-					;  ≤$FF	| 0	|  $00..FF	| 0	| 0
-					;  ≤$FF	| 0 | $100..1FE | 1 | 1
-					; ≥$100	| 1 | $100..1FF	| 0 | 1
-					; ≥$100	| 1 | $200..2FD	| 1 | 2
-					; Then, $100 is supposed to be subtracted 
-					; (aka decrement the high byte)
-
-					; So, -1 is preloaded and then incremented
-					; both manually and then with carry
-
-				;]]
-
-				ASL A						;
-				CLRC						;	Add up the note immediately
-				ADC A, !L000_NOTE_VALUE		;__
+				; TODO: docs for the following 2 instructions (magic trick)
 
 				MOV Y, !L000_TBL_INDEX
-				BEQ .OneDown
-				CMP Y, #$80
-				BEQ .NoBend
+				CMP Y, #$80					;	Deal with the signed index
+				ADC A, !L000_NOTE_VALUE		;__	Add up the note
 
+				BEQ .NoBend
 			elseif (\							;
 			(!SNESFM_CFG_PITCH_EFFECTS)+\		;	If only 2 components added
 			(!SNESFM_CFG_INSTRUMENT_PITCHBEND)+\;
 			(!SNESFM_CFG_FINE_PITCH)) == 2		;__
 
 				if (!SNESFM_CFG_PITCH_EFFECTS+!SNESFM_CFG_INSTRUMENT_PITCHBEND) == 2
-					!A_LO = CH1_PITCHBEND_L
-					!A_HI = CH1_PITCHBEND_H
-					!B_LO = CH1_PITCH_EFFECT_VAL_L
-					!B_HI = CH1_PITCH_EFFECT_VAL_H
-				elseif !SNESFM_CFG_PITCH_EFFECTS		; Fine pitch also enabled
 					!A_LO = CH1_PITCH_EFFECT_VAL_L
 					!A_HI = CH1_PITCH_EFFECT_VAL_H
-					!B_LO = CH1_FINE_PITCH
+					!B_LO = CH1_PITCHBEND_L
+					!B_HI = CH1_PITCHBEND_H
+				elseif !SNESFM_CFG_PITCH_EFFECTS		; Fine pitch also enabled
+					!A_LO = CH1_FINE_PITCH
+					!B_LO = CH1_PITCH_EFFECT_VAL_L
+					!B_HI = CH1_PITCH_EFFECT_VAL_H
 				elseif !SNESFM_CFG_INSTRUMENT_PITCHBEND	; Fine pitch also enabled
-					!A_LO = CH1_PITCHBEND_L
-					!A_HI = CH1_PITCHBEND_H
-					!B_LO = CH1_FINE_PITCH
+					!A_LO = CH1_FINE_PITCH
+					!B_LO = CH1_PITCHBEND_L
+					!B_HI = CH1_PITCHBEND_H
 				endif
 
-				MOV Y, #$00
-				MOV A, !A_LO+X			;
-				CLRC					;	Add up the low bytes
+				MOV Y, #$00				;__	Start the high byte
+				MOV A, !A_LO+X			;	Add up the low bytes
+				if not(defined("A_HI"))	;
+				BPL +					;
+					DEC Y				;
+				+						;
+				endif					;
+				CLRC					;
 				ADC A, !B_LO+X			;__
-				BCS +					;
-					DEC Y				;	If value is less than #$80, dec base
-					SETC				;__
-				+ SBC A, #$80			;__	Subtract the #$80 hassle-free
-				MOV !L000_TBL_INDEX, A	;	Neither of these
-				MOV A, Y				;__	affect carry
-				ADC A, !A_HI+X			;
-				if defined("B_HI")		;
+				MOV !L000_TBL_INDEX, A	;__	Doesn't affect carry
+				MOV A, Y				;
+				ADC A, !B_HI+X			;
+				if defined("A_HI")		;
 					CLRC				;	Add up the high bytes, with overflow
-					ADC A, !B_HI+X		;
+					ADC A, !A_HI+X		;
 				endif					;__
-				; How the fuck that worked:
-					; MOV, CLRC, ADC - The usual business
-					; C is set if an overflow occured,
-					; Then i DEC Y if that happens,
-					; So Y is -1 if the value < $100; and 0 if ≥ $100
+				MOV Y, !L000_TBL_INDEX	;
+				CMP Y, #$80				;	Add up the note immediately
+				ADC A, !L000_NOTE_VALUE	;__
 
-					; Then #$80 is subtracted,
-					; and carry stores whether a borrow occured
-					; If a borrow did not occur,
-					; 1 should be added back to Y
-					; so that it becomes mathematically correct.
-
-					; But the ADC adds carry, and that can be used
-					; While loading the first byte, the carry is added
-
-					; Result: 44/46 cycles (or 37/39 if one of the components is fine pitch)
-					; instead of 54 and not dealing with words
-				;]]
-				ASL A						;
-				CLRC						;	Add up the note immediately
-				ADC A, !L000_NOTE_VALUE		;__
-
-				MOV Y, !L000_TBL_INDEX
-				BEQ .OneDown
-				CMP Y, #$80
 				BEQ .NoBend
 
-				undef A_LO : undef A_HI : undef B_LO 
-				if defined("B_HI") : undef B_HI : endif
+				undef A_LO : undef B_LO : undef B_HI 
+				if defined("A_HI") : undef A_HI : endif
 
 			else	; only 1 component
 
@@ -1934,9 +1896,8 @@ UpdatePitch:
 					MOV Y, A							;	Get instrument pitchbend
 					MOV A, CH1_PITCHBEND_H+X			;__
 
-					ASL A								;
-					CLRC								;	Add it
-					ADC A, !L000_NOTE_VALUE				;	to note
+					CMP Y, #$80							;
+					ADC A, !L000_NOTE_VALUE				;	Add it to the note
 					MOV !L000_NOTE_VALUE, A				;__
 
 				elseif !SNESFM_CFG_PITCH_EFFECTS
@@ -1945,9 +1906,8 @@ UpdatePitch:
 					MOV Y, A							;	Get effect pitchbend
 					MOV A, CH1_PITCH_EFFECT_VAL_H+X		;__
 
-					ASL A								;
-					CLRC								;	Add it
-					ADC A, !L000_NOTE_VALUE				;	to note
+					CMP Y, #$80							;
+					ADC A, !L000_NOTE_VALUE				;	Add it to the note
 					MOV !L000_NOTE_VALUE, A				;__
 
 				elseif !SNESFM_CFG_FINE_PITCH
@@ -1960,10 +1920,8 @@ UpdatePitch:
 				endif
 
 
-				CMP Y, #$80
-				BEQ .NoBend
 				CMP Y, #$00
-				BEQ .OneDown
+				BEQ .NoBend
 
 				MOV !L000_TBL_INDEX, Y
 
@@ -1971,14 +1929,17 @@ UpdatePitch:
 
 
 				; At this point there is definitely multiplication to be done
-
+			#dbg:
 				CALL .ClampPitch		;
 				; MOV A, PitchTableLo+Y <- Done by clampPitch
 				MOV !L000_BASE_PITCH_L, A	;	Store the (base) pitch value in TMP0
 				MOV A, PitchTableHi+Y		;
 				MOV !L000_BASE_PITCH_H, A	;__
 
-				MOV Y, !L000_TBL_INDEX
+				MOV A, !L000_TBL_INDEX		;
+				CLRC						;	Pad to middle of the table
+				ADC	A, #$80					;
+				MOV	Y, A					;__
 
 				MOV A, LogTable+Y			;
 				PUSH A						;
@@ -1988,7 +1949,7 @@ UpdatePitch:
 				POP A						;
 				MOV Y, !L000_BASE_PITCH_L	;	Multiply low byte
 				MUL YA						;__
-				CMP A, #$80					;
+				ASL	A						;
 				MOV A, Y					;	Round the number
 				ADC A, #$00					;__
 
@@ -1999,17 +1960,20 @@ UpdatePitch:
 				LSR !TEMP_POINTER2_H 		;
 				ROR A						;
 				LSR !TEMP_POINTER2_H 		;
-				ROR A						;	Divide by 8
-				LSR !TEMP_POINTER2_H		;
+				ROR A						;
+				LSR !TEMP_POINTER2_H		;	Divide by 16
+				ROR A						;
+				LSR	!TEMP_POINTER2_H		;
 				ROR A						;
 				MOV Y, !TEMP_POINTER2_H		;__
 
-				CMP !L000_TBL_INDEX, #$00
-				BMI +
+				CMP !L000_TBL_INDEX, #$80
+				BCC +
 					EOR A, #$FF					;
 					EOR !TEMP_POINTER2_H, #$FF	;	Invert the negatives
 					MOV Y, !TEMP_POINTER2_H		;__
 				+:
+				; Carry set accordingly for 2's complement addition
 				ADDW YA, !L000_BASE_PITCH_L
 
 				MOV !TEMP_POINTER0_L, Y		;	Update low byte of pitch
@@ -2019,8 +1983,6 @@ UpdatePitch:
 				%realChannelWrite()			;__
 				RET
 
-            .OneDown:
-            DEC A
 			.NoBend:
 		endif
 			CALL .ClampPitch
