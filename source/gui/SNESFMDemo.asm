@@ -142,6 +142,7 @@ org $838000
 incsrc "locale.asm"
 
 org $81E000
+SNESFM_Data:
 !SNESFM_ASM ?= 0
 if !SNESFM_ASM == 1
 	incsrc "../sound/demoConfig.asm"
@@ -172,81 +173,103 @@ incsrc "initSNES.asm"
 Start:
     %InitSNES()
     lda #$80            ;    Turn off screen, no brightness
-    sta INIDISP           ;__
+    sta INIDISP         ;__
 SPCTransfer:
+    ; Yes, these declarations do get shortened to .
+    SPCTransfer_Pointer = $00
+    SPCTransfer_PointerLo = $00
+    SPCTransfer_PointerMd = $01
+    SPCTransfer_PointerHi = $02
+
+    SPCTransfer_CounterByte = $03
+    SPCTransfer_SignalByte = $03
+
+    SPCTransfer_Length = $04
+    SPCTransfer_LengthLo = $04
+    SPCTransfer_LengthHi = $05
+
     .LoopConfirm:
         LDA APUIO0
         CMP #$AA
-        BNE SPCTransfer_LoopConfirm
+        BNE .LoopConfirm
         LDA APUIO1
         CMP #$BB
-        BNE SPCTransfer_LoopConfirm
-                        ;__
-        LDX #$81E0      ;
-        STX $01         ;   Base address: $81E000
-        STZ $00         ;__
+        BNE .LoopConfirm
+
+        LDA #$CC            ;   The first signal byte is $CC
+        STA .SignalByte     ;__
+
+        LDX #SNESFM_Data>>8 ;
+        STX .PointerMd      ;   Set up data pointer
+        STZ .PointerLo      ;__
     .TransferAddress:
-        LDY #$0002      ;
-        LDA [$00],Y     ;
-        STA APUIO2      ;
-        INY             ;   Give address to SPC
-        LDA [$00],Y     ;
-        STA APUIO3      ;__
-        LDY #$0000      ;
-        LDA [$00],Y     ;
-        STA $04         ;
-        INY             ;   Get the length, put it in $04-$05
-        LDA [$00],Y     ;
-        STA $05         ;__
-        LDX $04         ;   If length = 0 it's a jump, therefore end transmission
-        BEQ SPCTransfer_Jump;__
-        LDA #$CC
+        LDY #$0002          ;
+        LDA [.Pointer],Y    ;
+        STA APUIO2          ;
+        INY                 ;   Give address to SPC
+        LDA [.Pointer],Y    ;
+        STA APUIO3          ;__
+        LDY #$0000          ;
+        LDA [.Pointer],Y    ;
+        STA .LengthLo       ;
+        INY                 ;   Get the length, put it in $04-$05
+        LDA [.Pointer],Y    ;
+        STA .LengthHi       ;__
+        LDX .Length         ;   If length = 0 it's a jump, therefore end transmission
+        BEQ .Jump           ;__
+        LDA .SignalByte
         STA APUIO0
         STA APUIO1
         INY
+
+        LDY #$0000          ;   Init counter
+        CLC                 ;__
+        LDA .PointerLo      ;
+        ADC #$04            ;
+        STA .PointerLo      ;   Adjust data pointer
+        LDA .PointerMd      ;
+        ADC #$00            ;
+        STA .PointerMd      ;__
     .Loop01:
-        LDA APUIO0
-        CMP #$CC
-        BNE SPCTransfer_Loop01
-        LDY #$0000
-        CLC
-        LDA $00
-        ADC #$04
-        STA $00
-        LDA $01
-        ADC #$00
-        STA $01
+        LDA APUIO0          ;   Wait for signal byte acknowledgement
+        CMP .SignalByte     ;
+        BNE .Loop01         ;__
     .Loop02:
-        LDA [$00],Y
-        STA APUIO1
-        TYA
-        STA APUIO0
-        STA $03
+        LDA [.Pointer],Y    ;   Send data byte
+        STA APUIO1          ;__
+        TYA                 ;
+        STA APUIO0          ;   Send counter byte
+        STA .CounterByte    ;__
     .Loop03:
-        LDA APUIO0
-        CMP $03
-        BNE SPCTransfer_Loop03
-        INY
-        CPY $04
-        BNE SPCTransfer_Loop02
-        TYA
-        CLC
-        ADC $00
-        STA $00
-        LDA $01
-        ADC $05
-        STA $01
-        TYA
-        INC A
-        INC A
-        INC A
-        STA APUIO0
-        JMP SPCTransfer_TransferAddress
+        LDA APUIO0          ;
+        CMP .CounterByte    ;   Wait for counter acknowledgement
+        BNE .Loop03         ;__
+        INY                 ;__ Update counter
+        CPY .Length         ;   Go back to loop if we're still in the data
+        BNE .Loop02         ;__
+
+        ;   We ran out of data
+        ;__
+
+        ADC #$02            ;   Make a new signal byte
+        ORA #$01            ;   (carry doesn't matter here)
+        STA .SignalByte     ;__ (just have it be nonzero)
+
+        TYA                 ;
+        CLC                 ;
+        ADC .PointerLo      ;
+        STA .PointerLo      ;   Update data pointer
+        LDA .PointerMd      ;   To prepare for the next block
+        ADC .LengthHi       ;
+        STA .PointerMd      ;__
+
+        JMP .TransferAddress
 
     .Jump:
-        LDA #$00
-        STA APUIO1
-        STA APUIO0
+        LDA #$00            ;   JUMP!!
+        STA APUIO1          ;__
+        LDA .SignalByte     ;   Signal byte, of course
+        STA APUIO0          ;__
     LDA #$0F
     STA $60
 org $800000|pc()         ;Here purely for not causing errors purpose
