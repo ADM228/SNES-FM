@@ -9,12 +9,18 @@
 
 - [d] Toggleable noise support
 - [d] [d] Generate 7/8 and 15/16 tables on the fly
+- [ ] Generate every log table, multiple divisors
 - [ ] Custom sample support:
     - [ ] Use sample addresses for that
         - [ ] ×4 pointer instead of ×2?
     - [i] Be able to specify loop and start addresses
         - Maybe via a flag to toggle whether to specify separately?
     - [i] Command to insert custom sample
+- [i] FX:
+    - [i] Arp table:
+        - [i] Format????
+    - [i] L/R volume slide
+    - [i] Both volume slide
 - [i] Instrument pitchbend support
     - 1 byte or 2?
 - [ ] Triangle and saw waves
