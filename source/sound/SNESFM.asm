@@ -1862,22 +1862,23 @@ UpdatePitch:
 					!B_HI = CH1_PITCHBEND_H
 				endif
 
-				MOV Y, #$00				;__	Start the high byte
-				MOV A, !A_LO+X			;
-				if not(defined("A_HI"))	;	Get first word
-				BPL +					;	If it's just a byte
-					DEC Y				;	then sign extend
-				+						;__
-				endif					;
+				if defined("A_HI")
+					MOV A, !A_HI+X		;
+					MOV Y, A			;	Get first word
+					MOV	A, !A_LO+X		;__
+				else
+					MOV Y, #$00			;__	Start the high byte
+					MOV A, !A_LO+X		;	Get first word
+					BPL +				;	Since it's just a byte,
+						DEC Y			;	sign extend
+					+					;__
+				endif
+
 				CLRC					;	Add the second low byte
 				ADC A, !B_LO+X			;__
 				MOV !L000_TBL_INDEX, A	;__	Doesn't affect carry
-				MOV A, Y				;
-				ADC A, !B_HI+X			;
-				if defined("A_HI")		;	Add up the high bytes, with overflow
-					CLRC				;
-					ADC A, !A_HI+X		;
-				endif					;__
+				MOV A, Y				;	Add the second high byte
+				ADC A, !B_HI+X			;__
 				CLRC					;	Add up the note immediately
 				ADC A, !L000_NOTE_VALUE	;__
 
@@ -1895,9 +1896,8 @@ UpdatePitch:
 					MOV Y, A							;	Get instrument pitchbend
 					MOV A, CH1_PITCHBEND_H+X			;__
 
-					CLRC								;
-					ADC A, !L000_NOTE_VALUE				;	Add it to the note
-					MOV !L000_NOTE_VALUE, A				;__
+					CLRC								;	Add it to the note
+					ADC A, !L000_NOTE_VALUE				;__
 
 				elseif !SNESFM_CFG_PITCH_EFFECTS
 
@@ -1905,17 +1905,17 @@ UpdatePitch:
 					MOV Y, A							;	Get effect pitchbend
 					MOV A, CH1_PITCH_EFFECT_VAL_H+X		;__
 
-					CLRC								;
-					ADC A, !L000_NOTE_VALUE				;	Add it to the note
-					MOV !L000_NOTE_VALUE, A				;__
+					CLRC								;	Add it to the note
+					ADC A, !L000_NOTE_VALUE				;__
 
 				elseif !SNESFM_CFG_FINE_PITCH
 
 					MOV A, CH1_FINE_PITCH+X				;	Get fine pitch
 					MOV Y, A							;__
-
+					BPL +						;
+						DEC !L000_NOTE_VALUE	;	6 or 4 cycles, the fastest way
+					+							;__
 					MOV A, !L000_NOTE_VALUE
-
 				endif
 
 
@@ -1928,7 +1928,6 @@ UpdatePitch:
 
 
 				; At this point there is definitely multiplication to be done
-			#dbg:
 				CALL .ClampPitch		;
 				; MOV A, PitchTableLo+Y <- Done by clampPitch
 				MOV !L000_BASE_PITCH_L, A	;	Store the (base) pitch value in TMP0
