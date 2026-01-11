@@ -3297,15 +3297,11 @@ Includes:
 
 			+:
 				MOV LogTable+Y, A		;	If we are at a stagger point
-				INC Y					;__	store value to table
-				CMP Y, #200				;	If stagger point <200,
-				BCC .GetStaggerPoint	;__	don't increment
-				ADC	A, #1				;	Otherwise, increment twice
-				BRA	.GetStaggerPoint	;__ (carry was set)
+				INC Y					;	store value to table
+				BRA .GetStaggerPoint	;__	and don't increment
 
 	LogTableTable:
-		db 6, 21, 36, 54, 75, 101, 144
-		db 204, 247
+		db 6, 20, 34, 49, 65, 81, 99, 118, 138, 161, 187, 218
 		db 0
 	LogTable = $0B00
 
