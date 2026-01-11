@@ -9,7 +9,7 @@
 
 - [d] Toggleable noise support
 - [d] [d] Generate 7/8 and 15/16 tables on the fly
-- [ ] Generate every log table, multiple divisors
+- [p] Generate every log table, multiple divisors
 - [ ] Custom sample support:
     - [ ] Use sample addresses for that
         - [ ] ×4 pointer instead of ×2?
