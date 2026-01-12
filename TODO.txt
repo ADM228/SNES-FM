@@ -10,6 +10,8 @@
 - [d] Toggleable noise support
 - [d] [d] Generate 7/8 and 15/16 tables on the fly
 - [p] Generate every log table, multiple divisors
+- [ ] Upload faster with TransferDataBlock
+    - [ ] Measure real perf gains
 - [ ] Custom sample support:
     - [ ] Use sample addresses for that
         - [ ] ×4 pointer instead of ×2?
