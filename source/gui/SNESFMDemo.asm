@@ -203,27 +203,26 @@ SPCTransfer:
         STX .PointerMd      ;   Set up data pointer
         STZ .PointerLo      ;__
     .TransferAddress:
-        LDY #$0002          ;
+        LDY #$0003          ;
         LDA [.Pointer],Y    ;
-        STA APUIO2          ;
-        INY                 ;   Give address to SPC
+        STA APUIO3          ;
+        DEY                 ;   Give address to SPC
         LDA [.Pointer],Y    ;
-        STA APUIO3          ;__
-        LDY #$0000          ;
+        STA APUIO2          ;__
+        DEY                 ;
         LDA [.Pointer],Y    ;
-        STA .LengthLo       ;
-        INY                 ;   Get the length, put it in $04-$05
+        STA .LengthHi       ;
+        DEY                 ;   Get the length, put it in $04-$05
         LDA [.Pointer],Y    ;
-        STA .LengthHi       ;__
-        LDX .Length         ;   If length = 0 it's a jump, therefore end transmission
+        STA .LengthLo       ;__
+        CPY .Length         ;   If length = 0 it's a jump, therefore end transmission
         BEQ .Jump           ;__
-        LDA .SignalByte
-        STA APUIO0
-        STA APUIO1
-        INY
+        LDA .SignalByte     ;
+        STA APUIO0          ;   Send signal byte
+        STA APUIO1          ;__
+        ;__ The counter is already at 0
 
-        LDY #$0000          ;   Init counter
-        CLC                 ;__
+        CLC                 ;
         LDA .PointerLo      ;
         ADC #$04            ;
         STA .PointerLo      ;   Adjust data pointer
@@ -240,11 +239,11 @@ SPCTransfer:
         TYA                 ;
         STA APUIO0          ;   Send counter byte
         STA .CounterByte    ;__
+        INY                 ;__ Update counter
     .Loop03:
         LDA APUIO0          ;
         CMP .CounterByte    ;   Wait for counter acknowledgement
         BNE .Loop03         ;__
-        INY                 ;__ Update counter
         CPY .Length         ;   Go back to loop if we're still in the data
         BNE .Loop02         ;__
 
@@ -272,8 +271,7 @@ SPCTransfer:
         STA APUIO0          ;__
     LDA #$0F
     STA $60
-org $800000|pc()         ;Here purely for not causing errors purpose
-bank $80
+
 dmaToCGRAM:
 
     %SetDP_DMA_PEA()	;__	Set Direct Page to 4300 for DMA registers
@@ -402,6 +400,9 @@ TurnOnScreen:
     LDA #$50
     JSR SendSongSPC
 
+    forever:
+        WAI
+        JMP forever
 
 ; Send "hey i have song data, ill send it"
 SendSongSPC:
@@ -410,7 +411,7 @@ SendSongSPC:
 
     .WaitForAffirmative:
         ; Prepare pointers while waiting anyway:
-            LDY #$0000
+        LDY #$0000
         JSR WaitMsgBase
         CMP #$10    ; Verify that the response is affirmative:
         BNE SendSongSPC_What
@@ -446,10 +447,6 @@ SendSongSPC:
         LDA #$A0
         JSR SendMsgBase
         RTS
-
-forever:
-    WAI
-    JMP forever
 
 SendMsgBase:
     STA APUIO1  ; CMD ID in A
