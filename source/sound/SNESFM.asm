@@ -3013,6 +3013,7 @@ GeneratePitchTable:
 	.Documentation:
 		; Inputs:
 		; YA = base pitch value of C7
+		; Dynamic shit: to be implemented
 	.Defines:
 		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0
 			!GenPitch_Ratio_Lo  = #!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO
@@ -3027,6 +3028,11 @@ GeneratePitchTable:
 		!L001_CounterA		= $EA
 
 		if !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD == 0
+			if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0
+				!GenPitch_HalfRatio_Lo = #!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO/2
+			else
+				!GenPitch_HalfRatio_Lo = $EB
+			endif
 			!L001_NewPitch_Lo = $EC
 			!L001_NewPitch_Hi = $ED
 		else
@@ -3040,6 +3046,8 @@ GeneratePitchTable:
 
 	.Start:
 
+		; Assume Note count and Ratios are stored where properly needed
+
 		MOVW !L001_PrevPitch_Lo, YA
 		MOV PitchTableLo+96-!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT, A
 		MOV PitchTableHi+96-!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT, Y
@@ -3052,6 +3060,12 @@ GeneratePitchTable:
 
 	if !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD == 0
 	; old method, 123 cycles
+
+	if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS != 0
+		MOV A, !GenPitch_Ratio_Lo
+		LSR A
+		MOV !GenPitch_HalfRatio_Lo, A
+	endif
 
 	.SemitoneUpLoop:
 		MOV !L001_CounterA, X
@@ -3075,12 +3089,8 @@ GeneratePitchTable:
 		MOV X, !GenPitch_Ratio_Lo		;__	Get divisor
 		MOV A, !L001_NewPitch_Lo     	;   Y very conveniently stores the remainder as the high byte
 		DIV YA, X                       ;__	Divide low byte with remainder as high byte
-		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0	;
-			CMP Y, #!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO/2   ;
-		else												;	Round the number
-			; How the fuck do i implement this?				;
-		endif												;
-		ADC A, #$00                     					;__
+		CMP Y, !GenPitch_HalfRatio_Lo	;	Round the number
+		ADC A, #$00                     ;__
 
 		MOV X, !L001_CounterA        					;
 		MOV PitchTableLo+96+1-!GenPitch_NoteCount+X, A	;   Store low byte
