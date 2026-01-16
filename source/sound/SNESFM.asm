@@ -3082,7 +3082,7 @@ GeneratePitchTable:
 		MUL YA                          ;__	Multiply high byte
 		ADDW YA, !L001_NewPitch_Hi   	; The next byte is 0, so it adds only the high byte as the mid byte
 
-		MOV X, !GenPitch_Ratio_Hi		;__	Get divisor
+		MOV X, !GenPitch_Ratio_Lo		;__	Get divisor
 		DIV YA, X                       ;   YA very conveniently stores the high and mid bytes
 		MOV !L001_NewPitch_Hi, A     	;__	Divide mid and high bytes
 
