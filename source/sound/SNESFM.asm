@@ -3015,7 +3015,20 @@ GeneratePitchTable:
 		; YA = base pitch value of C7
 		; Dynamic shit: to be implemented
 	.Defines:
-		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0
+		!GenPitch_DynNoteCnt #= !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_NOTE_COUNTS
+		!GenPitch_DynRatios #= !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS
+
+		if !GenPitch_DynNoteCnt == 0
+			!GenPitch_NoteCount	= !SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT
+			!GenPitch_96SubNoteCnt = 96-!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT
+		else
+			!GenPitch_TablePtr = $E4
+			!GenPitch_NoteCount = $E6
+			!GenPitch_96SubNoteCnt = $E7
+		endif
+
+
+		if !GenPitch_DynRatios == 0
 			!GenPitch_Ratio_Lo  = #!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO
 			!GenPitch_Ratio_Hi  = #!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO
 		else
@@ -3023,12 +3036,11 @@ GeneratePitchTable:
 			!GenPitch_Ratio_Hi	= $E9
 		endif
 
-		!GenPitch_NoteCount		= !SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT
 
 		!L001_CounterA		= $EA
 
 		if !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD == 0
-			if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0
+			if !GenPitch_DynRatios == 0
 				!GenPitch_HalfRatio_Lo = #!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO/2
 			else
 				!GenPitch_HalfRatio_Lo = $EB
@@ -3047,21 +3059,29 @@ GeneratePitchTable:
 	.Start:
 
 		; Assume Note count and Ratios are stored where properly needed
+		if !GenPitch_DynNoteCnt == 0
+			MOVW !L001_PrevPitch_Lo, YA
+			MOV PitchTableLo+!GenPitch_96SubNoteCnt, A
+			MOV PitchTableHi+!GenPitch_96SubNoteCnt, Y
+			MOV X, #!GenPitch_96SubNoteCnt+1
+		else
+			MOVW !L001_PrevPitch_Lo, YA
+			MOV A, #96
+			SETC
+			SBC A, !GenPitch_NoteCount
+			MOV !GenPitch_96SubNoteCnt, A
+			MOV X, A
 
-		MOVW !L001_PrevPitch_Lo, YA
-		MOV PitchTableLo+96-!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT, A
-		MOV PitchTableHi+96-!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT, Y
-
-		MOV !L001_CounterA, X
-
-		; TODO: Dynamic pitch counts implement here
-
-		MOV X, #$00
+			MOV A, !L001_PrevPitch_Lo
+			MOV PitchTableLo+X, A
+			MOV PitchTableHi+X, Y
+			INC X
+		endif
 
 	if !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD == 0
 	; old method, 123 cycles
 
-	if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS != 0
+	if !GenPitch_DynRatios != 0
 		MOV A, !GenPitch_Ratio_Lo
 		LSR A
 		MOV !GenPitch_HalfRatio_Lo, A
@@ -3092,15 +3112,15 @@ GeneratePitchTable:
 		CMP Y, !GenPitch_HalfRatio_Lo	;	Round the number
 		ADC A, #$00                     ;__
 
-		MOV X, !L001_CounterA        					;
-		MOV PitchTableLo+96+1-!GenPitch_NoteCount+X, A	;   Store low byte
-		MOV !L001_PrevPitch_Lo, A    					;__
-		MOV A, !L001_NewPitch_Hi     					;
-		MOV PitchTableHi+96+1-!GenPitch_NoteCount+X, A  ;   Store high byte
-		MOV !L001_PrevPitch_Hi, A    					;__
+		MOV X, !L001_CounterA        	;
+		MOV PitchTableLo+X, A			;   Store low byte
+		MOV !L001_PrevPitch_Lo, A    	;__
+		MOV A, !L001_NewPitch_Hi     	;
+		MOV PitchTableHi+X, A  			;   Store high byte
+		MOV !L001_PrevPitch_Hi, A    	;__
 
 		INC X
-		CMP X, #!GenPitch_NoteCount-1
+		CMP X, #96
 		BNE .SemitoneUpLoop
 
 	else	; !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD
