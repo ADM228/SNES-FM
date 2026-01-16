@@ -3163,13 +3163,13 @@ GeneratePitchTable:
 		ADC !L001_PrevPitch_Lo, !L001_NewPitch_Md
 		ADC !L001_PrevPitch_Hi, !L001_NewPitch_Hi
 
-		MOV A, !L001_PrevPitch_Lo											;	Store the low pitch byte
-		MOV PitchTableLo+96+1-!GenPitch_NoteCount+X, A	;__
-		MOV A, !L001_PrevPitch_Hi											;	Store the high pitch byte
-		MOV PitchTableHi+96+1-!GenPitch_NoteCount+X, A	;__
+		MOV A, !L001_PrevPitch_Lo		;	Store the low pitch byte
+		MOV PitchTableLo+X, A			;__
+		MOV A, !L001_PrevPitch_Hi		;	Store the high pitch byte
+		MOV PitchTableHi+X, A			;__
 
 		INC X
-		CMP X, #!GenPitch_NoteCount-1
+		CMP X, #96
 		BNE .SemitoneUpLoop
 
 	endif	; !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD
