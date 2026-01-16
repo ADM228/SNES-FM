@@ -3178,16 +3178,16 @@ GeneratePitchTable:
 		MOV Y, #(96-!GenPitch_NoteCount)
 
 	.BitShiftLoop:
-		MOV A, PitchTableHi+!GenPitch_NoteCount-1+Y	;	Get high byte
-		LSR A															;	Shift it
-		MOV X, A														;__	It's now in X
-		MOV A, PitchTableLo+!GenPitch_NoteCount-1+Y	;	Get low byte
-		ROR A															;__	Shift it
-		ADC A, #$00														;__	Round it
-		MOV PitchTableLo-1+Y, A											;__	Store it
-		MOV A, X														;	Get high back into A
-		ADC A, #$00														;	Round it
-		MOV PitchTableHi-1+Y, A											;__	Store it
+		MOV A, PitchTableHi+!GenPitch_NoteCount-1+Y	;
+		LSR A										;	Halve high byte
+		MOV X, A									;__
+		MOV A, PitchTableLo+!GenPitch_NoteCount-1+Y	;	Halve low byte
+		ROR A										;__
+		ADC A, #$00									;	Round & store low byte
+		MOV PitchTableLo-1+Y, A						;__
+		MOV A, X									;
+		ADC A, #$00									;	Round & store high byte
+		MOV PitchTableHi-1+Y, A						;__
 		DBNZ Y, .BitShiftLoop
 
 	.OverflowCorrection:
