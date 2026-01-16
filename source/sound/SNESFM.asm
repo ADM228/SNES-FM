@@ -3014,8 +3014,15 @@ GeneratePitchTable:
 		; Inputs:
 		; YA = base pitch value of C7
 	.Defines:
-		!GenPitch_Ratio_Lo	= $E8
-		!GenPitch_Ratio_Hi	= $E9
+		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0
+			!GenPitch_Ratio_Lo  = #!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO
+			!GenPitch_Ratio_Hi  = #!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO
+		else
+			!GenPitch_Ratio_Lo	= $E8
+			!GenPitch_Ratio_Hi	= $E9
+		endif
+
+		!GenPitch_NoteCount		= !SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT
 
 		!L001_CounterA		= $EA
 
@@ -3049,39 +3056,23 @@ GeneratePitchTable:
 	.SemitoneUpLoop:
 		MOV !L001_CounterA, X
 
-		MOV Y, !L001_PrevPitch_Lo		;
-		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0	;
-			MOV A, #!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO	;
-		else												;	Get multiplier
-			MOV A, !GenPitch_Ratio_Hi						;
-		endif												;__
+		MOV Y, !L001_PrevPitch_Lo
+		MOV A, !GenPitch_Ratio_Hi		;__	Get multiplier
 		MUL YA                          ;
 		MOV !L001_NewPitch_Lo, A		;	Multiply low byte
 		MOV !L001_NewPitch_Hi, Y		;__
 
 		MOV !L001_PrevPitch_Lo, #$00 	;
 		MOV Y, !L001_PrevPitch_Hi		;
-		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0	;
-			MOV A, #!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO	;
-		else												;	Get multiplier
-			MOV A, !GenPitch_Ratio_Hi						;
-		endif												;__
+		MOV A, !GenPitch_Ratio_Hi		;__	Get multiplier
 		MUL YA                          ;__	Multiply high byte
 		ADDW YA, !L001_NewPitch_Hi   	; The next byte is 0, so it adds only the high byte as the mid byte
 
-		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0	;
-			MOV X, #!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO		;
-		else												;	Get divisor
-			MOV X, !GenPitch_Ratio_Lo						;
-		endif												;__
+		MOV X, !GenPitch_Ratio_Hi		;__	Get divisor
 		DIV YA, X                       ;   YA very conveniently stores the high and mid bytes
 		MOV !L001_NewPitch_Hi, A     	;__	Divide mid and high bytes
 
-		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0	;
-			MOV X, #!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO		;
-		else												;	Get divisor
-			MOV X, !GenPitch_Ratio_Lo						;
-		endif												;__
+		MOV X, !GenPitch_Ratio_Lo		;__	Get divisor
 		MOV A, !L001_NewPitch_Lo     	;   Y very conveniently stores the remainder as the high byte
 		DIV YA, X                       ;__	Divide low byte with remainder as high byte
 		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0	;
@@ -3091,36 +3082,28 @@ GeneratePitchTable:
 		endif												;
 		ADC A, #$00                     					;__
 
-		MOV X, !L001_CounterA        										;
-		MOV PitchTableLo+96+1-!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT+X, A	;   Store low byte
-		MOV !L001_PrevPitch_Lo, A    										;__
-		MOV A, !L001_NewPitch_Hi     										;
-		MOV PitchTableHi+96+1-!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT+X, A  	;   Store high byte
-		MOV !L001_PrevPitch_Hi, A    										;__
+		MOV X, !L001_CounterA        					;
+		MOV PitchTableLo+96+1-!GenPitch_NoteCount+X, A	;   Store low byte
+		MOV !L001_PrevPitch_Lo, A    					;__
+		MOV A, !L001_NewPitch_Hi     					;
+		MOV PitchTableHi+96+1-!GenPitch_NoteCount+X, A  ;   Store high byte
+		MOV !L001_PrevPitch_Hi, A    					;__
 
 		INC X
-		CMP X, #!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT-1
+		CMP X, #!GenPitch_NoteCount-1
 		BNE .SemitoneUpLoop
 
 	else	; !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD
 	; new method, 150-158 cycles
 
 	.SemitoneUpLoop:
-		MOV Y, !L001_PrevPitch_Hi		;
-		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0	;
-			MOV A, #!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO	;
-		else												;	Get multiplier
-			MOV A, !GenPitch_Ratio_Hi						;
-		endif												;__
+		MOV Y, !L001_PrevPitch_Hi
+		MOV A, !GenPitch_Ratio_Hi		;__	Get multiplier
 		MUL YA							;	Multiply Hi * Hi
 		MOVW !L001_NewPitch_Md, YA		;__
 
 		MOV Y, !L001_PrevPitch_Lo		;
-		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0	;
-			MOV A, #!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO		;
-		else												;	Get multiplier
-			MOV A, !GenPitch_Ratio_Lo						;
-		endif												;__
+		MOV A, !GenPitch_Ratio_Lo		;__	Get multiplier
 		MUL YA							;__	Multiply Lo * Lo
 		ASL A							;-	Equal to CMP #$80 but 1 less byte
 		MOV A, Y						;
@@ -3130,22 +3113,14 @@ GeneratePitchTable:
 		+ MOV !L001_NewPitch_Lo, A		;__
 
 		MOV Y, !L001_PrevPitch_Lo		;
-		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0	;
-			MOV A, #!SNESFM_CFG_PITCHTABLE_GEN_HIGHRATIO	;
-		else												;	Get multiplier
-			MOV A, !GenPitch_Ratio_Hi						;
-		endif												;__
+		MOV A, !GenPitch_Ratio_Hi		;__	Get multiplier
 		MUL YA							;	Multiply Lo * Hi
 		ADDW YA, !L001_NewPitch_Lo		;
 		ADC !L001_NewPitch_Hi, #$00		;
 		MOVW !L001_NewPitch_Lo, YA		;__
 
 		MOV Y, !L001_PrevPitch_Hi		;
-		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_RATIOS == 0	;
-			MOV A, #!SNESFM_CFG_PITCHTABLE_GEN_LOWRATIO		;
-		else												;	Get multiplier
-			MOV A, !GenPitch_Ratio_Lo						;
-		endif												;__
+		MOV A, !GenPitch_Ratio_Lo		;__	Get multiplier
 		MUL YA							;__	Multiply Hi * Lo
 		ADDW YA, !L001_NewPitch_Lo		;	Add final Mid&Lo bytes
 		MOV !L001_NewPitch_Md, Y	 	;__
@@ -3159,24 +3134,24 @@ GeneratePitchTable:
 		ADC !L001_PrevPitch_Hi, !L001_NewPitch_Hi
 
 		MOV A, !L001_PrevPitch_Lo											;	Store the low pitch byte
-		MOV PitchTableLo+96+1-!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT+X, A	;__
+		MOV PitchTableLo+96+1-!GenPitch_NoteCount+X, A	;__
 		MOV A, !L001_PrevPitch_Hi											;	Store the high pitch byte
-		MOV PitchTableHi+96+1-!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT+X, A	;__
+		MOV PitchTableHi+96+1-!GenPitch_NoteCount+X, A	;__
 
 		INC X
-		CMP X, #!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT-1
+		CMP X, #!GenPitch_NoteCount-1
 		BNE .SemitoneUpLoop
 
 	endif	; !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD
 
 	.BitShiftStart:
-		MOV Y, #(96-!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT)
+		MOV Y, #(96-!GenPitch_NoteCount)
 
 	.BitShiftLoop:
-		MOV A, PitchTableHi+!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT-1+Y	;	Get high byte
+		MOV A, PitchTableHi+!GenPitch_NoteCount-1+Y	;	Get high byte
 		LSR A															;	Shift it
 		MOV X, A														;__	It's now in X
-		MOV A, PitchTableLo+!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT-1+Y	;	Get low byte
+		MOV A, PitchTableLo+!GenPitch_NoteCount-1+Y	;	Get low byte
 		ROR A															;__	Shift it
 		ADC A, #$00														;__	Round it
 		MOV PitchTableLo-1+Y, A											;__	Store it
@@ -3190,12 +3165,12 @@ GeneratePitchTable:
 
 		..Loop:
 			MOV A, PitchTableHi-1+Y		;
-			CMP A, #$40                 ;   If the value isn't overflowing, exit
-			BMI .End  ;__
+			CMP A, #$40					;   If the value isn't overflowing, exit
+			BMI .End					;__
 
-			MOV A, #$3F                 ;
+			MOV A, #$3F					;
 			MOV PitchTableHi-1+Y, A		;   Cap the pitch value
-			MOV A, #$FF                 ;
+			MOV A, #$FF					;
 			MOV PitchTableLo-1+Y, A		;__
 
 			DBNZ Y, ..Loop
