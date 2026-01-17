@@ -305,11 +305,6 @@ InternalConfig:
 		endif
 		!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT ?= 12
 
-		; TODO: make support for this
-		if !SNESFM_CFG_PITCHTABLE_GEN_DYNAMIC_NOTE_COUNTS
-			error "Sorry, dynamic note counts not supported rn"
-		endif
-
 	endif
 
 	!SNESFM_CFG_INSGEN_REPEAT_AMOUNT ?= 0
@@ -3020,9 +3015,11 @@ GeneratePitchTable:
 
 		if !GenPitch_DynNoteCnt == 0
 			!GenPitch_NoteCount	= !SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT
-			!GenPitch_96SubNoteCnt = 96-!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT
+			!GenPitch_96SubNoteCntOff = 96-!SNESFM_CFG_PITCHTABLE_GEN_NOTE_COUNT
+			!GenPitch_96SubNoteCnt = #!GenPitch_96SubNoteCntOff
 		else
-			!GenPitch_TablePtr = $E4
+			!GenPitch_LoTablePtr = $E2
+			!GenPitch_HiTablePtr = $E4
 			!GenPitch_NoteCount = $E6
 			!GenPitch_96SubNoteCnt = $E7
 		endif
@@ -3061,9 +3058,9 @@ GeneratePitchTable:
 		; Assume Note count and Ratios are stored where properly needed
 		if !GenPitch_DynNoteCnt == 0
 			MOVW !L001_PrevPitch_Lo, YA
-			MOV PitchTableLo+!GenPitch_96SubNoteCnt, A
-			MOV PitchTableHi+!GenPitch_96SubNoteCnt, Y
-			MOV X, #!GenPitch_96SubNoteCnt+1
+			MOV PitchTableLo+!GenPitch_96SubNoteCntOff, A
+			MOV PitchTableHi+!GenPitch_96SubNoteCntOff, Y
+			MOV X, !GenPitch_96SubNoteCnt+1
 		else
 			MOVW !L001_PrevPitch_Lo, YA
 			MOV A, #96
@@ -3076,6 +3073,15 @@ GeneratePitchTable:
 			MOV PitchTableLo+X, A
 			MOV PitchTableHi+X, Y
 			INC X
+
+			; PitchTableLo = $0E00, nothing to add
+			MOV A, !GenPitch_NoteCount
+			DEC A
+			MOV Y, #$0E
+			MOVW !GenPitch_LoTablePtr, YA
+			CLRC
+			ADC A, #96
+			MOVW !GenPitch_HiTablePtr, YA
 		endif
 
 	if !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD == 0
@@ -3174,21 +3180,37 @@ GeneratePitchTable:
 
 	endif	; !SNESFM_CFG_PITCHTABLE_GEN_ARITHMETIC_METHOD
 
+	if !GenPitch_DynNoteCnt == 0 && !GenPitch_NoteCount >= 96
+	else
 	.BitShiftStart:
-		MOV Y, #(96-!GenPitch_NoteCount)
+		MOV Y, !GenPitch_96SubNoteCnt
+		if !GenPitch_DynNoteCnt
+			BEQ .OverflowCorrection
+		endif
+
+		if !GenPitch_DynNoteCnt
+			!PTR_LO = (!GenPitch_LoTablePtr)+Y
+			!PTR_HI = (!GenPitch_HiTablePtr)+Y
+		else
+			!PTR_LO = PitchTableLo+!GenPitch_NoteCount-1+Y
+			!PTR_HI = PitchTableHi+!GenPitch_NoteCount-1+Y
+		endif
 
 	.BitShiftLoop:
-		MOV A, PitchTableHi+!GenPitch_NoteCount-1+Y	;
-		LSR A										;	Halve high byte
-		MOV X, A									;__
-		MOV A, PitchTableLo+!GenPitch_NoteCount-1+Y	;	Halve low byte
-		ROR A										;__
-		ADC A, #$00									;	Round & store low byte
-		MOV PitchTableLo-1+Y, A						;__
-		MOV A, X									;
-		ADC A, #$00									;	Round & store high byte
-		MOV PitchTableHi-1+Y, A						;__
+		MOV A, !PTR_HI			;
+		LSR A					;	Halve high byte
+		MOV X, A				;__
+		MOV A, !PTR_LO			;	Halve low byte
+		ROR A					;__
+		ADC A, #$00				;	Round & store low byte
+		MOV PitchTableLo-1+Y, A	;__
+		MOV A, X				;
+		ADC A, #$00				;	Round & store high byte
+		MOV PitchTableHi-1+Y, A	;__
 		DBNZ Y, .BitShiftLoop
+
+		undef PTR_LO : undef PTR_HI
+	endif
 
 	.OverflowCorrection:
 		MOV Y, #96
