@@ -431,6 +431,7 @@ InternalDefines:
 		!TEMP_POINTER2_L = $0E
 		!TEMP_POINTER2_H = $0F
 
+		; Global register buffers
 		!KOFF_BUF		= $50
 		!KON_BUF		= $51
 		!FLG_BUF		= $52
@@ -438,15 +439,22 @@ InternalDefines:
 		!EON_BUF		= $54
 		!ESA_BUF		= $55
 
-		!CHTEMP_VOLL	= $60
-		!CHTEMP_VOLR	= $61
-		!CHTEMP_PITCHLO	= $62
-		!CHTEMP_PITCHHI	= $63
-		!CHTEMP_SRCN	= $64
-		!CHTEMP_ADSR1	= $65
-		!CHTEMP_ADSR2	= $66	;	Intentionally the same address
-		!CHTEMP_GAIN	= $66	;__
-		!CHTEMP_REGFLG	= $67	;__	0000espv = Envelope, Source, Pitch, Volume
+		; Register buffer update flags
+		; Flags are set per channel
+		!UPD_VOL		= $58
+		!UPD_PITCH		= $59
+		!UPD_SRC		= $5A
+		!UPD_ENV		= $5B
+
+		; Channel register buffers
+		CH1_VOLL		= $60
+		CH1_VOLR		= $61
+		CH1_PITCHLO		= $62
+		CH1_PITCHHI		= $63
+		CH1_SRCN		= $64
+		CH1_ADSR1		= $65
+		CH1_ADSR2		= $66	;	Intentionally the same address
+		CH1_GAIN		= $66	;__
 
 	; S-CPU communication
 		MESSAGE_CNT_TH1 = $40
@@ -1307,22 +1315,23 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 	.SetVolumeL_or_R:
 		MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y assumed to be 0
 		INCW CHTEMP_SONG_POINTER_L
-		AND !CHANNEL_REGISTER_INDEX, #$70
-		MOV $F2, !CHANNEL_REGISTER_INDEX
-		BBC0 $E0, +         ;   Store to right volume register if bit 0 set
-		INC $F2             ;__
-	+   %realChannelWrite()
-		JMP .POPX_ReadByte
+		OR !UPD_VOL, !CHANNEL_BITMASK
+		MOV X, !BACKUP_X
+		BBS0 $E0, ..R			;__   Store to right volume register if bit 0 set
+			MOV CH1_VOLL+X, A
+			JMP .ReadByte
+		..R:
+			MOV CH1_VOLR+X, A
+			JMP .ReadByte
 
 	.SetVolumeBoth:
 		MOV A, (CHTEMP_SONG_POINTER_L)+Y
 		INCW CHTEMP_SONG_POINTER_L
-		AND !CHANNEL_REGISTER_INDEX, #$70
-		MOV $F2, !CHANNEL_REGISTER_INDEX
-		%realChannelWrite()
-		INC $F2
-	+   %realChannelWrite()
-		JMP .POPX_ReadByte
+		MOV X, !BACKUP_X
+		MOV CH1_VOLL+X, A
+		MOV CH1_VOLR+X, A
+		OR !UPD_VOL, !CHANNEL_BITMASK
+		JMP .ReadByte
 
 	.ReferenceSet:
 		MOV X, !BACKUP_X
@@ -1523,6 +1532,9 @@ MainLoop:
 
 		MOV X, #$00
 		INC !CHANNEL_BITMASK
+
+		CALL TransferRegisterData
+
 		JMP .WaitLoop
 
 ParseInstrumentData:
@@ -2033,6 +2045,34 @@ UpdateEffects:
 			RET
 	endif
 endif
+
+TransferRegisterData:
+	; X is 0, CHANNEL_BITMASK is 1, as needed
+	MOV !CHANNEL_REGISTER_INDEX, X
+	.Loop:
+		; Order: volume, envelope, source, pitch
+		LSR !UPD_VOL
+		BCC ..UpdateEnvelope
+			MOV $F2, !CHANNEL_REGISTER_INDEX
+			MOV A, CH1_VOLL+X
+			MOV $F3, A
+			INC $F2
+			MOV A, CH1_VOLR+X
+			MOV $F3, A
+		..UpdateEnvelope:
+		; Ends here right now
+		MOV A, X
+		CLRC
+		ADC A, #$08
+		; This cannot set carry
+		ADC !CHANNEL_REGISTER_INDEX, #$10
+		MOV X, A
+		ASL !CHANNEL_BITMASK
+		BNE .Loop
+
+	MOV X, #$00
+	INC !CHANNEL_BITMASK
+	RET
 
 TransferDataBlock:
 	.Labels:
