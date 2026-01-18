@@ -197,37 +197,47 @@ pushbase
 base $0000
 InsDB:
     i00InsType:
+    i03InsType:
     db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_ADSR|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX|!SAMPLE_SUBPAGE_0
     i01InsType:
     db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_ADDRESS
     i02InsType:
+    i04InsType:
     db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_NOISE|!SAMPLE_USE_INDEX
     db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
     db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_SAMPLE|!SAMPLE_USE_INDEX
     db !PITCHBEND_ABSOLUTE|!ENVELOPE_TYPE_GAIN|!INSTRUMENT_TYPE_NOISE|!SAMPLE_USE_INDEX
 
     i00Envelope:
+    i03Envelope:
     db $5E, $90
     i01Envelope:
     db $7F, $00
     i02Envelope:
-    db $20, $7F, $7F, $20, !ENV_DECREASE_LINEAR|$06
+    db $0C, $7F, $7F, $10, !ENV_DECREASE_LINEAR|$06
+    i04Envelope:
+    db $0C, !ENV_DECREASE_LINEAR|$0A
 
-    i00SmpPtr:
+    i03SmpPtr:
     db $00, $00, $01, $02
     db $03, $04, $05, $06
     db $07, $08, $09, $0A
     db $0B, $0C, $0D, $0E
+    i00SmpPtr:
+    db $0E
     i01SmpPtr:
     dw $6288
+    i04SmpPtr:
     i02SmpPtr:
     db $FF
 
-    i00Arpeggio:
     i00Pitchbend:
     i01Arpeggio:
     i01Pitchbend:
     i02Pitchbend:
+    i03Arpeggio:
+    i03Pitchbend:
+    i04Pitchbend:
     db $00, $F4, $EE, $E8
     db $E5, $E2, $DF, $DC
     db $DB, $DA, $D9, $D8
@@ -236,13 +246,18 @@ InsDB:
     i02Arpeggio:
     db $1D, $2C, $2A, $1D
 
+    i04Arpeggio:
+    db $3F
+
+    i00Arpeggio:
+    db $0C, $00
+
 InsDBEnd:
 
 pullbase
 
 db !INS_NEW_HDR
 
-    Instr03Data:
     Instr00Data:
     .Header:
     db %00000000, %00000000    ;Looping, everything one-shot for now
@@ -252,9 +267,9 @@ db !INS_NEW_HDR
     dw !BASE_MEMORY-(InsDBEnd-i00Envelope)
     db $00, $00
     dw !BASE_MEMORY-(InsDBEnd-i00SmpPtr)
-    db $0F, $00
-    dw !BASE_MEMORY-(InsDBEnd-i00Arpeggio)
     db $00, $00
+    dw !BASE_MEMORY-(InsDBEnd-i00Arpeggio)
+    db $01, $00
     dw !BASE_MEMORY-(InsDBEnd-i00Pitchbend)
     db $00, $00
 
@@ -283,15 +298,51 @@ db !INS_NEW_HDR
     db %00000000, %00000000
 
     dw !BASE_MEMORY-(InsDBEnd-i02InsType)
-    db $03, $01
+    db $03, $00
     dw !BASE_MEMORY-(InsDBEnd-i02Envelope)
-    db $04, $01
+    db $04, $00
     dw !BASE_MEMORY-(InsDBEnd-i02SmpPtr)
     db $00, $00
     dw !BASE_MEMORY-(InsDBEnd-i02Arpeggio)
-    db $03, $01
+    db $03, $00
     dw !BASE_MEMORY-(InsDBEnd-i02Pitchbend)
     db $00, $00
+
+db !INS_NEW_HDR
+
+    Instr03Data:
+    .Header:
+    db %00000000, %00000000    ;Looping, everything one-shot for now
+
+    dw !BASE_MEMORY-(InsDBEnd-i03InsType)
+    db $00, $00     ;
+    dw !BASE_MEMORY-(InsDBEnd-i03Envelope)
+    db $00, $00
+    dw !BASE_MEMORY-(InsDBEnd-i03SmpPtr)
+    db $0F, $03
+    dw !BASE_MEMORY-(InsDBEnd-i03Arpeggio)
+    db $00, $00
+    dw !BASE_MEMORY-(InsDBEnd-i03Pitchbend)
+    db $00, $00
+
+db !INS_NEW_HDR
+
+    Instr04Data:
+    i04:
+    .Header:
+    db %00000000, %00000000
+
+    dw !BASE_MEMORY-(InsDBEnd-i04InsType)
+    db $00, $00
+    dw !BASE_MEMORY-(InsDBEnd-i04Envelope)
+    db $01, $00
+    dw !BASE_MEMORY-(InsDBEnd-i04SmpPtr)
+    db $00, $00
+    dw !BASE_MEMORY-(InsDBEnd-i04Arpeggio)
+    db $00, $00
+    dw !BASE_MEMORY-(InsDBEnd-i04Pitchbend)
+    db $00, $00
+
 
 db !INS_DATA_END
 arch 65816

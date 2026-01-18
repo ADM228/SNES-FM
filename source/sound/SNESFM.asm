@@ -531,8 +531,10 @@ Init:       ;init routine by KungFuFurby
 	MOV $F2, #$5D				;   Set sample directory
 	MOV $F3, #(SMP_DIR_P0>>8)	;__
 	MOV $F1, #$00	;
+	MOV $FA, #$43	;   Set Timer 0 to 8.375 ms  (~120 Hz)
+	;MOV $FA, #$50	;   Set Timer 0 to 10 ms     (100 Hz)
+	;MOV $FA, #$64	;   Set Timer 0 to 12.5 ms   (80 Hz)
 	;MOV $FA, #$85	;   Set Timer 0 to 16.625 ms (~60 Hz)
-	MOV $FA, #$50	;   Set Timer 0 to 10 ms     (100 Hz)
 	;MOV $FA, #$A0	;   Set Timer 0 to 20 ms     (50 Hz)
 	;MOV $FA, #$FF	;   Set Timer 0 to 31.875 ms (~31 Hz)
 	MOV $F1, #$07	;__

@@ -155,7 +155,7 @@ InstrumentData:
     incsrc "../sound/instrumentData.asm"
 InstrumentData_End:
 SongData:
-    incsrc "../sound/songData.asm"
+    incsrc "../sound/songDataUltraTrailer.asm"
 SongData_End:
 
 org $07FFFF ;set size of the file, irrelevant lmao
