@@ -1095,15 +1095,10 @@ Begin:
 		if !SNESFM_CFG_PITCHBEND_ANY
 			if !SNESFM_CFG_PITCH_EFFECTS		;
 				MOV CH1_PITCH_EFFECT_VAL_H+X, A	;
-			endif								;
-			if !SNESFM_CFG_INSTRUMENT_PITCHBEND	;
-				MOV CH1_PITCHBEND_H+X, A		;
-			endif								;
-			MOV A, #$00							;
-			if !SNESFM_CFG_PITCH_EFFECTS		;   Zero out pitchbend
 				MOV CH1_PITCH_EFFECT_VAL_L+X, A	;
 			endif								;
 			if !SNESFM_CFG_INSTRUMENT_PITCHBEND	;
+				MOV CH1_PITCHBEND_H+X, A		;	Zero out pitch FX
 				MOV CH1_PITCHBEND_L+X, A		;
 			endif								;
 			if !SNESFM_CFG_FINE_PITCH			;
