@@ -3,15 +3,17 @@
 
 [i] - semi-incoherent idea/concept, make more concrete
 [ ] - idea coherent, not done
+[b] - implementation in progress on separate git branch
 [p] - implementation in progress
 [d] - implemented but undocumented
 [D] - implemented; documentation in progress
 
+SONG PLAYBACK
 - [d] Toggleable noise support
 - [d] [d] Generate 7/8 and 15/16 tables on the fly
 - [p] Generate every log table, multiple divisors
-- [ ] Upload faster with TransferDataBlock
-    - [ ] Measure real perf gains
+- [b] Calculate register changes, store in a stack, then unpack all at once
+- [i] Optimize instrument macros somehow
 - [ ] Custom sample support:
     - [ ] Use sample addresses for that
         - [ ] ×4 pointer instead of ×2?
@@ -25,6 +27,13 @@
     - [i] Both volume slide
 - [i] Instrument pitchbend support
     - 1 byte or 2?
+
+
+MODULAR SYNTHESIS
+- [ ] Redo the sample format to split into hi-lo tables
+    - [ ] Redo sine table
+    - [ ] [ ] Redo phasemod
+    - [ ] Redo BRR sample generation
 - [ ] Triangle and saw waves
     - [ ] Add option for simplified algorithm that only makes saw and triangle waves
         - [ ] Sawtooth: forward / reverse option

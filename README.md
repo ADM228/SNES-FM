@@ -27,24 +27,21 @@ SNES-FM is a frequency modulation synthesis engine/sound driver for the SNES (or
 
 ### On SPC700 (full list at [TODO.txt](TODO.txt))
 
+- Currently, the number 1 priority is optimization. SNESFM is slow as hell right now
 - Modular synthesis-related:
   - Tilted saw/triangle generation
   - Feedback
   - Mult
   - etc
 - Effects other than volume changes
-- Extended communication with the main CPU, therefore
-  - Streaming samples
-  - Sound effects
 - 4 sections in instruments
+- Extended communication with the main CPU, therefore
+  - Sound effects
+  - Streaming samples
   
 ### On 5A22 (in the not yet forseeable future; check out [Genecyzer](https://github.com/ADM228/Genecyzer) for a PC implementation in the meantime)
 
-- A whole-ass tracker and a DAW (design of the latter will be completely stolen from [FamiStudio](https://github.com/BleuBleu/FamiStudio))
-- Saving tracker data to SRAM and sharing .srm files of songs
-- SNES Mouse (up to 4 simultaneously) and NTT Data Pad (up to 8) support along with standard controllers (up to 8)
-- Miracle Piano Teaching System keyboard support (up to 4 (maybe 8 if additional buttons)) (if anyone i know gets one)
-- XBAND ASCII keyboard support (up to 2)
+- Possibly some simplistic demo interface (when CPU commnunication is improved)
 
 ## Building
 
@@ -52,7 +49,7 @@ This project is made and compiled with the [asar](https://github.com/rpghacker/a
 
 ## Usage in your projects
 
-This project is very much incomplete so i can't exactly recommend using it yet, but if you really need to, it is licensed under the zlib license, a copy of which is [included with the project](LICENSE). The configuration guide can be found [here](docs/configuration.md).
+This project is very much incomplete so i can't exactly recommend using it yet, but if you really need to, it is licensed under the zlib license (except for any demo songs as of right now (policy might change)), a copy of which is [included with the project](LICENSE). The configuration guide can be found [here](docs/configuration.md).
 
 ## Development & testing
 

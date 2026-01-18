@@ -1,7 +1,9 @@
-; Cover of Ultra Trailer by Masarada
-; Possibly to become a trailer for SNESFM when it's featured enough
+; Ultra Trailer by Masarada
+; Cover by alexmush
+; Possibly to become a trailer (get it?) for when SNESFM has enough features
 ; No proper vocals until streaming
 
+; unlike the rest of the library, NOT LICENSED at the moment.
 
 ;Song format description (in development):
 	;2. New song data
