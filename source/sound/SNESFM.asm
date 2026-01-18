@@ -431,6 +431,23 @@ InternalDefines:
 		!TEMP_POINTER2_L = $0E
 		!TEMP_POINTER2_H = $0F
 
+		!KOFF_BUF		= $50
+		!KON_BUF		= $51
+		!FLG_BUF		= $52
+		!NON_BUF		= $53
+		!EON_BUF		= $54
+		!ESA_BUF		= $55
+
+		!CHTEMP_VOLL	= $60
+		!CHTEMP_VOLR	= $61
+		!CHTEMP_PITCHLO	= $62
+		!CHTEMP_PITCHHI	= $63
+		!CHTEMP_SRCN	= $64
+		!CHTEMP_ADSR1	= $65
+		!CHTEMP_ADSR2	= $66	;	Intentionally the same address
+		!CHTEMP_GAIN	= $66	;__
+		!CHTEMP_REGFLG	= $67	;__	0000espv = Envelope, Source, Pitch, Volume
+
 	; S-CPU communication
 		MESSAGE_CNT_TH1 = $40
 
@@ -1461,11 +1478,10 @@ MainLoop:
 			AND A, #$04
 			BEQ +
 				MOV A, #(WriteToChannel_VirtualChannel&$FF)
+				JMP ++
 			+:
-			; if (WriteToChannel_VirtualChannel&$FF) > 0    // ASAR YOU FUCKING ASSHOLE
-				CLRC
-				ADC A, #(WriteToChannel&$FF)
-			; endif
+				MOV A, #(WriteToChannel&$FF)
+			++:
 			MOV $FFC0+4, A
 		endif
 
