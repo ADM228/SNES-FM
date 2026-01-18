@@ -1831,9 +1831,6 @@ UpdatePitch:
 		!L000_TBL_INDEX = !TEMP_POINTER1_H
 		!L000_HIGH_RESULT = !TEMP_POINTER2_L
 
-		AND !CHANNEL_REGISTER_INDEX, #$70       ;
-		OR !CHANNEL_REGISTER_INDEX, #$02        ;   DSP Address: Low pitch
-		MOV $F2, !CHANNEL_REGISTER_INDEX;       ;__
 		if !SNESFM_CFG_PITCHBEND_ANY
 
 			MOV !L000_NOTE_VALUE, A
@@ -1985,21 +1982,19 @@ UpdatePitch:
 				; Carry set accordingly for 2's complement addition
 				ADDW YA, !L000_BASE_PITCH_L
 
-				MOV !TEMP_POINTER0_L, Y		;	Update low byte of pitch
-				%realChannelWrite()			;__
-				INC $F2						;
-				MOV A, !TEMP_POINTER0_L		;	Update high byte of pitch
-				%realChannelWrite()			;__
+				MOV CH1_PITCHLO+X, A
+				MOV CH1_PITCHHI+X, Y
+				OR !UPD_PITCH, !CHANNEL_BITMASK
 				RET
 
 			.NoBend:
 		endif
 			CALL .ClampPitch
 			; MOV A, PitchTableLo+Y <- Done by clampPitch
-			%realChannelWrite()                     ;__	Update low byte of pitch
-			MOV A, PitchTableHi+Y                   ;
-			INC $F2                                 ;   Update high byte of pitch
-			%realChannelWrite()                     ;__
+			MOV CH1_PITCHLO+X, A		;__	Update low byte of pitch
+			MOV A, PitchTableHi+Y		;	Update high byte of pitch
+			MOV CH1_PITCHHI+X, A		;__
+			OR !UPD_PITCH, !CHANNEL_BITMASK
 		RET
 	.ClampPitch:
 		MOV Y, A                                ;
@@ -2053,6 +2048,7 @@ TransferRegisterData:
 		; Order: volume, envelope, source, pitch
 		LSR !UPD_VOL
 		BCC ..UpdateEnvelope
+			AND !CHANNEL_REGISTER_INDEX, #$70
 			MOV $F2, !CHANNEL_REGISTER_INDEX
 			MOV A, CH1_VOLL+X
 			MOV $F3, A
@@ -2060,7 +2056,23 @@ TransferRegisterData:
 			MOV A, CH1_VOLR+X
 			MOV $F3, A
 		..UpdateEnvelope:
+		..UpdateSource:
 		; Ends here right now
+		..UpdatePitch:
+		LSR !UPD_PITCH
+		BCC ..End
+			MOV A, !CHANNEL_REGISTER_INDEX
+			AND A, #$70
+			OR A, #$02
+			MOV $F2, A
+			MOV !CHANNEL_REGISTER_INDEX, A
+
+			MOV A, CH1_PITCHLO+X
+			MOV $F3, A
+			INC $F2
+			MOV A, CH1_PITCHHI+X
+			MOV $F3, A
+		..End:
 		MOV A, X
 		CLRC
 		ADC A, #$08
