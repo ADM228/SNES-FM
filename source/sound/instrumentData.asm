@@ -109,7 +109,7 @@
             !PITCHBEND_RELATIVE = %00000100
             !ENVELOPE_TYPE_GAIN = %00000000
             !ENVELOPE_TYPE_ADSR = %00000010
-            !INSTRUMENT_TYPE_NOISE = %0000000
+            !INSTRUMENT_TYPE_NOISE = %00000000
             !INSTRUMENT_TYPE_SAMPLE = %00000001
     ;Instrument data opcodes
         !COPY_RSMP      = $00

@@ -1085,6 +1085,7 @@ Begin:
 	MOV !CHANNEL_BITMASK, X
 	DEC X
 	MOV !CHANNEL_REGISTER_INDEX, X
+	MOV !NON_BUF, X
 	MOV Y, #$00
 	-:
 		MOV A, (!TEMP_POINTER0_L)+Y
@@ -1112,7 +1113,9 @@ Begin:
 				MOV CH1_FINE_PITCH+X, A			;
 			endif								;__
 		endif
-		MOV A, #$02							;   Bit 1 set to stop from
+		INC A								;	Bit 0 to mark as sample instrument
+		MOV CH1_INSTRUMENT_TYPE+X, A		;__
+		INC A								;   Bit 1 set to stop from
 		MOV CH1_FLAGS+X, A                  ;__ parsing nonexistent instrument data
 		MOV A, #$C0							;
 		MOV SMP_DIR_P0+4+X, A				;
@@ -1140,10 +1143,8 @@ Begin:
 
 	MOV DSPADDR, #KOFF	;	Key Off Nothing
 	MOV DSPDATA, X		;__
-	if not(!SNESFM_CFG_HARDWARE_NOISE_SUPPORT)
-		MOV DSPADDR, #NON	;	Disable noise on all channels
-		MOV DSPDATA, X		;__
-	endif
+	MOV DSPADDR, #NON	;	Disable noise on all channels
+	MOV DSPDATA, X		;__
 	MOV DSPADDR, #FLG	;	Unmute, disable echo
 	MOV DSPDATA, #$20	;__
 
@@ -1671,24 +1672,19 @@ ParseInstrumentData:
 	.UpdateInstrumentType:
 		POP X
 		if !SNESFM_CFG_HARDWARE_NOISE_SUPPORT
-			MOV0 C, CHTEMP_INSTRUMENT_TYPE      ;__ Get the old value
-			MOV A, (!TEMP_POINTER1_L)+Y         ;   Get the current value
-			MOV CHTEMP_INSTRUMENT_TYPE, A      	;__
-			EOR0 C, CHTEMP_INSTRUMENT_TYPE      ;   Don't update if nothing changed
-			BCC ++                              ;__
-				SET0 !PLAYBACK_FLAGS                ;
-				MOV $F2, #$3D                       ;
-				BBC0 CHTEMP_INSTRUMENT_TYPE, +		;
-					MOV A, !CHANNEL_BITMASK         ;
-					TCLR $F3, A                     ;   Update the noise enable flag
-					JMP ++                          ;
-				+:                                  ;
-					OR $F3, !CHANNEL_BITMASK        ;__
+			MOV0 C, CHTEMP_INSTRUMENT_TYPE		;__ Get the old value
+			MOV A, (!TEMP_POINTER1_L)+Y			;   Get the current value
+			MOV CHTEMP_INSTRUMENT_TYPE, A		;__
+			EOR0 C, CHTEMP_INSTRUMENT_TYPE		;   Don't update if nothing changed
+			BCC ..Envelope						;__
+				SET0 !PLAYBACK_FLAGS			;	Update the noise enable flag
+				OR !NON_BUF, !CHANNEL_BITMASK	;__
 		else
 			MOV A, (!TEMP_POINTER1_L)+Y         ;   Get the current value
 			MOV CHTEMP_INSTRUMENT_TYPE, A      	;__
 		endif
-	++  AND !CHANNEL_REGISTER_INDEX, #$70	;
+		..Envelope:
+		AND !CHANNEL_REGISTER_INDEX, #$70	;
 		OR !CHANNEL_REGISTER_INDEX, #$05	;
 		MOV $F2, !CHANNEL_REGISTER_INDEX	;
 		MOV1 C, $F3							;   If the envelope mode isn't changed,
@@ -2081,6 +2077,8 @@ TransferRegisterData:
 	MOV X, #$00
 	INC !CHANNEL_BITMASK
 
+	MOV DSPADDR, #NON		;	Send Noise Enable
+	EOR DSPDATA, !NON_BUF	;__
 	MOV DSPADDR, #KOFF		;	Send no Key Offs
 	MOV DSPDATA, X			;__
 	MOV DSPADDR, #KON		;	Send Key Ons
@@ -2088,6 +2086,7 @@ TransferRegisterData:
 
 	MOV !KOFF_BUF, X
 	MOV !KON_BUF, X
+	MOV !NON_BUF, X
 	RET
 
 TransferDataBlock:
