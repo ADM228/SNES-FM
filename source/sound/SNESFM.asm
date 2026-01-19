@@ -1573,7 +1573,9 @@ ParseInstrumentData:
 		MOV !TEMP_VALUE2, #$04
 
 		-:
+			PUSH X
 			CALL .UpdateMacro
+			POP X
 			INC X
 			ASL !TEMP_VALUE
 			DBNZ !TEMP_VALUE2, -
@@ -1594,7 +1596,9 @@ ParseInstrumentData:
 				SBC A, !TIMER_VALUE
 				MOV CH1_MACRO_COUNTERS+X, A
 				BPL +
+					PUSH X
 					CALL .UpdateMacro
+					POP X
 					JMP ++
 			+
 				CLRC
@@ -1614,7 +1618,6 @@ ParseInstrumentData:
 		+ RET
 
 	.UpdateMacro:
-		PUSH X
 		MOV Y, #$00
 		MOV A, (!TEMP_POINTER0_L)+Y             ;
 		MOV !TEMP_POINTER1_L, A                 ;
@@ -1696,8 +1699,7 @@ ParseInstrumentData:
 			MOV CH1_ADSR2+X, A				;	If ADSR is used,
 			MOV A, #$80						;	Clear out the ADSR envelope
 			MOV CH1_ADSR1+X, A				;__
-		#.R	POP X
-			RET
+		#.R	RET
 		+:									;
 			MOV CH1_ADSR1+X, A				;
 			MOV A, !CHANNEL_REGISTER_INDEX	;
@@ -1706,7 +1708,6 @@ ParseInstrumentData:
 			MOV DSPADDR, A					;	set the GAIN envelope to the current value
 			MOV A, DSPDATA					;
 			MOV CH1_GAIN+X, A				;__
-		POP X
 		RET
 
 	.UpdateEnvelope:
@@ -1719,12 +1720,10 @@ ParseInstrumentData:
 			MOV CH1_ADSR1+X, A				;__
 			MOV A, (!TEMP_POINTER1_L)+Y		;	Update Sustain, Release
 			MOV CH1_ADSR2+X, A				;__
-			POP X
 			RET
 		+:
 			MOV A, (!TEMP_POINTER1_L)+Y		;	Update GAIN envelope
 			MOV CH1_GAIN+X, A				;__
-			POP X
 			RET
 	.UpdateSamplePointer:
 		MOV X, !BACKUP_X					    ;__
@@ -1760,7 +1759,6 @@ ParseInstrumentData:
 			BNE ..withRestart					;
 			MOV A, !TEMP_POINTER2_L				;	If yes, update only the low byte of the sample pointer
 			MOV SMP_DIR_P0+2+X, A				;__
-			POP X
 			RET
 
 		..withRestart:
@@ -1781,7 +1779,6 @@ ParseInstrumentData:
 			LSR A                               ;
 			%realChannelWrite()                 ;__
 			EOR CHTEMP_FLAGS, #$80				;__ Next time update the other sample
-			POP X
 			RET
 
 	.UpdateArpeggio:
@@ -1791,7 +1788,7 @@ ParseInstrumentData:
 		BEQ +                                   ;   If arpeggio changed, update it
 			SET0 !PLAYBACK_FLAGS                ;   and set to update the pitch
 			MOV CH1_ARPEGGIO+X, A               ;__
-		+ POP X
+		+
 		#RET000: RET
 
 UpdatePitch:
