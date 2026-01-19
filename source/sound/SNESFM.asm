@@ -1144,7 +1144,7 @@ Begin:
 		MOV DSPADDR, #NON	;	Disable noise on all channels
 		MOV DSPDATA, X		;__
 	endif
-	MOV DSPADDR, #$FLG	;	Unmute, disable echo
+	MOV DSPADDR, #FLG	;	Unmute, disable echo
 	MOV DSPDATA, #$20	;__
 
 	MOV A, T0OUT		;__	Reset timer
