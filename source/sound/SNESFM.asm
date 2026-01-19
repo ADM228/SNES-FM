@@ -432,7 +432,7 @@ InternalDefines:
 		!TEMP_POINTER2_H = $0F
 
 		; Global register buffers
-		!KOFF_BUF		= $50
+		!KOF_BUF		= $50
 		!KON_BUF		= $51
 		!FLG_BUF		= $52
 		!NON_BUF		= $53
@@ -1219,8 +1219,7 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 			MOV CH1_NOTE+X, A       ;__
 		+ BBS4 CHTEMP_FLAGS, .PitchUpdate
 			; Retrigger
-			MOV $F2, #$5C       		;   Key off the needed channel
-			MOV $F3, !CHANNEL_BITMASK	;__
+			OR !KOF_BUF, !CHANNEL_BITMASK	;__	Key off the needed channel
 			if !SNESFM_CFG_PITCH_EFFECTS
 				MOV A, #$00						;
 				MOV CH1_PITCH_EFFECT_VAL_L+X, A	;	Reset pitch effect value
@@ -1235,10 +1234,7 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 		.KeyOn:
 			EOR CHTEMP_FLAGS, #%00010000    ;__ Reduces branching
 			BBC4 CHTEMP_FLAGS, .ReadByte    ;__ (Inverted)
-				MOV $F2, #$5C       		;   Key off nothing (so no overrides happen)
-				MOV $F3, #$00       		;__
-				MOV $F2, #$4C       		;   Key on the needed channel
-				MOV $F3, !CHANNEL_BITMASK	;__
+				OR !KON_BUF, !CHANNEL_BITMASK	;__	Key off the needed channel
 				CLR4 CHTEMP_FLAGS           ;__ Do attack
 			-   JMP .ReadByte
 
@@ -1277,8 +1273,7 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 
 	.Keyoff:
 		SET1 CHTEMP_FLAGS
-		MOV $F2, #$5C
-		MOV $F3, !CHANNEL_BITMASK
+		OR !KOF_BUF, !CHANNEL_BITMASK	;__	Key off the needed channel
 		JMP .POPX_ReadByte
 
 	; End:
@@ -2043,6 +2038,8 @@ endif
 
 TransferRegisterData:
 	; X is 0, CHANNEL_BITMASK is 1, as needed
+	MOV $F2, #$5C		;	Send Key Offs
+	MOV $F3, !KOF_BUF	;__
 	MOV !CHANNEL_REGISTER_INDEX, X
 	.Loop:
 		; Order: volume, envelope, source, pitch
@@ -2083,7 +2080,15 @@ TransferRegisterData:
 		BNE .Loop
 
 	MOV X, #$00
+	MOV $F2, #$5C		;	Send no Key Offs
+	MOV $F3, X			;__
+	MOV $F2, #$4C		;	Send Key Ons
+	MOV $F3, !KON_BUF	;__
+
 	INC !CHANNEL_BITMASK
+
+	MOV !KOF_BUF, X
+	MOV !KON_BUF, X
 	RET
 
 TransferDataBlock:
