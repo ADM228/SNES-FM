@@ -1138,16 +1138,16 @@ Begin:
 		MOV X, A
 		BNE -
 
-	MOV $F2, #$5C		;	Key Off Nothing
-	MOV $F3, X			;__
+	MOV DSPADDR, #KOFF	;	Key Off Nothing
+	MOV DSPDATA, X		;__
 	if not(!SNESFM_CFG_HARDWARE_NOISE_SUPPORT)
-		MOV $F2, #$3D	;	Disable noise on all channels
-		MOV $F3, X		;__
+		MOV DSPADDR, #NON	;	Disable noise on all channels
+		MOV DSPDATA, X		;__
 	endif
-	MOV $F2, #$6C	;	Unmute, disable echo
-	MOV $F3, #$20	;__
+	MOV DSPADDR, #$FLG	;	Unmute, disable echo
+	MOV DSPDATA, #$20	;__
 
-	MOV A, $FD		;__	Reset timer
+	MOV A, T0OUT		;__	Reset timer
 	JMP MainLoop_WaitLoop
 
 
@@ -1445,7 +1445,7 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 
 MainLoop:
 	.WaitLoop:
-		MOV !TIMER_VALUE, $FD
+		MOV !TIMER_VALUE, T0OUT
 		MOV A, !TIMER_VALUE
 		BEQ .WaitLoop
 	.Action:
@@ -2037,20 +2037,20 @@ endif
 
 TransferRegisterData:
 	; X is 0, CHANNEL_BITMASK is 1, as needed
-	MOV $F2, #$5C		;	Send Key Offs
-	MOV $F3, !KOFF_BUF	;__
+	MOV DSPADDR, #KOFF		;	Send Key Offs
+	MOV DSPDATA, !KOFF_BUF	;__
 	MOV !CHANNEL_REGISTER_INDEX, X
 	.Loop:
 		; Order: volume, envelope, source, pitch
 		LSR !UPD_VOL
 		BCC ..UpdateEnvelope
 			AND !CHANNEL_REGISTER_INDEX, #$70
-			MOV $F2, !CHANNEL_REGISTER_INDEX
+			MOV DSPADDR, !CHANNEL_REGISTER_INDEX
 			MOV A, CH1_VOLL+X
-			MOV $F3, A
-			INC $F2
+			MOV DSPDATA, A
+			INC DSPADDR
 			MOV A, CH1_VOLR+X
-			MOV $F3, A
+			MOV DSPDATA, A
 		..UpdateEnvelope:
 		..UpdateSource:
 		; Ends here right now
@@ -2059,15 +2059,15 @@ TransferRegisterData:
 		BCC ..End
 			MOV A, !CHANNEL_REGISTER_INDEX
 			AND A, #$70
-			OR A, #$02
-			MOV $F2, A
+			OR A, #V0PITCHL
+			MOV DSPADDR, A
 			MOV !CHANNEL_REGISTER_INDEX, A
 
 			MOV A, CH1_PITCHLO+X
-			MOV $F3, A
-			INC $F2
+			MOV DSPDATA, A
+			INC DSPADDR
 			MOV A, CH1_PITCHHI+X
-			MOV $F3, A
+			MOV DSPDATA, A
 		..End:
 		MOV A, X
 		CLRC
@@ -2079,12 +2079,12 @@ TransferRegisterData:
 		BNE .Loop
 
 	MOV X, #$00
-	MOV $F2, #$5C		;	Send no Key Offs
-	MOV $F3, X			;__
-	MOV $F2, #$4C		;	Send Key Ons
-	MOV $F3, !KON_BUF	;__
-
 	INC !CHANNEL_BITMASK
+
+	MOV DSPADDR, #KOFF		;	Send no Key Offs
+	MOV DSPDATA, X			;__
+	MOV DSPADDR, #KON		;	Send Key Ons
+	MOV DSPDATA, !KON_BUF	;__
 
 	MOV !KOFF_BUF, X
 	MOV !KON_BUF, X
