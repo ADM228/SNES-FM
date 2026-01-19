@@ -434,7 +434,7 @@ InternalDefines:
 		; Global register buffers
 		!KOFF_BUF		= $50
 		!KON_BUF		= $51
-		!FLG_BUF		= $52
+		!NCLK_BUF		= $52
 		!NON_BUF		= $53
 		!EON_BUF		= $54
 		!ESA_BUF		= $55
@@ -1806,11 +1806,8 @@ UpdatePitch:
 	if !SNESFM_CFG_HARDWARE_NOISE_SUPPORT
 		BBS0 CHTEMP_INSTRUMENT_TYPE, .TonePitch
 		.NoisePitch:
-			AND A, #$1F                             ;
-			MOV $F2, #$6C                           ;  Update noise clock
-			AND $F3, #$E0                           ;
-			OR A, $F3                               ;
-			%realChannelWrite()                     ;__
+			AND A, #$1F			;	Update noise clock
+			MOV !NCLK_BUF, A	;__
 			RET
 	endif
 	.TonePitch:
@@ -2077,8 +2074,15 @@ TransferRegisterData:
 	MOV X, #$00
 	INC !CHANNEL_BITMASK
 
+	if !SNESFM_CFG_HARDWARE_NOISE_SUPPORT
+	MOV DSPADDR, #FLG		;
+	MOV A, DSPDATA			;
+	AND A, #$E0				;	Update Noise Pitch
+	OR A, !NCLK_BUF			;
+	MOV DSPDATA, A			;__
 	MOV DSPADDR, #NON		;	Send Noise Enable
 	EOR DSPDATA, !NON_BUF	;__
+	endif
 	MOV DSPADDR, #KOFF		;	Send no Key Offs
 	MOV DSPDATA, X			;__
 	MOV DSPADDR, #KON		;	Send Key Ons
