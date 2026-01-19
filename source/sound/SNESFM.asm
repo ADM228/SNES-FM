@@ -1670,7 +1670,7 @@ ParseInstrumentData:
 			db $00 ; Pitchbend, move to the beginning when implementing
 
 	.UpdateInstrumentType:
-		POP X
+		MOV X, !BACKUP_X
 		if !SNESFM_CFG_HARDWARE_NOISE_SUPPORT
 			MOV0 C, CHTEMP_INSTRUMENT_TYPE		;__ Get the old value
 			MOV A, (!TEMP_POINTER1_L)+Y			;   Get the current value
@@ -1686,48 +1686,45 @@ ParseInstrumentData:
 		..Envelope:
 		AND !CHANNEL_REGISTER_INDEX, #$70	;
 		OR !CHANNEL_REGISTER_INDEX, #$05	;
-		MOV $F2, !CHANNEL_REGISTER_INDEX	;
-		MOV1 C, $F3							;   If the envelope mode isn't changed,
-		EOR1 C, CHTEMP_INSTRUMENT_TYPE		;   don't clear the envelope
+		MOV DSPADDR, !CHANNEL_REGISTER_INDEX;
+		MOV1 C, DSPDATA						;	If the envelope mode isn't changed,
+		EOR1 C, CHTEMP_INSTRUMENT_TYPE		;	don't clear the envelope
 		BCC .R								;__
-		AND !CHANNEL_REGISTER_INDEX, #$70	;
+		OR !UPD_ENV, !CHANNEL_BITMASK
+		MOV A, #$00
 		BBC1 CHTEMP_INSTRUMENT_TYPE, +		;
-			OR !CHANNEL_REGISTER_INDEX, #$05;   Write address to DSP (ADSR1)
-			MOV $F2, !CHANNEL_REGISTER_INDEX;__
-			MOV $F3, #$80					;   If ADSR is used,
-			INC $F2							;   Clear out the ADSR envelope
-			MOV $F3, #$00					;__
-		#.R	RET
-		+:                                  ;
-			OR !CHANNEL_REGISTER_INDEX, #$08;
-			MOV $F2, !CHANNEL_REGISTER_INDEX;
-			MOV A, $F3                      ;   If GAIN is used,
-			DEC $F2                         ;   set the GAIN envelope to the current value
-			%realChannelWrite()             ;
-			DEC $F2                         ;
-			DEC $F2                         ;
-			MOV $F3, #$00                   ;__
+			MOV CH1_ADSR2+X, A				;	If ADSR is used,
+			MOV A, #$80						;	Clear out the ADSR envelope
+			MOV CH1_ADSR1+X, A				;__
+		#.R	POP X
+			RET
+		+:									;
+			MOV CH1_ADSR1+X, A				;
+			MOV A, !CHANNEL_REGISTER_INDEX	;
+			AND A, #$70						;
+			OR A, #$08						;	If GAIN is used,
+			MOV DSPADDR, A					;	set the GAIN envelope to the current value
+			MOV A, DSPDATA					;
+			MOV CH1_GAIN+X, A				;__
+		POP X
 		RET
 
 	.UpdateEnvelope:
-		POP X
-		AND !CHANNEL_REGISTER_INDEX, #$70           ;
-		BBC1 CHTEMP_INSTRUMENT_TYPE, +             	;
-			OR !CHANNEL_REGISTER_INDEX, #$05        ;
-			MOV $F2, !CHANNEL_REGISTER_INDEX        ;
-			MOV A, (!TEMP_POINTER1_L)+Y             ;   Update Attack, Decay
-			INC Y                                   ;
-			OR A, #$80                              ;
-			%realChannelWrite()                     ;__
-			INC $F2                                 ;
-			MOV A, (!TEMP_POINTER1_L)+Y             ;   Update Sustain, Release
-			%realChannelWrite()                     ;__
+		MOV X, !BACKUP_X
+		OR !UPD_ENV, !CHANNEL_BITMASK
+		BBC1 CHTEMP_INSTRUMENT_TYPE, +		;
+			MOV A, (!TEMP_POINTER1_L)+Y		;
+			INC Y							;	Update Attack, Decay
+			OR A, #$80						;
+			MOV CH1_ADSR1+X, A				;__
+			MOV A, (!TEMP_POINTER1_L)+Y		;	Update Sustain, Release
+			MOV CH1_ADSR2+X, A				;__
+			POP X
 			RET
 		+:
-			OR !CHANNEL_REGISTER_INDEX, #$07        ;
-			MOV $F2, !CHANNEL_REGISTER_INDEX        ;   Update GAIN envelope
-			MOV A, (!TEMP_POINTER1_L)+Y             ;
-			%realChannelWrite()                     ;__
+			MOV A, (!TEMP_POINTER1_L)+Y		;	Update GAIN envelope
+			MOV CH1_GAIN+X, A				;__
+			POP X
 			RET
 	.UpdateSamplePointer:
 		MOV X, !BACKUP_X					    ;__
@@ -2045,6 +2042,26 @@ TransferRegisterData:
 			MOV A, CH1_VOLR+X
 			MOV DSPDATA, A
 		..UpdateEnvelope:
+		LSR !UPD_ENV
+		BCC ..UpdateSource
+			MOV A, !CHANNEL_REGISTER_INDEX
+			AND A, #$70
+			OR A, #V0ADSR2
+			MOV DSPADDR, A
+
+			MOV A, CH1_ADSR2+X	;	aka CH1_GAIN
+			MOV Y, CH1_ADSR1+X	;__
+			BMI ...ADSR
+			...GAIN:
+				INC DSPADDR
+				MOV DSPDATA, A
+				DEC DSPADDR
+				JMP +
+			...ADSR:
+				MOV DSPDATA, A
+			+:
+				DEC DSPADDR
+				MOV DSPDATA, Y
 		..UpdateSource:
 		; Ends here right now
 		..UpdatePitch:
