@@ -1623,6 +1623,8 @@ ParseInstrumentData:
 		MOV !TEMP_POINTER1_H, A                 ;
 		INCW !TEMP_POINTER0_L                   ;__
 
+		; TODO: remove doubling, just INC by 2 within 256 bytes
+
 		MOV Y, !TEMP_VALUE2                     ;	Determine whether to double the pointer
 		MOV A, ..InsTypeMaskTable-1+Y 			; -	-1 cuz the Y is never 0
 		MOV Y, #$00
@@ -1730,16 +1732,15 @@ ParseInstrumentData:
 			MOV A, CHTEMP_INSTRUMENT_TYPE		;
 			AND A, #$30                         ;
 			XCN A                               ;
-			MOV $EF, A                          ;  Get pointer from sample index
-			MOV A, CHTEMP_INSTRUMENT_TYPE		;
-			AND A, #$40                         ;
-			OR A, $EF                           ;
+			ASL	A								;  Get pointer from sample index
+			MOV6 C, CHTEMP_INSTRUMENT_TYPE		;
+			ROR	A								;
 			TCALL 15                            ;
 			MOVW !TEMP_POINTER2_L, YA	        ;
 			MOV CH1_SAMPLE_POINTER_L+X, A       ;
 			MOV A, Y                            ;
 			MOV CH1_SAMPLE_POINTER_H+X, A       ;
-			JMP .updatePointer                   ;__
+			JMP .updatePointer                  ;__
 		+   MOV A, (!TEMP_POINTER1_L)+Y         ;
 			MOV !TEMP_POINTER2_L, A				;   If no, just blatantly
 			INC Y								;   Load sample pointer into memory
@@ -1759,14 +1760,13 @@ ParseInstrumentData:
 			RET
 
 		..withRestart:
-			MOV Y, A							;
 			MOV A, X							;
 			EOR A, #$04							;	Swap byte offset
-			MOV X, A							;
-			MOV A, Y							;__
-			MOV SMP_DIR_P0+3+X, A				;   If high byte is different,
-			MOV A, !TEMP_POINTER2_L				;   Update sample loop pointer
-			MOV SMP_DIR_P0+2+X, A				;__
+			MOV X, A							;__
+			MOVW YA, !TEMP_POINTER2_L			;
+			MOV SMP_DIR_P0+2+X, A				;   If high byte is different,
+			MOV A, Y							;   Update sample loop pointer
+			MOV SMP_DIR_P0+3+X, A				;__
 			; Reset to blank sample was here, if needed bring back here
 			AND !CHANNEL_REGISTER_INDEX, #$70	;
 			OR !CHANNEL_REGISTER_INDEX, #$04	;   Write address to DSP
