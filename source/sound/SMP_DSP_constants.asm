@@ -1,0 +1,139 @@
+; Useful named SNES DSP addresses
+; by alexmush
+; Registers
+TEST		= $F0
+CONTROL		= $F1
+DSPADDR		= $F2
+DSPDATA		= $F3
+CPUIO0		= $F4
+CPUIO1		= $F5
+CPUIO2		= $F6
+CPUIO3		= $F7
+T0TARGET	= $FA
+T1TARGET	= $FB
+T2TARGET	= $FC
+T0OUT		= $FD
+T1OUT		= $FE
+T2OUT		= $FF
+
+; Global DSP Registers
+MVOLL	= $0C
+MVOLR	= $1C
+EVOLL	= $2C
+EVOLR	= $3C
+KON		= $4C
+KOFF	= $5C
+FLG		= $6C
+ENDX	= $7C
+EFB		= $0D
+PMON	= $2D
+NON		= $3D
+EON		= $4D
+DIR		= $5D
+ESA		= $6D
+EDL		= $7D
+FIR0	= $0F
+FIR1	= $1F
+FIR2	= $2F
+FIR3	= $3F
+FIR4	= $4F
+FIR5	= $5F
+FIR6	= $6F
+FIR7	= $7F
+
+; Per-Voice DSP registers
+; Voice 0
+V0VOLL		= $00
+V0VOLR		= $01
+V0PITCHL	= $02
+V0PITCHH	= $03
+V0SRCN		= $04
+V0ADSR1		= $05
+V0ADSR2		= $06
+V0GAIN		= $07
+V0ENVX		= $08
+V0OUTX		= $09
+
+; Voice 1
+V1VOLL		= $10
+V1VOLR		= $11
+V1PITCHL	= $12
+V1PITCHH	= $13
+V1SRCN		= $14
+V1ADSR1		= $15
+V1ADSR2		= $16
+V1GAIN		= $17
+V1ENVX		= $18
+V1OUTX		= $19
+
+; Voice 2
+V2VOLL		= $20
+V2VOLR		= $21
+V2PITCHL	= $22
+V2PITCHH	= $23
+V2SRCN		= $24
+V2ADSR1		= $25
+V2ADSR2		= $26
+V2GAIN		= $27
+V2ENVX		= $28
+V2OUTX		= $29
+
+; Voice 3
+V3VOLL		= $30
+V3VOLR		= $31
+V3PITCHL	= $32
+V3PITCHH	= $33
+V3SRCN		= $34
+V3ADSR1		= $35
+V3ADSR2		= $36
+V3GAIN		= $37
+V3ENVX		= $38
+V3OUTX		= $39
+
+; Voice 4
+V4VOLL		= $40
+V4VOLR		= $41
+V4PITCHL	= $42
+V4PITCHH	= $43
+V4SRCN		= $44
+V4ADSR1		= $45
+V4ADSR2		= $46
+V4GAIN		= $47
+V4ENVX		= $48
+V4OUTX		= $49
+
+; Voice 5
+V5VOLL		= $50
+V5VOLR		= $51
+V5PITCHL	= $52
+V5PITCHH	= $53
+V5SRCN		= $54
+V5ADSR1		= $55
+V5ADSR2		= $56
+V5GAIN		= $57
+V5ENVX		= $58
+V5OUTX		= $59
+
+; Voice 6
+V6VOLL		= $60
+V6VOLR		= $61
+V6PITCHL	= $62
+V6PITCHH	= $63
+V6SRCN		= $64
+V6ADSR1		= $65
+V6ADSR2		= $66
+V6GAIN		= $67
+V6ENVX		= $68
+V6OUTX		= $69
+
+; Voice 7
+V7VOLL		= $70
+V7VOLR		= $71
+V7PITCHL	= $72
+V7PITCHH	= $73
+V7SRCN		= $74
+V7ADSR1		= $75
+V7ADSR2		= $76
+V7GAIN		= $77
+V7ENVX		= $78
+V7OUTX		= $79
