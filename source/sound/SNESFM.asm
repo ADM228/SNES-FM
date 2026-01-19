@@ -432,7 +432,7 @@ InternalDefines:
 		!TEMP_POINTER2_H = $0F
 
 		; Global register buffers
-		!KOF_BUF		= $50
+		!KOFF_BUF		= $50
 		!KON_BUF		= $51
 		!FLG_BUF		= $52
 		!NON_BUF		= $53
@@ -503,6 +503,7 @@ InternalDefines:
 
 		SineTable = $0F00
 
+incsrc "SMP_DSP_constants.asm"
 
 ;
 
@@ -511,20 +512,20 @@ Init:       ;init routine by KungFuFurby
 	;DSP register initialization will now take place.
 	.clear:
 		clrp                    ;Zero direct page flag.
-		mov A, #$6C             ;Stop all channels first.
+		mov A, #KOFF            ;Stop all channels first.
 		mov Y, #$FF             ;KOFF will be cleared
-		movw $F2, YA            ;later on, though.
+		movw DSPADDR, YA        ;later on, though.
 		inc Y
 		mov A, #$7F
 		..loop:
-			movw $F2, YA            ;Clear DSP register.
+			movw DSPADDR, YA    ;Clear DSP register.
 			mov Y, #$00
-			cmp A, #$6C+1
+			cmp A, #FLG+1
 			bne ..not_flg
 			mov Y, #%01100000
 
 		..not_flg:
-			cmp A, #$6D+1
+			cmp A, #ESA+1
 			bne ..not_esa
 		;For ESA, set to $80.
 		;(Max EDL is $0F, which consumes $7800 bytes.
@@ -536,26 +537,24 @@ Init:       ;init routine by KungFuFurby
 			bpl ..loop
 
 	.set_vol:
-		MOV A, #$3C
+		MOV A, #EVOLR
 		MOV Y, #$7F
 		SETC
 		..loop:
-			MOVW $F2, YA
+			MOVW DSPADDR, YA
 			; SETC      ; not needed as it's set in the beginning, and when it clears we need to exit
 			SBC A, #$10
 			BCS ..loop
 
 	INC A           ; Set A to 0
 
-	MOVW $F4, YA    ;   Clear output ports
-	MOVW $F6, YA    ;__
+	MOVW CPUIO0, YA	;   Clear output ports
+	MOVW CPUIO1, YA	;__
 	MOV MESSAGE_CNT_TH1, A
-	MOV $F1, #$30   ;__ Clear input ports
-	MOV X, #$FF     ;   Reset the stack
-	MOV SP, X       ;__
-	MOV $F2, #$5D				;   Set sample directory
-	MOV $F3, #(SMP_DIR_P0>>8)	;__
-	MOV $F1, #$00	;
+	MOV CONTROL, #$30	;__ Clear input ports
+	MOV DSPADDR, #DIR				;   Set sample directory
+	MOV DSPDATA, #(SMP_DIR_P0>>8)	;__
+	MOV CONTROL, #$00	;__
 	MOV $FA, #$43	;   Set Timer 0 to 8.375 ms  (~120 Hz)
 	;MOV $FA, #$50	;   Set Timer 0 to 10 ms     (100 Hz)
 	;MOV $FA, #$64	;   Set Timer 0 to 12.5 ms   (80 Hz)
@@ -1219,7 +1218,7 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 			MOV CH1_NOTE+X, A       ;__
 		+ BBS4 CHTEMP_FLAGS, .PitchUpdate
 			; Retrigger
-			OR !KOF_BUF, !CHANNEL_BITMASK	;__	Key off the needed channel
+			OR !KOFF_BUF, !CHANNEL_BITMASK	;__	Key off the needed channel
 			if !SNESFM_CFG_PITCH_EFFECTS
 				MOV A, #$00						;
 				MOV CH1_PITCH_EFFECT_VAL_L+X, A	;	Reset pitch effect value
@@ -1273,7 +1272,7 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 
 	.Keyoff:
 		SET1 CHTEMP_FLAGS
-		OR !KOF_BUF, !CHANNEL_BITMASK	;__	Key off the needed channel
+		OR !KOFF_BUF, !CHANNEL_BITMASK	;__	Key off the needed channel
 		JMP .POPX_ReadByte
 
 	; End:
@@ -2039,7 +2038,7 @@ endif
 TransferRegisterData:
 	; X is 0, CHANNEL_BITMASK is 1, as needed
 	MOV $F2, #$5C		;	Send Key Offs
-	MOV $F3, !KOF_BUF	;__
+	MOV $F3, !KOFF_BUF	;__
 	MOV !CHANNEL_REGISTER_INDEX, X
 	.Loop:
 		; Order: volume, envelope, source, pitch
@@ -2087,7 +2086,7 @@ TransferRegisterData:
 
 	INC !CHANNEL_BITMASK
 
-	MOV !KOF_BUF, X
+	MOV !KOFF_BUF, X
 	MOV !KON_BUF, X
 	RET
 
