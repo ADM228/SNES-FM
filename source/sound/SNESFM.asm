@@ -1220,23 +1220,20 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 		+ BBS4 CHTEMP_FLAGS, .PitchUpdate
 			; Retrigger
 			OR !KOFF_BUF, !CHANNEL_BITMASK	;__	Key off the needed channel
+			OR !KON_BUF, !CHANNEL_BITMASK	;__	Key on the needed channel
 			if !SNESFM_CFG_PITCH_EFFECTS
+				SET0 !PLAYBACK_FLAGS
 				MOV A, #$00						;
 				MOV CH1_PITCH_EFFECT_VAL_L+X, A	;	Reset pitch effect value
 				MOV A, Y	; Y is 0			;	TODO: configurability???
 				MOV CH1_PITCH_EFFECT_VAL_H+X, A	;__
 			endif
-		BBS5 CHTEMP_FLAGS, .PitchUpdate
+		BBS5 CHTEMP_FLAGS, .ReadByte
 			CALL .CallInstrumentParser
 			MOV A, CH1_NOTE+X
 		.PitchUpdate:
-			TCALL 14
-		.KeyOn:
-			EOR CHTEMP_FLAGS, #%00010000    ;__ Reduces branching
-			BBC4 CHTEMP_FLAGS, .ReadByte    ;__ (Inverted)
-				OR !KON_BUF, !CHANNEL_BITMASK	;__	Key off the needed channel
-				CLR4 CHTEMP_FLAGS           ;__ Do attack
-			-   JMP .ReadByte
+			CLR4 CHTEMP_FLAGS
+		-	JMP .ReadByte
 
 
 
