@@ -2067,15 +2067,14 @@ TransferRegisterData:
 				; Update Source DSP register:
 				MOV A, !CHANNEL_REGISTER_INDEX
 				OR A, #V0SRCN
-				MOV DSPADDR, A
-				MOV DSPDATA, Y
-				BRA ..UpdatePitch	;__ slower but loop size is 128
+				MOVW DSPADDR, YA
+				JMP ..UpdatePitch
 			...UpdateSourceLowByte:
 				MOV A, CH1_FLAGS+X
 				BMI +
 					MOV A, Y
 					MOV SMP_DIR_P0+2+X, A
-					BRA ..UpdatePitch	;__ slower but loop size is 128
+					JMP ..UpdatePitch
 				+:
 
 					MOV A, Y
