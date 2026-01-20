@@ -226,9 +226,8 @@ Documentation:
 		;   $A  |    |           |           |   Data transfer finished
 		;   $F  |    |           |           |   What?
 	;   Sound engine documentation:
-		;   Channel flags: n0Iafoir
+		;   Channel flags: n00afoir
 		;   n - sample number (0 or 1)
-		;   I - whether it is the first frame of an instrument (stops from parsing instrument data on that frame)
 		;   a - whether to disable the attack
 		;   f - whether to reset the instrument
 		;   o - in real channels: whether the channel is overridden by a virtual channel
@@ -1191,8 +1190,11 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 		AND A, #$C0
 		OR A, !TEMP_VALUE
 		MOV CH1_INSTRUMENT_INDEX+X, A
-		CALL .CallInstrumentParser
-		JMP .ReadByte
+		CLR1 CHTEMP_FLAGS	;__	Yes instrument
+		SET3 CHTEMP_FLAGS	;__	Reset instrument
+		MOV CHTEMP_COUNTERS_HALT, Y
+		MOV CHTEMP_COUNTERS_DIRECTION, Y
+		JMP .Y00ReadByte
 
 	.WaitCmd:
 		BNE +
@@ -1218,7 +1220,7 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 		BEQ +						;   If absolutely nothing changed
 			SET0 !PLAYBACK_FLAGS	;   no need to update the pitch
 			MOV CH1_NOTE+X, A       ;__
-		+ BBS4 CHTEMP_FLAGS, .PitchUpdate
+		+ BBS4 CHTEMP_FLAGS, .ResetInstrument
 			; Retrigger
 			OR !KOFF_BUF, !CHANNEL_BITMASK	;__	Key off the needed channel
 			OR !KON_BUF, !CHANNEL_BITMASK	;__	Key on the needed channel
@@ -1229,12 +1231,12 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 				MOV A, Y	; Y is 0			;	TODO: configurability???
 				MOV CH1_PITCH_EFFECT_VAL_H+X, A	;__
 			endif
-		BBS5 CHTEMP_FLAGS, .ReadByte
-			CALL .CallInstrumentParser
-			MOV A, CH1_NOTE+X
-		.PitchUpdate:
-			CLR4 CHTEMP_FLAGS
-		-	JMP .ReadByte
+		.ResetInstrument:
+			AND CHTEMP_FLAGS, #~%00010010	;__	Yes instrument, Yes attack
+			SET3 CHTEMP_FLAGS	;__	Reset instrument
+			MOV CHTEMP_COUNTERS_HALT, Y
+			MOV CHTEMP_COUNTERS_DIRECTION, Y
+		-	JMP .Y00ReadByte
 
 
 
@@ -1296,14 +1298,6 @@ ParseSongData:	; WHEN ARE THE NAMESPACES COMING BACK
 
 	.RETJump:
 		RET
-
-	.CallInstrumentParser:
-
-		CLR1 CHTEMP_FLAGS
-		OR CHTEMP_FLAGS, #%00101000
-		MOV CHTEMP_COUNTERS_HALT, Y
-		MOV CHTEMP_COUNTERS_DIRECTION, Y
-		JMP ParseInstrumentData_Load
 
 	.SetVolumeL_or_R:
 		MOV A, (CHTEMP_SONG_POINTER_L)+Y    ; Y assumed to be 0
@@ -1532,12 +1526,7 @@ MainLoop:
 
 ParseInstrumentData:
 	.Start:
-		BBS5 CHTEMP_FLAGS, .OneOff
 		BBC1 CHTEMP_FLAGS, .Load
-		RET
-
-	.OneOff:
-		CLR5 CHTEMP_FLAGS
 		RET
 
 	.Load:
