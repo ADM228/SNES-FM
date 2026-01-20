@@ -2023,7 +2023,7 @@ TransferRegisterData:
 	MOV DSPDATA, !KOFF_BUF	;__
 	MOV !CHANNEL_REGISTER_INDEX, X
 	.Loop:
-		; Order: volume, envelope, source, pitch
+		; Order: volume, envelope, noise, source, pitch
 		LSR !UPD_VOL
 		BCC ..UpdateEnvelope
 			MOV DSPADDR, !CHANNEL_REGISTER_INDEX
@@ -2034,7 +2034,7 @@ TransferRegisterData:
 			MOV DSPDATA, A
 		..UpdateEnvelope:
 		LSR !UPD_ENV
-		BCC ..UpdateSource
+		BCC ..UpdateNoise
 			MOV A, !CHANNEL_REGISTER_INDEX
 			OR A, #V0ADSR2
 			MOV DSPADDR, A
@@ -2046,13 +2046,19 @@ TransferRegisterData:
 				INC DSPADDR
 				MOV DSPDATA, A
 				DEC DSPADDR
-				JMP +
+				db $65	;__	CMP abs opcode, skips the next opcode, slower but loop size is 128
 			...ADSR:
 				MOV DSPDATA, A
-			+:
 				DEC DSPADDR
 				MOV DSPDATA, Y
+		..UpdateNoise:
+		if !SNESFM_CFG_HARDWARE_NOISE_SUPPORT
+		LSR !NON_BUF
+		BCC ..UpdateSource
+			MOV DSPADDR, #NON				;	Send Noise Enable
+			EOR DSPDATA, !CHANNEL_BITMASK	;__
 		..UpdateSource:
+		endif
 		LSR !UPD_SRC
 		BCC ..UpdatePitchWithSourceMode
 			MOV Y, CH1_SRCN+X
@@ -2063,18 +2069,18 @@ TransferRegisterData:
 				OR A, #V0SRCN
 				MOV DSPADDR, A
 				MOV DSPDATA, Y
-				JMP ..UpdatePitch
+				BRA ..UpdatePitch	;__ slower but loop size is 128
 			...UpdateSourceLowByte:
 				MOV A, CH1_FLAGS+X
 				BMI +
 					MOV A, Y
 					MOV SMP_DIR_P0+2+X, A
-					JMP ..UpdatePitch
+					BRA ..UpdatePitch	;__ slower but loop size is 128
 				+:
 
 					MOV A, Y
 					MOV SMP_DIR_P0+6+X, A
-					JMP ..UpdatePitch
+					db $65	;__	CMP abs opcode, skips the next opcode, slower but loop size is 128
 		..UpdatePitchWithSourceMode:
 		LSR !UPD_SRC_MODE
 		..UpdatePitch:
@@ -2090,9 +2096,9 @@ TransferRegisterData:
 			INC DSPADDR
 			MOV A, CH1_PITCHHI+X
 			MOV DSPDATA, A
+			CLRC
 		..End:
 		MOV A, X
-		CLRC
 		ADC A, #$08
 		; This cannot set carry
 		ADC !CHANNEL_REGISTER_INDEX, #$10
@@ -2109,8 +2115,6 @@ TransferRegisterData:
 	AND A, #$E0				;	Update Noise Pitch
 	OR A, !NCLK_BUF			;
 	MOV DSPDATA, A			;__
-	MOV DSPADDR, #NON		;	Send Noise Enable
-	EOR DSPDATA, !NON_BUF	;__
 	endif
 	MOV DSPADDR, #KOFF		;	Send no Key Offs
 	MOV DSPDATA, X			;__
@@ -2119,7 +2123,6 @@ TransferRegisterData:
 
 	MOV !KOFF_BUF, X
 	MOV !KON_BUF, X
-	MOV !NON_BUF, X
 	RET
 
 TransferDataBlock:
