@@ -444,7 +444,8 @@ InternalDefines:
 		!UPD_VOL		= $58
 		!UPD_PITCH		= $59
 		!UPD_SRC		= $5A
-		!UPD_ENV		= $5B
+		!UPD_SRC_MODE	= $5B
+		!UPD_ENV		= $5C
 
 		; Channel register buffers
 		CH1_VOLL		= $60
@@ -1747,36 +1748,44 @@ ParseInstrumentData:
 			MOV A, (!TEMP_POINTER1_L)+Y         ;
 			MOV !TEMP_POINTER2_H, A				;__
 	.updatePointer:
-		BBC7 CHTEMP_FLAGS, +                    ;__ If the currently playing sample is 1, update sample 0
-			MOV A, X                            ;
-			OR A, #$04                          ;   Add 4 to the pointer
-			MOV X, A                            ;__
-		+
+		OR !UPD_SRC, !CHANNEL_BITMASK			;
+		BBC7 CHTEMP_FLAGS, ..sample0			;__ If the currently playing sample is 1, update sample 0
 			MOV A, !TEMP_POINTER2_H				;   Check if the high byte is the same
-			CMP A, SMP_DIR_P0+3+X				;__
-			BNE ..withRestart					;
+			CMP A, SMP_DIR_P0+7+X				;__
+			BNE ..sample1To0					;
+			..storeSampleNoChange:
+			OR !UPD_SRC_MODE, !CHANNEL_BITMASK	;__
 			MOV A, !TEMP_POINTER2_L				;	If yes, update only the low byte of the sample pointer
-			MOV SMP_DIR_P0+2+X, A				;__
+			MOV CH1_SRCN+X, A					;__
 			RET
 
-		..withRestart:
-			MOV A, X							;
-			EOR A, #$04							;	Swap byte offset
-			MOV X, A							;__
+		..sample1To0:
 			MOVW YA, !TEMP_POINTER2_L			;
 			MOV SMP_DIR_P0+2+X, A				;   If high byte is different,
 			MOV A, Y							;   Update sample loop pointer
 			MOV SMP_DIR_P0+3+X, A				;__
 			; Reset to blank sample was here, if needed bring back here
-			AND !CHANNEL_REGISTER_INDEX, #$70	;
-			OR !CHANNEL_REGISTER_INDEX, #$04	;   Write address to DSP
-			MOV $F2, !CHANNEL_REGISTER_INDEX	;__
-			MOV A, X		                    ;
-			LSR A                               ;   Write Source Number to DSP
-			LSR A                               ;
-			%realChannelWrite()                 ;__
+			MOV A, X							;
+			..storeSampleWithChange:			;
+			LSR A								;	Write new Source Number to DSP
+			LSR A								;
+			MOV CH1_SRCN+X, A					;__
 			EOR CHTEMP_FLAGS, #$80				;__ Next time update the other sample
 			RET
+
+		..sample0:
+			MOV A, !TEMP_POINTER2_H				;   Check if the high byte is the same
+			CMP A, SMP_DIR_P0+3+X				;__
+			BEQ ..storeSampleNoChange			;__
+		..sample0To1:							;
+			MOVW YA, !TEMP_POINTER2_L			;
+			MOV SMP_DIR_P0+6+X, A				;   If high byte is different,
+			MOV A, Y							;   Update sample loop pointer
+			MOV SMP_DIR_P0+7+X, A				;__
+			; Reset to blank sample was here, if needed bring back here
+			MOV A, X							;
+			OR A, #$04							;
+			JMP ..storeSampleWithChange			;__
 
 	.UpdateArpeggio:
 		MOV X, !BACKUP_X
@@ -2028,7 +2037,6 @@ TransferRegisterData:
 		; Order: volume, envelope, source, pitch
 		LSR !UPD_VOL
 		BCC ..UpdateEnvelope
-			AND !CHANNEL_REGISTER_INDEX, #$70
 			MOV DSPADDR, !CHANNEL_REGISTER_INDEX
 			MOV A, CH1_VOLL+X
 			MOV DSPDATA, A
@@ -2039,7 +2047,6 @@ TransferRegisterData:
 		LSR !UPD_ENV
 		BCC ..UpdateSource
 			MOV A, !CHANNEL_REGISTER_INDEX
-			AND A, #$70
 			OR A, #V0ADSR2
 			MOV DSPADDR, A
 
@@ -2057,7 +2064,30 @@ TransferRegisterData:
 				DEC DSPADDR
 				MOV DSPDATA, Y
 		..UpdateSource:
-		; Ends here right now
+		LSR !UPD_SRC
+		BCC ..UpdatePitchWithSourceMode
+			MOV Y, CH1_SRCN+X
+			LSR !UPD_SRC_MODE
+			BCS ...UpdateSourceLowByte
+				; Update Source DSP register:
+				MOV A, !CHANNEL_REGISTER_INDEX
+				OR A, #V0SRCN
+				MOV DSPADDR, A
+				MOV DSPDATA, Y
+				JMP ..UpdatePitch
+			...UpdateSourceLowByte:
+				MOV A, CH1_FLAGS+X
+				BMI +
+					MOV A, Y
+					MOV SMP_DIR_P0+2+X, A
+					JMP ..UpdatePitch
+				+:
+
+					MOV A, Y
+					MOV SMP_DIR_P0+6+X, A
+					JMP ..UpdatePitch
+		..UpdatePitchWithSourceMode:
+		LSR !UPD_SRC_MODE
 		..UpdatePitch:
 		LSR !UPD_PITCH
 		BCC ..End
@@ -2065,7 +2095,6 @@ TransferRegisterData:
 			AND A, #$70
 			OR A, #V0PITCHL
 			MOV DSPADDR, A
-			MOV !CHANNEL_REGISTER_INDEX, A
 
 			MOV A, CH1_PITCHLO+X
 			MOV DSPDATA, A
