@@ -1560,9 +1560,7 @@ ParseInstrumentData:
 		MOV !TEMP_VALUE2, #$04
 
 		-:
-			PUSH X
 			CALL .UpdateMacro
-			POP X
 			INC X
 			ASL !TEMP_VALUE
 			DBNZ !TEMP_VALUE2, -
@@ -1583,9 +1581,7 @@ ParseInstrumentData:
 				SBC A, !TIMER_VALUE
 				MOV CH1_MACRO_COUNTERS+X, A
 				BPL +
-					PUSH X
 					CALL .UpdateMacro
-					POP X
 					JMP ++
 			+
 				CLRC
@@ -1613,42 +1609,34 @@ ParseInstrumentData:
 		MOV !TEMP_POINTER1_H, A                 ;
 		INCW !TEMP_POINTER0_L                   ;__
 
-		; TODO: remove doubling, just INC by 2 within 256 bytes
+		MOV A, CH1_MACRO_POINTERS+X         	;__	Get the current macro pointer
+		MOV Y, A
 
-		MOV Y, !TEMP_VALUE2                     ;	Determine whether to double the pointer
-		MOV A, ..InsTypeMaskTable-1+Y 			; -	-1 cuz the Y is never 0
-		MOV Y, #$00
-		AND A, CHTEMP_INSTRUMENT_TYPE           ;__
-		BEQ +
-			MOV A, CH1_MACRO_POINTERS+X         ;
-			ASL A                               ;   Get the current
-			BCC ++                              ;   macro pointer (double)
-				INC Y                           ;
-			JMP ++                              ;__
-		+:
-			MOV A, CH1_MACRO_POINTERS+X         ;   Get the current macro pointer (single)
-		++:
-		ADDW YA, !TEMP_POINTER1_L               ;   Get the current
-		MOVW !TEMP_POINTER1_L, YA               ;__ macro pointer
-
-		MOV Y, #$00
-		MOV A, (!TEMP_POINTER0_L)+Y             ;   Get the amount of steps
-		INCW !TEMP_POINTER0_L                   ;__
-		CMP A, CH1_MACRO_POINTERS+X
-		BNE ++
-			OR CHTEMP_COUNTERS_HALT, !TEMP_VALUE
-			JMP +
-		++  ;TODO: More looping types
-			MOV A, CH1_MACRO_POINTERS+X
-			INC A
-			MOV CH1_MACRO_POINTERS+X, A
-			MOV A, (!TEMP_POINTER0_L)+Y			;__	Get the counter value
-			MOV CH1_MACRO_COUNTERS+X, A		    ;__ Store counter value
-		+
-		INCW !TEMP_POINTER0_L
+		PUSH X
 		MOV A, !TEMP_VALUE2
 		ASL A
 		MOV X, A
+		CALL ..UpdateCall
+		POP X
+
+		MOV A, Y
+		INC A
+		MOV Y, #$00
+		CMP A, (!TEMP_POINTER0_L)+Y             ;	Compare the amount of steps
+		BNE ..NoHalt							;__
+			OR CHTEMP_COUNTERS_HALT, !TEMP_VALUE;
+			INCW !TEMP_POINTER0_L				;	Halt counter if needed
+			INCW !TEMP_POINTER0_L				;__
+			RET
+		..NoHalt:								;
+			INCW !TEMP_POINTER0_L				;	Store current index
+			MOV CH1_MACRO_POINTERS+X, A			;__
+			MOV A, (!TEMP_POINTER0_L)+Y			;
+			INCW !TEMP_POINTER0_L				;	Store time left
+			MOV CH1_MACRO_COUNTERS+X, A			;__
+			RET
+
+		..UpdateCall:
 		JMP (..ActualUpdateTable-2+X) 			; -2 cuz it will never be 0, therefore shifting by 1
 
 		..ActualUpdateTable: ; Reversed because DBNZ and shit
@@ -1657,9 +1645,6 @@ ParseInstrumentData:
 			dw .UpdateEnvelope
 			dw .UpdateInstrumentType
 			dw $0000    ; Pitchbend, move to the beginning when implementing
-		..InsTypeMaskTable:     ; Reversed, Doubles the actual pointer if the bit is set in instrument type
-			db $00, !SAMPLE_USE_ADDRESS, !ENVELOPE_TYPE_ADSR, $00
-			db $00 ; Pitchbend, move to the beginning when implementing
 
 	.UpdateInstrumentType:
 		MOV X, !BACKUP_X
@@ -1718,7 +1703,8 @@ ParseInstrumentData:
 		MOV X, !BACKUP_X					    ;__
 		BBS3 CHTEMP_INSTRUMENT_TYPE, +			;__ If sample index is used,
 			MOV A, (!TEMP_POINTER1_L)+Y         ;
-			MOV Y, A                            ;
+			PUSH Y
+			MOV Y, A							;
 			MOV A, CHTEMP_INSTRUMENT_TYPE		;
 			AND A, #$30                         ;
 			XCN A                               ;
@@ -1728,8 +1714,9 @@ ParseInstrumentData:
 			TCALL 15                            ;
 			MOVW !TEMP_POINTER2_L, YA	        ;
 			MOV CH1_SAMPLE_POINTER_L+X, A       ;
-			MOV A, Y                            ;
+			MOV A, Y							;
 			MOV CH1_SAMPLE_POINTER_H+X, A       ;
+			POP Y								;
 			JMP .updatePointer                  ;__
 		+   MOV A, (!TEMP_POINTER1_L)+Y         ;
 			MOV !TEMP_POINTER2_L, A				;   If no, just blatantly
@@ -1749,9 +1736,9 @@ ParseInstrumentData:
 			RET
 
 		..sample1To0:
-			MOVW YA, !TEMP_POINTER2_L			;
+			MOV A, !TEMP_POINTER2_L				;
 			MOV SMP_DIR_P0+2+X, A				;   If high byte is different,
-			MOV A, Y							;   Update sample loop pointer
+			MOV A, !TEMP_POINTER2_H				;   Update sample loop pointer
 			MOV SMP_DIR_P0+3+X, A				;__
 			; Reset to blank sample was here, if needed bring back here
 			MOV A, X							;
@@ -1767,9 +1754,9 @@ ParseInstrumentData:
 			CMP A, SMP_DIR_P0+3+X				;__
 			BEQ ..storeSampleNoChange			;__
 		..sample0To1:							;
-			MOVW YA, !TEMP_POINTER2_L			;
+			MOV A, !TEMP_POINTER2_L				;
 			MOV SMP_DIR_P0+6+X, A				;   If high byte is different,
-			MOV A, Y							;   Update sample loop pointer
+			MOV A, !TEMP_POINTER2_H				;   Update sample loop pointer
 			MOV SMP_DIR_P0+7+X, A				;__
 			; Reset to blank sample was here, if needed bring back here
 			MOV A, X							;

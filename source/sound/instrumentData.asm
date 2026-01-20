@@ -263,15 +263,15 @@ db !INS_NEW_HDR
     db %00000000, %00000000    ;Looping, everything one-shot for now
 
     dw !BASE_MEMORY-(InsDBEnd-i00InsType)
-    db $00, $00     ;
+    db $01, $00     ;
     dw !BASE_MEMORY-(InsDBEnd-i00Envelope)
-    db $00, $00
+    db $02, $00
     dw !BASE_MEMORY-(InsDBEnd-i00SmpPtr)
-    db $00, $00
-    dw !BASE_MEMORY-(InsDBEnd-i00Arpeggio)
     db $01, $00
+    dw !BASE_MEMORY-(InsDBEnd-i00Arpeggio)
+    db $02, $00
     dw !BASE_MEMORY-(InsDBEnd-i00Pitchbend)
-    db $00, $00
+    db $01, $00
 
 db !INS_NEW_HDR
 
@@ -280,15 +280,15 @@ db !INS_NEW_HDR
     db %00000000, %00000000
 
     dw !BASE_MEMORY-(InsDBEnd-i01InsType)
-    db $00, $00
+    db $01, $00
     dw !BASE_MEMORY-(InsDBEnd-i01Envelope)
-    db $01, $0B
+    db $02, $0B
     dw !BASE_MEMORY-(InsDBEnd-i01SmpPtr)
-    db $00, $00
+    db $02, $00
     dw !BASE_MEMORY-(InsDBEnd-i01Arpeggio)
-    db $0B, $00
+    db $0C, $00
     dw !BASE_MEMORY-(InsDBEnd-i01Pitchbend)
-    db $00, $00
+    db $01, $00
 
 db !INS_NEW_HDR
 
@@ -298,15 +298,15 @@ db !INS_NEW_HDR
     db %00000000, %00000000
 
     dw !BASE_MEMORY-(InsDBEnd-i02InsType)
-    db $03, $00
-    dw !BASE_MEMORY-(InsDBEnd-i02Envelope)
     db $04, $00
+    dw !BASE_MEMORY-(InsDBEnd-i02Envelope)
+    db $05, $00
     dw !BASE_MEMORY-(InsDBEnd-i02SmpPtr)
-    db $00, $00
+    db $01, $00
     dw !BASE_MEMORY-(InsDBEnd-i02Arpeggio)
-    db $03, $00
+    db $04, $00
     dw !BASE_MEMORY-(InsDBEnd-i02Pitchbend)
-    db $00, $00
+    db $01, $00
 
 db !INS_NEW_HDR
 
@@ -315,15 +315,15 @@ db !INS_NEW_HDR
     db %00000000, %00000000    ;Looping, everything one-shot for now
 
     dw !BASE_MEMORY-(InsDBEnd-i03InsType)
-    db $00, $00     ;
+    db $01, $00     ;
     dw !BASE_MEMORY-(InsDBEnd-i03Envelope)
-    db $00, $00
+    db $02, $00
     dw !BASE_MEMORY-(InsDBEnd-i03SmpPtr)
-    db $0F, $03
+    db $10, $03
     dw !BASE_MEMORY-(InsDBEnd-i03Arpeggio)
-    db $00, $00
+    db $01, $00
     dw !BASE_MEMORY-(InsDBEnd-i03Pitchbend)
-    db $00, $00
+    db $01, $00
 
 db !INS_NEW_HDR
 
@@ -333,15 +333,15 @@ db !INS_NEW_HDR
     db %00000000, %00000000
 
     dw !BASE_MEMORY-(InsDBEnd-i04InsType)
-    db $00, $00
-    dw !BASE_MEMORY-(InsDBEnd-i04Envelope)
     db $01, $00
+    dw !BASE_MEMORY-(InsDBEnd-i04Envelope)
+    db $02, $00
     dw !BASE_MEMORY-(InsDBEnd-i04SmpPtr)
-    db $00, $00
+    db $01, $00
     dw !BASE_MEMORY-(InsDBEnd-i04Arpeggio)
-    db $00, $00
+    db $01, $00
     dw !BASE_MEMORY-(InsDBEnd-i04Pitchbend)
-    db $00, $00
+    db $01, $00
 
 
 db !INS_DATA_END
